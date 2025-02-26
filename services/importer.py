@@ -2,7 +2,7 @@ import pandas as pd
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
-from models.participant import Participant, Session
+from models import Participant, Session
 from services.qrcode_generator import QRCodeGenerator
 
 def init_sessions():
