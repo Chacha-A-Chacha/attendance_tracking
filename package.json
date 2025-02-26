@@ -1,0 +1,25 @@
+{
+  "name": "attendance_tracking",
+  "version": "1.0.0",
+  "description": "Python, Flask and Alpine JS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Chacha-A-Chacha/attendance_tracking.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Chacha-A-Chacha/attendance_tracking/issues"
+  },
+  "homepage": "https://github.com/Chacha-A-Chacha/attendance_tracking#readme",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.0.9",
+    "tailwindcss": "^4.0.9"
+  }
+}
