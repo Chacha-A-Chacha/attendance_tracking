@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</head>
+<body>
+    <header>
+        <h1>Attendance Tracking Admin Dashboard</h1>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('admin.import') }}">Import Attendance</a></li>
+                <li><a href="{{ url_for('admin.reports') }}">Reports</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section>
+            <h2>Attendance Statistics</h2>
+            <div id="attendance-stats">
+                <!-- Attendance statistics will be dynamically loaded here -->
+            </div>
+        </section>
+        <section>
+            <h2>Manage Sessions</h2>
+            <button id="add-session">Add New Session</button>
+            <div id="session-list">
+                <!-- List of sessions will be displayed here -->
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2023 Attendance Tracking System</p>
+    </footer>
+</body>
+</html>

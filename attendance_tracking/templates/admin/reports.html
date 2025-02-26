@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Reports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Attendance Reports</h1>
+        <form method="POST" action="{{ url_for('admin.generate_report') }}">
+            <label for="session">Select Session:</label>
+            <select name="session" id="session">
+                {% for session in sessions %}
+                    <option value="{{ session.id }}">{{ session.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Generate Report</button>
+        </form>
+
+        {% if report %}
+            <h2>Report for {{ report.session_name }}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Participant Name</th>
+                        <th>Check-in Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in report.attendance_records %}
+                        <tr>
+                            <td>{{ record.participant_name }}</td>
+                            <td>{{ record.check_in_time }}</td>
+                            <td>{{ record.status }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</body>
+</html>

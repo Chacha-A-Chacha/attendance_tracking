@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-In Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Check-In Result</h1>
+        {% if success %}
+            <div class="alert alert-success">
+                <p>Check-in successful! Welcome, {{ participant_name }}.</p>
+            </div>
+        {% else %}
+            <div class="alert alert-danger">
+                <p>Check-in failed. Please try again.</p>
+            </div>
+        {% endif %}
+        <a href="{{ url_for('check_in.scanner') }}">Return to Scanner</a>
+    </div>
+</body>
+</html>

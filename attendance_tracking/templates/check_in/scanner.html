@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/qrcode-scanner.js') }}"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Check In</h1>
+        <p>Please scan your QR code to check in.</p>
+        <div id="scanner"></div>
+        <div id="result"></div>
+    </div>
+    <script>
+        // Initialize the QR code scanner
+        const scanner = new QrScanner(document.getElementById('scanner'), result => {
+            document.getElementById('result').innerText = `Scanned result: ${result}`;
+            // Here you can add logic to handle the scanned result, such as sending it to the server
+        });
+        scanner.start();
+    </script>
+</body>
+</html>

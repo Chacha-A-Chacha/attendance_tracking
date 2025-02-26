@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Attendance Tracking{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</head>
+<body>
+    <header>
+        <h1>Attendance Tracking System</h1>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a></li>
+                <li><a href="{{ url_for('check_in.scanner') }}">Check In</a></li>
+                <li><a href="{{ url_for('participant.info') }}">Participant Info</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; {{ current_year }} Attendance Tracking System</p>
+    </footer>
+</body>
+</html>
