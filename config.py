@@ -42,6 +42,11 @@ class Config:
     LAPTOP_CLASSROOM = '203'
     NO_LAPTOP_CLASSROOM = '204'
     
+    SESSION_CAPACITY = {
+        '203': 30,  # Laptop classroom max capacity
+        '204': 40   # Non-laptop classroom max capacity
+    }
+
     # Create necessary directories if they don't exist
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(QR_CODE_FOLDER, exist_ok=True)
