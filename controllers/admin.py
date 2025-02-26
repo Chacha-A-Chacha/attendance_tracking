@@ -17,10 +17,10 @@ def initialize_data():
             'success': False,
             'message': f'Data file not found at {data_path}'
         }), 404
-    
+
     # Import the spreadsheet
     result = import_spreadsheet(data_path)
-    
+
     return jsonify(result)
 
 
@@ -42,6 +42,7 @@ def import_data():
                 flash(f'Error importing data: {str(e)}', 'danger')
             return redirect(url_for('admin.import_data'))
     return render_template('admin/import.html')
+
 
 @admin_bp.route('/admin/reports')
 def reports():

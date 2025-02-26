@@ -73,7 +73,7 @@ def get_participants_by_time_and_laptop(session_time, day, has_laptop=None):
     """
     Get participants for a specific session time and optionally filtered by laptop status
     """
-    from models.participant import Participant, Session
+    from models import Participant
     
     session = get_session_by_time(session_time, day)
     
@@ -100,7 +100,7 @@ def get_session_capacity(classroom):
 
 def get_session_count(session_id, classroom):
     """Get current count of participants in a session for a specific classroom"""
-    from models.participant import Participant
+    from models import Participant
     
     # Count participants with this session who are in this classroom
     count_saturday = Participant.query.filter_by(
@@ -127,7 +127,7 @@ def find_available_session(day, has_laptop, current_session_id=None):
     Find an available session with capacity on the given day
     Returns: Session object or None if no available sessions
     """
-    from models.participant import Session
+    from models import Session
     
     # Get classroom based on laptop status
     classroom = current_app.config['LAPTOP_CLASSROOM'] if has_laptop else current_app.config['NO_LAPTOP_CLASSROOM']
