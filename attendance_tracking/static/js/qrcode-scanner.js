@@ -1,33 +1,74 @@
-// filepath: /attendance_tracking/static/js/qrcode-scanner.js
-document.addEventListener('DOMContentLoaded', function() {
-    const video = document.createElement('video');
-    const canvasElement = document.createElement('canvas');
-    const canvas = canvasElement.getContext('2d');
-    const qrCodeResult = document.getElementById('qr-code-result');
-
-    // Start the video stream
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+document.addEventListener('DOMContentLoaded', () => {
+    const video = document.getElementById('qr-video');
+    const scanResult = document.getElementById('scan-result');
+    const sessionSelect = document.getElementById('session-select');
+    
+    // Access the camera
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(function(stream) {
             video.srcObject = stream;
-            video.setAttribute('playsinline', true); // required to tell iOS safari we don't want fullscreen
+            video.setAttribute('playsinline', true);
             video.play();
             requestAnimationFrame(tick);
         });
-
+    
     function tick() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvasElement.height = video.videoHeight;
-            canvasElement.width = video.videoWidth;
-            canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-            const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+            // Use jsQR library to scan for QR codes
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            
             const code = jsQR(imageData.data, imageData.width, imageData.height);
-
+            
             if (code) {
-                qrCodeResult.textContent = code.data; // Display the QR code result
-                // Optionally, stop the video stream after successful scan
-                video.srcObject.getTracks().forEach(track => track.stop());
+                // We found a QR code
+                verifyAttendance(code.data, sessionSelect.value);
             }
         }
+        
         requestAnimationFrame(tick);
+    }
+    
+    function verifyAttendance(uniqueId, sessionTime) {
+        fetch('/check-in/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                unique_id: uniqueId,
+                session_time: sessionTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                scanResult.innerHTML = `
+                    <div class="success">
+                        <h3>Welcome, ${data.participant.name}!</h3>
+                        <p>You are in the correct session.</p>
+                        <p>Your classroom: ${data.participant.classroom}</p>
+                    </div>
+                `;
+            } else {
+                scanResult.innerHTML = `
+                    <div class="error">
+                        <h3>Hello, ${data.participant.name}</h3>
+                        <p>This is not your scheduled session.</p>
+                        <p>Your session: ${data.correct_session}</p>
+                        <p>Your classroom: ${data.participant.classroom}</p>
+                    </div>
+                `;
+            }
+            
+            // Clear the result after 5 seconds
+            setTimeout(() => {
+                scanResult.innerHTML = '';
+            }, 5000);
+        });
     }
 });
