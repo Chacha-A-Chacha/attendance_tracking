@@ -38,7 +38,7 @@ def create_app(config_name=None):
 
 def initialize_default_data(app):
     """Initialize system with default data if needed"""
-    from models.participant import Session
+    from models import Session
     
     # Only proceed if no sessions exist (fresh installation)
     with app.app_context():
@@ -47,7 +47,7 @@ def initialize_default_data(app):
             init_sessions()
             
             # Check if default data file exists
-            data_path = os.path.join(app.root_path, 'data', 'participants.csv')
+            data_path = os.path.join(app.root_path, 'data', 'sessions_data.xlsx')
             if os.path.exists(data_path):
                 app.logger.info(f"Importing default data from {data_path}")
                 from services.importer import import_spreadsheet
@@ -58,4 +58,3 @@ def initialize_default_data(app):
 if __name__ == '__main__':
     app = create_app()
     app.run(debug=True)
-    

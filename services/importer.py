@@ -5,6 +5,7 @@ from app import db
 from models import Participant, Session
 from services.qrcode_generator import QRCodeGenerator
 
+
 def init_sessions():
     """Initialize session data from config"""
     # Check if sessions already exist
@@ -25,6 +26,7 @@ def init_sessions():
     
     db.session.commit()
 
+
 def import_spreadsheet(file_path):
     """Import participant data from spreadsheet"""
     # Make sure sessions are initialized
@@ -33,7 +35,7 @@ def import_spreadsheet(file_path):
     # Initialize QR code generator
     qr_generator = QRCodeGenerator()
     
-    df = pd.read_csv(file_path)
+    df = pd.read_excel(file_path)
     
     # Clean column names and handle potential encoding issues
     df.columns = [col.strip() for col in df.columns]
