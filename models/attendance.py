@@ -1,4 +1,5 @@
-
+from app import db
+from datetime import datetime
 
 
 class Attendance(db.Model):
