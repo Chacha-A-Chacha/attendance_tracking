@@ -170,10 +170,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 /node_modules
-<<<<<<< HEAD
 node_modules/
 /data
 /data/*
-=======
-node_modules/
->>>>>>> parent of accb10a (Initialize the system by importing the default data file)
