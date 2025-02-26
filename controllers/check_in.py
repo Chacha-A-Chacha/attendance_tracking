@@ -37,7 +37,6 @@ def verify():
     
     return jsonify(result)
 
-
 @check_in_bp.route('/history/<unique_id>')
 def attendance_history(unique_id):
     """Get attendance history for a participant"""
@@ -45,7 +44,6 @@ def attendance_history(unique_id):
     result = verifier.get_participant_attendance_history(unique_id)
     
     return jsonify(result)
-
 
 @check_in_bp.route('/sessions')
 def available_sessions():
