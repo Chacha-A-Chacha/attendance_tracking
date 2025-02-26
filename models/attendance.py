@@ -1,12 +1,17 @@
-class Attendance:
-    def __init__(self, participant_id, session_id, check_in_time, check_out_time=None):
-        self.participant_id = participant_id
-        self.session_id = session_id
-        self.check_in_time = check_in_time
-        self.check_out_time = check_out_time
 
-    def check_out(self, check_out_time):
-        self.check_out_time = check_out_time
 
+
+class Attendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
+    session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    is_correct_session = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    participant = db.relationship('Participant', back_populates='attendances')
+    session = db.relationship('Session', back_populates='attendances')
+    
     def __repr__(self):
-        return f"<Attendance(participant_id={self.participant_id}, session_id={self.session_id}, check_in_time={self.check_in_time}, check_out_time={self.check_out_time})>"
+        status = "Correct" if self.is_correct_session else "Incorrect"
+        return f'<Attendance {self.participant.name} - {status}>'

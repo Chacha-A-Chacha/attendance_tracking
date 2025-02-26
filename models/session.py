@@ -1,16 +1,20 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
 
-class Session(Base):
-    __tablename__ = 'sessions'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String, nullable=False)
-    start_time = Column(DateTime, nullable=False)
-    end_time = Column(DateTime, nullable=False)
-    location = Column(String, nullable=True)
-
+class Session(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    time_slot = db.Column(db.String(50), nullable=False)
+    day = db.Column(db.String(10), nullable=False)  # 'Saturday' or 'Sunday'
+    
+    # Participants with this session (using back_populates)
+    saturday_participants = db.relationship('Participant', 
+                                           foreign_keys='Participant.saturday_session_id',
+                                           back_populates='saturday_session')
+    sunday_participants = db.relationship('Participant', 
+                                         foreign_keys='Participant.sunday_session_id',
+                                         back_populates='sunday_session')
+    
+    # Attendances for this session
+    attendances = db.relationship('Attendance', back_populates='session', lazy='dynamic')
+    
     def __repr__(self):
-        return f"<Session(id={self.id}, title='{self.title}', start_time='{self.start_time}', end_time='{self.end_time}', location='{self.location}')>"
+        return f'<Session {self.day} {self.time_slot}>'

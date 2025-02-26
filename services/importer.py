@@ -32,7 +32,7 @@ def import_spreadsheet(file_path):
         )
         
         db.session.add(participant)
-        participants_added += 1
+        participants_added += 1                                          
         
     db.session.commit()
     return participants_added
