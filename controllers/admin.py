@@ -2,6 +2,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from services.importer import import_spreadsheet
 import os
 
+from models import Participant, Session
+from utils.session_mapper import get_session_capacity, get_session_count
+
 admin_bp = Blueprint('admin', __name__)
 
 
@@ -22,6 +25,75 @@ def initialize_data():
     result = import_spreadsheet(data_path)
 
     return jsonify(result)
+
+
+@admin_bp.route('/capacities', methods=['GET'])
+def get_capacities():
+    """Get capacity information for classrooms and sessions"""
+    # Get classroom capacities from config
+    classroom_capacities = current_app.config.get('SESSION_CAPACITY', {})
+    
+    # Get all sessions
+    sessions = Session.query.all()
+    
+    # Initialize data structure
+    capacity_data = {
+        "classroom_capacities": classroom_capacities,
+        "sessions": {}
+    }
+    
+    # Get laptop and no-laptop classroom IDs from config
+    laptop_classroom = current_app.config['LAPTOP_CLASSROOM']
+    no_laptop_classroom = current_app.config['NO_LAPTOP_CLASSROOM']
+    
+    # Calculate session counts and remaining capacity
+    for session in sessions:
+        session_key = f"{session.day}_{session.time_slot}"
+        
+        # Get counts for both classrooms
+        laptop_count = get_session_count(session.id, laptop_classroom)
+        no_laptop_count = get_session_count(session.id, no_laptop_classroom)
+        
+        # Get capacities
+        laptop_capacity = get_session_capacity(laptop_classroom)
+        no_laptop_capacity = get_session_capacity(no_laptop_classroom)
+        
+        # Store data
+        capacity_data["sessions"][session_key] = {
+            "id": session.id,
+            "day": session.day,
+            "time_slot": session.time_slot,
+            "classrooms": {
+                laptop_classroom: {
+                    "capacity": laptop_capacity,
+                    "current_count": laptop_count,
+                    "available": laptop_capacity - laptop_count,
+                    "percentage_filled": round((laptop_count / laptop_capacity) * 100, 1) if laptop_capacity > 0 else 0
+                },
+                no_laptop_classroom: {
+                    "capacity": no_laptop_capacity,
+                    "current_count": no_laptop_count,
+                    "available": no_laptop_capacity - no_laptop_count,
+                    "percentage_filled": round((no_laptop_count / no_laptop_capacity) * 100, 1) if no_laptop_capacity > 0 else 0
+                }
+            },
+            "total": {
+                "capacity": laptop_capacity + no_laptop_capacity,
+                "current_count": laptop_count + no_laptop_count,
+                "available": (laptop_capacity + no_laptop_capacity) - (laptop_count + no_laptop_count),
+                "percentage_filled": round(((laptop_count + no_laptop_count) / (laptop_capacity + no_laptop_capacity)) * 100, 1) if (laptop_capacity + no_laptop_capacity) > 0 else 0
+            }
+        }
+    
+    # Add summary data
+    capacity_data["summary"] = {
+        "total_capacity": sum(classroom_capacities.values()),
+        "total_registered": Participant.query.count(),
+        "saturday_sessions": len([s for s in sessions if s.day == "Saturday"]),
+        "sunday_sessions": len([s for s in sessions if s.day == "Sunday"])
+    }
+    
+    return jsonify(capacity_data)
 
 
 @admin_bp.route('/admin/dashboard')

@@ -43,8 +43,8 @@ class Config:
     NO_LAPTOP_CLASSROOM = '204'
     
     SESSION_CAPACITY = {
-        '203': 30,  # Laptop classroom max capacity
-        '204': 40   # Non-laptop classroom max capacity
+        '203': 60,  # Laptop classroom max capacity
+        '204': 60   # Non-laptop classroom max capacity
     }
 
     # Create necessary directories if they don't exist

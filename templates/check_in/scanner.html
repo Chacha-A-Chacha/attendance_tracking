@@ -1,26 +1,290 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Scanner</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <script src="{{ url_for('static', filename='js/qrcode-scanner.js') }}"></script>
-</head>
-<body>
-    <div class="container">
-        <h1>Check In</h1>
-        <p>Please scan your QR code to check in.</p>
-        <div id="scanner"></div>
-        <div id="result"></div>
+<!-- templates/check_in/scanner.html -->
+{% extends "base.html" %}
+
+{% block title %}QR Code Scanner{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <h1>Attendance Scanner</h1>
+            <h3>{{ day_name }} Sessions</h3>
+            <p class="current-time">Current Time: <span id="live-time">{{ current_time }}</span></p>
+        </div>
     </div>
-    <script>
-        // Initialize the QR code scanner
-        const scanner = new QrScanner(document.getElementById('scanner'), result => {
-            document.getElementById('result').innerText = `Scanned result: ${result}`;
-            // Here you can add logic to handle the scanned result, such as sending it to the server
+
+    <div class="row">
+        <!-- Scanner column -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">QR Code Scanner</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mb-3">
+                        <label for="session-select">Select Current Session:</label>
+                        <select id="session-select" class="form-control">
+                            {% for session in sessions %}
+                            <option value="{{ session.time_slot }}" 
+                                {% if current_session and current_session.id == session.id %}selected{% endif %}>
+                                {{ session.time_slot }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="text-center mb-3">
+                        <button id="start-camera" class="btn btn-success">Start Camera</button>
+                        <button id="stop-camera" class="btn btn-danger d-none">Stop Camera</button>
+                    </div>
+                    
+                    <div id="qr-reader-container" class="text-center">
+                        <div id="qr-reader" style="width: 100%; max-width: 500px; margin: 0 auto;"></div>
+                    </div>
+                    
+                    <div id="manual-entry" class="mt-3">
+                        <div class="input-group">
+                            <input type="text" id="manual-code" class="form-control" placeholder="Enter 5-digit code manually">
+                            <div class="input-group-append">
+                                <button id="manual-submit" class="btn btn-primary">Verify</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results column -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Scan Results</h5>
+                </div>
+                <div class="card-body">
+                    <div id="scan-result" class="mb-3">
+                        <div class="alert alert-info text-center">
+                            Scan a QR code to see results
+                        </div>
+                    </div>
+                    
+                    <div id="recent-scans">
+                        <h5>Recent Scans</h5>
+                        {% if recent_scans %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for scan in recent_scans %}
+                                    <tr class="{% if scan.status == 'Correct' %}table-success{% else %}table-danger{% endif %}">
+                                        <td>{{ scan.timestamp }}</td>
+                                        <td>{{ scan.name }}</td>
+                                        <td>{{ scan.status }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center">
+                            <a href="{{ url_for('check_in.clear_history') }}" class="btn btn-sm btn-outline-secondary">Clear History</a>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-light">
+                            No recent scans
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add HTML5-QR-Code library -->
+<script src="https://unpkg.com/html5-qrcode@2.2.1/html5-qrcode.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    const html5QrCode = new Html5Qrcode("qr-reader");
+    let scanning = false;
+    const scanResult = document.getElementById('scan-result');
+    const sessionSelect = document.getElementById('session-select');
+    const startCameraButton = document.getElementById('start-camera');
+    const stopCameraButton = document.getElementById('stop-camera');
+    const manualCodeInput = document.getElementById('manual-code');
+    const manualSubmitButton = document.getElementById('manual-submit');
+    const liveTimeElement = document.getElementById('live-time');
+    
+    // Update live time
+    function updateTime() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        liveTimeElement.textContent = `${hours}:${minutes}`;
+    }
+    
+    // Update time every minute
+    setInterval(updateTime, 60000);
+    updateTime();
+    
+    // Handle successful QR scan
+    function onScanSuccess(decodedText) {
+        // Prevent multiple rapid scans
+        if (scanning) {
+            scanning = false;
+            
+            // Play success sound
+            const successSound = new Audio('/static/sounds/beep-success.mp3');
+            successSound.play().catch(e => console.log('Audio play failed:', e));
+            
+            // Process the scan
+            verifyAttendance(decodedText);
+            
+            // Allow new scan after a delay
+            setTimeout(() => {
+                scanning = true;
+            }, 2000);
+        }
+    }
+    
+    // Start camera
+    startCameraButton.addEventListener('click', () => {
+        html5QrCode.start(
+            { facingMode: "environment" },  // Use back camera
+            { 
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            onScanSuccess,
+            (errorMessage) => {
+                // Just log errors, don't show to user
+                console.error(errorMessage);
+            }
+        ).then(() => {
+            scanning = true;
+            startCameraButton.classList.add('d-none');
+            stopCameraButton.classList.remove('d-none');
+        }).catch(err => {
+            alert(`Error starting camera: ${err}`);
         });
-        scanner.start();
-    </script>
-</body>
-</html>
+    });
+    
+    // Stop camera
+    stopCameraButton.addEventListener('click', () => {
+        html5QrCode.stop().then(() => {
+            scanning = false;
+            startCameraButton.classList.remove('d-none');
+            stopCameraButton.classList.add('d-none');
+        });
+    });
+    
+    // Process manual code entry
+    manualSubmitButton.addEventListener('click', () => {
+        const code = manualCodeInput.value.trim();
+        if (code.length === 5 && !isNaN(code)) {
+            verifyAttendance(code);
+            manualCodeInput.value = '';
+        } else {
+            alert('Please enter a valid 5-digit code');
+        }
+    });
+    
+    // Allow pressing Enter in manual input
+    manualCodeInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            manualSubmitButton.click();
+        }
+    });
+    
+    // Verify attendance with the server
+    function verifyAttendance(uniqueId) {
+        // Show loading state
+        scanResult.innerHTML = `
+            <div class="alert alert-info text-center">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                Verifying ID: ${uniqueId}...
+            </div>
+        `;
+        
+        // Send verification request
+        fetch('/check-in/verify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                unique_id: uniqueId,
+                session_time: sessionSelect.value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Format and display result
+            if (data.success) {
+                // Correct session
+                scanResult.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4 class="alert-heading">✓ Attendance Verified</h4>
+                        <p><strong>${data.participant.name}</strong></p>
+                        <p><strong>Class:</strong> ${data.participant.classroom}</p>
+                        <p><strong>Phone:</strong> ${data.participant.phone}</p>
+                        <p class="mb-0 text-success">${data.message}</p>
+                    </div>
+                `;
+            } else {
+                // Error or wrong session
+                if (data.status === 'wrong_session') {
+                    // Wrong session
+                    scanResult.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h4 class="alert-heading">✗ Wrong Session</h4>
+                            <p><strong>${data.participant.name}</strong></p>
+                            <p><strong>Class:</strong> ${data.participant.classroom}</p>
+                            <p><strong>Correct Session:</strong> ${data.correct_session.time}</p>
+                            <p class="mb-0 text-danger">${data.message}</p>
+                        </div>
+                    `;
+                } else if (data.error_code === 'participant_not_found') {
+                    // Participant not found
+                    scanResult.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h4 class="alert-heading">Participant Not Found</h4>
+                            <p>ID: ${uniqueId}</p>
+                            <p class="mb-0">This QR code is not registered in the system.</p>
+                        </div>
+                    `;
+                } else {
+                    // Other error
+                    scanResult.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h4 class="alert-heading">Error</h4>
+                            <p>${data.message || 'Unknown error occurred'}</p>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Refresh the page to update recent scans list
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            scanResult.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4 class="alert-heading">Connection Error</h4>
+                    <p>Could not connect to server. Please try again.</p>
+                </div>
+            `;
+        });
+    }
+});
+</script>
+{% endblock %}
