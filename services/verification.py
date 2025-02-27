@@ -72,7 +72,46 @@ class AttendanceVerifier:
 
             is_correct_session = (current_session.id == expected_session_id)
 
-            # Record attendance regardless of whether it's the correct session
+            # Check if attendance has already been recorded for this participant and session
+            existing_attendance = Attendance.query.filter_by(
+                participant_id=participant.id,
+                session_id=current_session.id
+            ).first()
+
+            # Prepare base response
+            response = {
+                'participant': {
+                    'name': participant.name,
+                    'email': participant.email,
+                    'phone': participant.phone,
+                    'classroom': participant.classroom,
+                    'has_laptop': participant.has_laptop
+                },
+                'timestamp': self.today.strftime('%Y-%m-%d %H:%M:%S')
+            }
+
+            # Handle case where attendance is already recorded
+            if existing_attendance:
+                response.update({
+                    'success': True,
+                    'attendance_recorded': False,
+                    'message': f'Attendance already recorded at {existing_attendance.timestamp.strftime("%H:%M:%S")}.',
+                    'status': 'already_recorded',
+                    'is_correct_session': existing_attendance.is_correct_session
+                })
+                
+                # Add information about correct session if needed
+                if not existing_attendance.is_correct_session:
+                    response.update({
+                        'correct_session': {
+                            'time': expected_session.time_slot if expected_session else 'Unknown',
+                            'day': expected_session.day if expected_session else self.get_current_day_name()
+                        }
+                    })
+                    
+                return response
+                
+            # Record new attendance since it doesn't exist yet
             attendance = Attendance(
                 participant_id=participant.id,
                 session_id=current_session.id,
@@ -83,18 +122,8 @@ class AttendanceVerifier:
             db.session.add(attendance)
             db.session.commit()
 
-            # Prepare response
-            response = {
-                'participant': {
-                    'name': participant.name,
-                    'email': participant.email,
-                    'phone': participant.phone,
-                    'classroom': participant.classroom,
-                    'has_laptop': participant.has_laptop
-                },
-                'attendance_recorded': True,
-                'timestamp': self.today.strftime('%Y-%m-%d %H:%M:%S')
-            }
+            # Update response with attendance info
+            response['attendance_recorded'] = True
 
             if is_correct_session:
                 response.update({
