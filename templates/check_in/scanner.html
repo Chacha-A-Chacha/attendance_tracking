@@ -322,70 +322,96 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             } else {
-                // Error or wrong session
-                if (data.status === 'wrong_session') {
-                    // Wrong session
+                if (data.status === 'already_recorded') {
+                    // Already recorded attendance
                     scanResult.innerHTML = `
-                        <div class="rounded-md bg-red-50 p-4">
+                        <div class="rounded-md bg-blue-50 p-4">
                             <div class="flex">
                                 <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                     </svg>
                                 </div>
                                 <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-red-800">Wrong Session</h3>
-                                    <div class="mt-2 text-sm text-red-700">
+                                    <h3 class="text-sm font-medium text-blue-800">Already Recorded</h3>
+                                    <div class="mt-2 text-sm text-blue-700">
                                         <p><strong>${data.participant.name}</strong></p>
                                         <p><strong>Class:</strong> ${data.participant.classroom}</p>
-                                        <p><strong>Correct Session:</strong> ${data.correct_session.time}</p>
-                                        <p class="mt-2">${data.message}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else if (data.error_code === 'participant_not_found') {
-                    // Participant not found
-                    scanResult.innerHTML = `
-                        <div class="rounded-md bg-yellow-50 p-4">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-yellow-800">Participant Not Found</h3>
-                                    <div class="mt-2 text-sm text-yellow-700">
-                                        <p>ID: ${uniqueId}</p>
-                                        <p class="mt-2">This QR code is not registered in the system.</p>
+                                        <p><strong>Previously recorded at:</strong> ${data.message.split('at ')[1] || 'earlier'}</p>
+                                        ${data.is_correct_session ? 
+                                        '<p class="mt-2">Participant is in the correct session.</p>' : 
+                                        `<p class="mt-2 text-yellow-700">Note: Participant should be in ${data.correct_session.time}</p>`
+                                        }
                                     </div>
                                 </div>
                             </div>
                         </div>
                     `;
                 } else {
-                    // Other error
-                    scanResult.innerHTML = `
-                        <div class="rounded-md bg-red-50 p-4">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-red-800">Error</h3>
-                                    <div class="mt-2 text-sm text-red-700">
-                                        <p>${data.message || 'Unknown error occurred'}</p>
+                    // Error or wrong session
+                    if (data.status === 'wrong_session') {
+                        // Wrong session
+                        scanResult.innerHTML = `
+                            <div class="rounded-md bg-red-50 p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800">Wrong Session</h3>
+                                        <div class="mt-2 text-sm text-red-700">
+                                            <p><strong>${data.participant.name}</strong></p>
+                                            <p><strong>Class:</strong> ${data.participant.classroom}</p>
+                                            <p><strong>Correct Session:</strong> ${data.correct_session.time}</p>
+                                            <p class="mt-2">${data.message}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    } else if (data.error_code === 'participant_not_found') {
+                        // Participant not found
+                        scanResult.innerHTML = `
+                            <div class="rounded-md bg-yellow-50 p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-yellow-800">Participant Not Found</h3>
+                                        <div class="mt-2 text-sm text-yellow-700">
+                                            <p>ID: ${uniqueId}</p>
+                                            <p class="mt-2">This QR code is not registered in the system.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Other error
+                        scanResult.innerHTML = `
+                            <div class="rounded-md bg-red-50 p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800">Error</h3>
+                                        <div class="mt-2 text-sm text-red-700">
+                                            <p>${data.message || 'Unknown error occurred'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
                 }
-            }
             
             // Handle continuous mode - update UI without page refresh
             if (continuousMode) {
