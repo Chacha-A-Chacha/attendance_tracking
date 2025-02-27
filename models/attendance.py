@@ -6,8 +6,9 @@ class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=False)
     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
     is_correct_session = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(20), default='absent') 
     
     # Relationships
     participant = db.relationship('Participant', back_populates='attendances')

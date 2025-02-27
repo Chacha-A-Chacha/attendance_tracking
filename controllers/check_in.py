@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, current_app, session, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, current_app, session as flask_session, redirect, url_for
 from services.verification import AttendanceVerifier
 from models import Session
 from datetime import datetime
@@ -93,7 +93,7 @@ def scanner():
         current_session = sessions[0]
 
     # Get previous scans from session if available
-    recent_scans = session.get('recent_scans', [])
+    recent_scans = flask_session.get('recent_scans', [])
 
     # Pass all necessary data to the template
     return render_template('check_in/scanner.html',
@@ -135,7 +135,7 @@ def verify():
     result = verifier.verify_attendance(unique_id, session_time)
 
     # Store recent scans in session for display
-    recent_scans = session.get('recent_scans', [])
+    recent_scans = flask_session.get('recent_scans', [])
 
     # Add current scan to the list
     scan_entry = {
@@ -151,7 +151,7 @@ def verify():
     recent_scans = recent_scans[:10]
 
     # Save back to session
-    session['recent_scans'] = recent_scans
+    flask_session['recent_scans'] = recent_scans
 
     return jsonify(result)
 
@@ -196,5 +196,5 @@ def available_sessions():
 @check_in_bp.route('/clear-history')
 def clear_history():
     """Clear the recent scans history"""
-    session['recent_scans'] = []
+    flask_session['recent_scans'] = []
     return redirect(url_for('check_in.scanner'))

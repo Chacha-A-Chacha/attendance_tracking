@@ -3,29 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Attendance Tracking{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <title>{% block title %}Attendance Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+    <style>
+        /* Custom styles can go here */
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    {% block head_extras %}{% endblock %}
 </head>
-<body>
-    <header>
-        <h1>Attendance Tracking System</h1>
-        <nav>
-            <ul>
-                <li><a href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a></li>
-                <li><a href="{{ url_for('check_in.scanner') }}">Check In</a></li>
-                <li><a href="{{ url_for('participant.info') }}">Participant Info</a></li>
-            </ul>
-        </nav>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="flex h-16 justify-between items-center">
+                <div class="flex items-center">
+                    <a href="/" class="flex-shrink-0">
+                        <h1 class="text-2xl font-bold text-indigo-600">Attendance Tracker</h1>
+                    </a>
+                    <nav class="hidden md:ml-6 md:flex md:space-x-8">
+                        <a href="/" class="text-gray-900 hover:text-indigo-600 px-3 py-2 text-sm font-medium">Dashboard</a>
+                        <a href="/check-in" class="text-gray-900 hover:text-indigo-600 px-3 py-2 text-sm font-medium">Attendance</a>
+                        <a href="/admin" class="text-gray-900 hover:text-indigo-600 px-3 py-2 text-sm font-medium">Admin</a>
+                    </nav>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-4 flex items-center md:ml-6">
+                        <div class="relative ml-3">
+                            <button type="button" class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <svg class="-ml-0.5 mr-1.5 size-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z" clip-rule="evenodd" />
+                                </svg>
+                                Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="-mr-2 flex md:hidden">
+                    <!-- Mobile menu button -->
+                    <button type="button" class="mobile-menu-button inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
+                        <svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu, show/hide based on menu state -->
+        <div class="md:hidden mobile-menu hidden">
+            <div class="space-y-1 px-2 pb-3 pt-2">
+                <a href="/" class="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-50 hover:text-indigo-600">Dashboard</a>
+                <a href="/check-in" class="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-50 hover:text-indigo-600">Attendance</a>
+                <a href="/admin" class="block rounded-md px-3 py-2 text-base font-medium text-gray-900 hover:bg-gray-50 hover:text-indigo-600">Admin</a>
+            </div>
+            <div class="border-t border-gray-200 pb-3 pt-4">
+                <div class="flex items-center px-5">
+                    <button type="button" class="ml-auto flex-shrink-0 rounded-md bg-white p-1 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        <span class="sr-only">View account</span>
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
     </header>
-    
-    <main>
-        {% block content %}
-        {% endblock %}
+
+    <!-- Main Content -->
+    <main class="py-6">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            {% block content %}{% endblock %}
+        </div>
     </main>
 
-    <footer>
-        <p>&copy; {{ current_year }} Attendance Tracking System</p>
+    <!-- Footer -->
+    <footer class="bg-white mt-12">
+        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-gray-500">© 2025 Attendance Tracker. All rights reserved.</p>
+        </div>
     </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Mobile menu toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.querySelector('.mobile-menu-button');
+            const mobileMenu = document.querySelector('.mobile-menu');
+            
+            mobileMenuButton.addEventListener('click', function() {
+                mobileMenu.classList.toggle('hidden');
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>
