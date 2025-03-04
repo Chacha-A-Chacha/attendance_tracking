@@ -22,10 +22,12 @@ def create_app(config_name=None):
     from controllers.admin import admin_bp
     from controllers.check_in import check_in_bp
     from controllers.participant import participant_bp
+    from controllers.api import api_bp
     
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(check_in_bp, url_prefix='/check-in')
     app.register_blueprint(participant_bp, url_prefix='/participant')
+    app.register_blueprint(api_bp)
     
     # Create database tables
     with app.app_context():
