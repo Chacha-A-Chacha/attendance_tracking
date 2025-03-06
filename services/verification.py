@@ -1,5 +1,6 @@
 # services/verification.py
 from flask import current_app
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from models import Participant, Session, Attendance
 from app import db
@@ -73,9 +74,11 @@ class AttendanceVerifier:
             is_correct_session = (current_session.id == expected_session_id)
 
             # Check if attendance has already been recorded for this participant and session
+            today_date = self.today.date()
             existing_attendance = Attendance.query.filter_by(
                 participant_id=participant.id,
-                session_id=current_session.id
+                session_id=current_session.id,
+                timestamp=today_date
             ).first()
 
             # Prepare base response
