@@ -1,0 +1,204 @@
+<!-- templates/admin/participant_history.html -->
+{% extends "admin/base.html" %}
+
+{% block title %}Participant History{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">Participant Attendance History</h1>
+    <p class="mt-1 text-sm text-gray-600">
+        {{ participant.name }} ({{ participant.unique_id }})
+    </p>
+</div>
+
+<!-- Participant Info Card -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Participant Information</h3>
+    </div>
+    <div class="border-t border-gray-200">
+        <dl>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Full name</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.name }}</dd>
+            </div>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Email address</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.email }}</dd>
+            </div>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Phone number</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.phone }}</dd>
+            </div>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Classroom</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    Class {{ participant.classroom }}
+                    {% if participant.has_laptop %}
+                    (With Laptop)
+                    {% else %}
+                    (No Laptop)
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Saturday Session</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2" id="saturday-session">Loading...</dd>
+            </div>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Sunday Session</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2" id="sunday-session">Loading...</dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- Attendance History -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Attendance History</h3>
+    </div>
+    <div class="border-t border-gray-200">
+        <div id="history-container" class="relative min-h-[300px]">
+            <div class="text-center py-8">
+                <p class="text-gray-500">Loading attendance history...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Participant history page initialization
+    document.addEventListener('DOMContentLoaded', function() {
+        const uniqueId = '{{ participant.unique_id }}';
+
+        // Load participant data
+        loadParticipantSessions(uniqueId);
+
+        // Load attendance history
+        loadAttendanceHistory(uniqueId);
+    });
+
+    // Load participant session info
+    function loadParticipantSessions(uniqueId) {
+        fetch(`/admin/participant/${uniqueId}/sessions`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('saturday-session').textContent = data.saturday_session || 'Not assigned';
+                    document.getElementById('sunday-session').textContent = data.sunday_session || 'Not assigned';
+                } else {
+                    document.getElementById('saturday-session').textContent = 'Error loading session';
+                    document.getElementById('sunday-session').textContent = 'Error loading session';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading sessions:', error);
+                document.getElementById('saturday-session').textContent = 'Error loading session';
+                document.getElementById('sunday-session').textContent = 'Error loading session';
+            });
+    }
+
+    // Load attendance history
+    function loadAttendanceHistory(uniqueId) {
+        const historyContainer = document.getElementById('history-container');
+
+        // Show loading state
+        historyContainer.classList.add('loading');
+
+        fetch(`/admin/participant/${uniqueId}/history`)
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading state
+                historyContainer.classList.remove('loading');
+
+                if (data.success) {
+                    if (!data.attendance_history || data.attendance_history.length === 0) {
+                        historyContainer.innerHTML = `
+                            <div class="text-center py-8">
+                                <p class="text-gray-500">No attendance records found for this participant.</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    // Create table
+                    const table = document.createElement('table');
+                    table.className = 'min-w-full divide-y divide-gray-200';
+                    table.innerHTML = `
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    `;
+
+                    const tbody = table.querySelector('tbody');
+
+                    // Add history rows
+                    data.attendance_history.forEach(record => {
+                        const tr = document.createElement('tr');
+
+                        // Format date from record timestamp
+                        const timestamp = new Date(record.timestamp);
+                        const dateFormatted = timestamp.toLocaleDateString();
+                        const timeFormatted = timestamp.toLocaleTimeString();
+
+                        // Determine status color
+                        let statusClass = 'bg-yellow-100 text-yellow-800';
+                        let statusText = 'Unknown';
+
+                        if (record.status === 'absent') {
+                            statusClass = 'bg-red-100 text-red-800';
+                            statusText = 'Absent';
+                        } else if (record.correct_session) {
+                            statusClass = 'bg-green-100 text-green-800';
+                            statusText = 'Present';
+                        } else {
+                            statusClass = 'bg-yellow-100 text-yellow-800';
+                            statusText = 'Wrong Session';
+                        }
+
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateFormatted}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${timeFormatted}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${record.session}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                                    ${statusText}
+                                </span>
+                            </td>
+                        `;
+
+                        tbody.appendChild(tr);
+                    });
+
+                    historyContainer.innerHTML = '';
+                    historyContainer.appendChild(table);
+                } else {
+                    historyContainer.innerHTML = `
+                        <div class="text-center py-8">
+                            <p class="text-red-500">Error: ${data.message}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading attendance history:', error);
+                historyContainer.classList.remove('loading');
+                historyContainer.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-500">Error loading attendance history. Please try again.</p>
+                    </div>
+                `;
+            });
+    }
+</script>
+{% endblock %}

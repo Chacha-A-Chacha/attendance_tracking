@@ -1,0 +1,162 @@
+<!-- templates/admin/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Dashboard{% endblock %} - Attendance Tracker</title>
+    <!-- Tailwind CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
+    <!-- Chart.js for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jQuery for AJAX -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Custom styles -->
+    <style>
+        /* Custom styles here */
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .loading::after {
+            content: "Loading...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="bg-indigo-600 text-white shadow">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16 items-center">
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold">Attendance Admin</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm">
+                            <div id="current-date" class="font-medium">{{ today|default('Today') }}</div>
+                            <div id="current-time" class="text-indigo-200"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar navigation -->
+            <aside class="bg-gray-800 text-white w-64 flex-shrink-0 shadow-lg">
+                <nav class="mt-5 px-2">
+                    <a href="{{ url_for('admin.dashboard') }}" class="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-700 {% if request.endpoint == 'admin_bp.dashboard' %}bg-gray-900{% endif %}">
+                        <svg class="mr-3 h-6 w-6 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="{{ url_for('admin.reports') }}" class="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-700 {% if request.endpoint == 'admin_bp.reports' %}bg-gray-900{% endif %}">
+                        <svg class="mr-3 h-6 w-6 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Reports
+                    </a>
+                    <div class="mt-4 mb-2 px-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Sessions
+                    </div>
+                    <div class="space-y-1 px-2" id="session-nav">
+                        <!-- Session navigation items will be loaded via JavaScript -->
+                        <div class="text-gray-400 text-sm py-1">Loading sessions...</div>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Main content -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="max-w-7xl mx-auto">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Common JavaScript -->
+    <script>
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = now.toLocaleTimeString();
+            }
+        }
+
+        // Update time every second
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Load sessions for sidebar
+        function loadSessions() {
+            fetch('/admin/sessions')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.sessions.length > 0) {
+                        const sessionNav = document.getElementById('session-nav');
+
+                        // Group sessions by day
+                        const sessionsByDay = {};
+                        data.sessions.forEach(session => {
+                            if (!sessionsByDay[session.day]) {
+                                sessionsByDay[session.day] = [];
+                            }
+                            sessionsByDay[session.day].push(session);
+                        });
+
+                        // Clear previous content
+                        sessionNav.innerHTML = '';
+
+                        // Add session links grouped by day
+                        for (const day in sessionsByDay) {
+                            const dayHeader = document.createElement('div');
+                            dayHeader.className = 'text-gray-400 text-xs font-medium py-1';
+                            dayHeader.textContent = day;
+                            sessionNav.appendChild(dayHeader);
+
+                            const sessionsList = document.createElement('div');
+                            sessionsList.className = 'space-y-1 pl-2 mb-3';
+
+                            sessionsByDay[day].forEach(session => {
+                                const link = document.createElement('a');
+                                link.href = `/admin/attendance/${session.id}`;
+                                link.className = 'group flex items-center px-2 py-1 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-700';
+                                link.innerHTML = `
+                                    <svg class="mr-2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    ${session.time_slot}
+                                `;
+                                sessionsList.appendChild(link);
+                            });
+
+                            sessionNav.appendChild(sessionsList);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading sessions:', error);
+                });
+        }
+
+        // Load sessions on page load
+        document.addEventListener('DOMContentLoaded', loadSessions);
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

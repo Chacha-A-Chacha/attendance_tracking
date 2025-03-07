@@ -172,7 +172,7 @@ def get_session_dates(session_id):
         formatted_dates = [date[0].strftime('%Y-%m-%d') for date in dates]
         
         return jsonify({
-            'success': True,
+            '  ': True,
             'session_id': session_id,
             'dates': formatted_dates
         })

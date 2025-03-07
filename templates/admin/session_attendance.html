@@ -1,0 +1,449 @@
+<!-- templates/admin/session_attendance.html -->
+{% extends "admin/base.html" %}
+
+{% block title %}Session Attendance{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold text-gray-900">Session Attendance</h1>
+        <p class="mt-1 text-sm text-gray-600">
+            {{ session.day }} • {{ session.time_slot }}
+        </p>
+    </div>
+    <div>
+        <button id="mark-absent-btn" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+            Mark Absent
+        </button>
+    </div>
+</div>
+
+<!-- Date selector and filters -->
+<div class="mb-6 bg-white rounded-lg shadow p-4">
+    <div class="flex flex-wrap items-center gap-4">
+        <div>
+            <label for="date-selector" class="block text-sm font-medium text-gray-700">Date</label>
+            <select id="date-selector" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <option value="">Loading dates...</option>
+            </select>
+        </div>
+        <div>
+            <label for="filter-class" class="block text-sm font-medium text-gray-700">Class</label>
+            <select id="filter-class" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <option value="all">All Classes</option>
+                <option value="203">Class 203 (Laptop)</option>
+                <option value="204">Class 204 (No Laptop)</option>
+            </select>
+        </div>
+        <div>
+            <label for="filter-status" class="block text-sm font-medium text-gray-700">Status</label>
+            <select id="filter-status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                <option value="all">All Statuses</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="wrong">Wrong Session</option>
+            </select>
+        </div>
+        <div class="ml-auto flex items-end">
+            <label class="flex items-center">
+                <input type="checkbox" id="include-absent" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked>
+                <span class="ml-2 text-sm text-gray-700">Include Absent</span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Stats -->
+<div class="mb-6">
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-4">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Expected</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900" id="stats-expected">-</dd>
+            </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Present</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900" id="stats-present">-</dd>
+            </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Absent</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900" id="stats-absent">-</dd>
+            </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Attendance Rate</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900" id="stats-rate">-</dd>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Attendance List</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            <span id="attendance-date">Select a date to view attendance</span>
+        </p>
+    </div>
+    <div class="border-t border-gray-200">
+        <div id="attendance-container" class="relative min-h-[400px]">
+            <div class="text-center py-8">
+                <p class="text-gray-500">Select a date to view attendance data.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Session attendance page initialization
+    document.addEventListener('DOMContentLoaded', function() {
+        const sessionId = {{ session.id }};
+        const dateSelector = document.getElementById('date-selector');
+        const filterClass = document.getElementById('filter-class');
+        const filterStatus = document.getElementById('filter-status');
+        const includeAbsent = document.getElementById('include-absent');
+        const markAbsentBtn = document.getElementById('mark-absent-btn');
+
+        // Disable mark absent button initially
+        markAbsentBtn.disabled = true;
+        markAbsentBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+        // Load available dates for this session
+        loadSessionDates(sessionId);
+
+        // Event listeners
+        dateSelector.addEventListener('change', loadAttendanceData);
+        filterClass.addEventListener('change', filterAttendanceData);
+        filterStatus.addEventListener('change', filterAttendanceData);
+        includeAbsent.addEventListener('change', loadAttendanceData);
+        markAbsentBtn.addEventListener('click', markAbsentStudents);
+
+        // If date is provided in URL, use it
+        const urlParams = new URLSearchParams(window.location.search);
+        const dateParam = urlParams.get('date');
+        if (dateParam) {
+            // We'll set this after dates are loaded
+            window.initialDate = dateParam;
+        }
+
+        // Pre-load attendance if date is in the URL
+        if (dateParam) {
+            loadAttendanceData();
+        }
+    });
+
+    // Load session dates
+    function loadSessionDates(sessionId) {
+        fetch(`/admin/session/${sessionId}/dates`)
+            .then(response => response.json())
+            .then(data => {
+                const dateSelector = document.getElementById('date-selector');
+
+                if (data.success) {
+                    // Clear options
+                    dateSelector.innerHTML = '';
+
+                    // Add today option
+                    const today = new Date().toISOString().split('T')[0];
+                    const todayOption = document.createElement('option');
+                    todayOption.value = today;
+                    todayOption.textContent = `Today (${today})`;
+                    dateSelector.appendChild(todayOption);
+
+                    // Sort dates in descending order
+                    data.dates.sort((a, b) => new Date(b) - new Date(a));
+
+                    // Add date options
+                    data.dates.forEach(date => {
+                        const option = document.createElement('option');
+                        option.value = date;
+                        option.textContent = date;
+                        dateSelector.appendChild(option);
+                    });
+
+                    // If we have an initial date from URL, set it
+                    if (window.initialDate) {
+                        dateSelector.value = window.initialDate;
+                        // Trigger change to load data
+                        const event = new Event('change');
+                        dateSelector.dispatchEvent(event);
+                    }
+
+                    // Enable mark absent button
+                    const markAbsentBtn = document.getElementById('mark-absent-btn');
+                    markAbsentBtn.disabled = false;
+                    markAbsentBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    console.error('Error loading session dates:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading session dates:', error);
+            });
+    }
+
+    // Load attendance data
+    function loadAttendanceData() {
+        const sessionId = {{ session.id }};
+        const date = document.getElementById('date-selector').value;
+        const includeAbsent = document.getElementById('include-absent').checked;
+        const attendanceContainer = document.getElementById('attendance-container');
+        const attendanceDate = document.getElementById('attendance-date');
+
+        if (!date) {
+            return;
+        }
+
+        // Update date display
+        attendanceDate.textContent = `Attendance for ${date}`;
+
+        // Show loading state
+        attendanceContainer.classList.add('loading');
+        attendanceContainer.innerHTML = '<div class="flex justify-center items-center h-64"><p>Loading attendance data...</p></div>';
+
+        fetch(`/admin/attendance/${sessionId}?date=${date}&include_absent=${includeAbsent}`)
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading state
+                attendanceContainer.classList.remove('loading');
+
+                if (data.success) {
+                    // Update stats
+                    document.getElementById('stats-expected').textContent = data.stats.total_expected;
+                    document.getElementById('stats-present').textContent = data.stats.total_present;
+                    document.getElementById('stats-absent').textContent = data.stats.total_absent;
+                    document.getElementById('stats-rate').textContent = `${data.stats.attendance_rate}%`;
+
+                    // Build attendance tables
+                    renderAttendanceTables(data.classes);
+
+                    // Apply initial filters
+                    filterAttendanceData();
+                } else {
+                    attendanceContainer.innerHTML = `
+                        <div class="text-center py-8">
+                            <p class="text-red-500">Error: ${data.message}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading attendance data:', error);
+                attendanceContainer.classList.remove('loading');
+                attendanceContainer.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-500">Error loading attendance data. Please try again.</p>
+                    </div>
+                `;
+            });
+    }
+
+    // Render attendance tables by class
+    function renderAttendanceTables(classes) {
+        const attendanceContainer = document.getElementById('attendance-container');
+        attendanceContainer.innerHTML = '';
+
+        // Check if any classes
+        if (Object.keys(classes).length === 0) {
+            attendanceContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-gray-500">No attendance data found for this date.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Build tables for each class
+        for (const [classroom, groups] of Object.entries(classes)) {
+            const classSection = document.createElement('div');
+            classSection.className = `class-section class-${classroom} mb-6`;
+
+            // Class header
+            const classHeader = document.createElement('h3');
+            classHeader.className = 'px-4 py-2 text-lg font-medium text-gray-900 bg-gray-50 border-b';
+            classHeader.textContent = `Class ${classroom} ${classroom === '203' ? '(Laptop)' : '(No Laptop)'}`;
+            classSection.appendChild(classHeader);
+
+            // Create a table for this class
+            const table = document.createElement('table');
+            table.className = 'min-w-full divide-y divide-gray-200';
+            table.innerHTML = `
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                </tbody>
+            `;
+
+            const tbody = table.querySelector('tbody');
+
+            // Add present participants
+            if (groups.present && groups.present.length > 0) {
+                groups.present.forEach(participant => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'attendance-row status-present';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${participant.name}</div>
+                            <div class="text-sm text-gray-500">${participant.unique_id}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${participant.email}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Present</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${participant.timestamp || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <a href="/admin/participant/${participant.unique_id}/history" class="text-indigo-600 hover:text-indigo-900">History</a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Add absent participants
+            if (groups.absent && groups.absent.length > 0) {
+                groups.absent.forEach(participant => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'attendance-row status-absent';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${participant.name}</div>
+                            <div class="text-sm text-gray-500">${participant.unique_id}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${participant.email}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Absent</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <a href="/admin/participant/${participant.unique_id}/history" class="text-indigo-600 hover:text-indigo-900">History</a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Add wrong session participants
+            if (groups.wrong_session && groups.wrong_session.length > 0) {
+                groups.wrong_session.forEach(participant => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'attendance-row status-wrong';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${participant.name}</div>
+                            <div class="text-sm text-gray-500">${participant.unique_id}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${participant.email}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Wrong Session</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${participant.timestamp || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <a href="/admin/participant/${participant.unique_id}/history" class="text-indigo-600 hover:text-indigo-900">History</a>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            classSection.appendChild(table);
+            attendanceContainer.appendChild(classSection);
+        }
+    }
+
+    // Filter attendance data
+    function filterAttendanceData() {
+        const filterClass = document.getElementById('filter-class').value;
+        const filterStatus = document.getElementById('filter-status').value;
+
+        // Get all class sections
+        const classSections = document.querySelectorAll('.class-section');
+
+        // Show/hide class sections based on filter
+        classSections.forEach(section => {
+            if (filterClass === 'all' || section.classList.contains(`class-${filterClass}`)) {
+                section.style.display = 'block';
+            } else {
+                section.style.display = 'none';
+            }
+        });
+
+        // Get all attendance rows
+        const rows = document.querySelectorAll('.attendance-row');
+
+        // Show/hide rows based on status filter
+        rows.forEach(row => {
+            if (filterStatus === 'all' || row.classList.contains(`status-${filterStatus}`)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Mark absent students
+    function markAbsentStudents() {
+        const sessionId = {{ session.id }};
+        const date = document.getElementById('date-selector').value;
+
+        if (!date) {
+            alert('Please select a date first');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to mark all expected but unrecorded participants as absent?')) {
+            return;
+        }
+
+        // Show loading
+        const markAbsentBtn = document.getElementById('mark-absent-btn');
+        const originalText = markAbsentBtn.textContent;
+        markAbsentBtn.disabled = true;
+        markAbsentBtn.textContent = 'Processing...';
+
+        fetch(`/admin/session/${sessionId}/mark-absent`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ date: date })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully marked ${data.absent_count} participants as absent.`);
+                // Reload attendance data
+                loadAttendanceData();
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+
+            // Reset button
+            markAbsentBtn.disabled = false;
+            markAbsentBtn.textContent = originalText;
+        })
+        .catch(error => {
+            console.error('Error marking absent:', error);
+            alert('An error occurred while marking absences.');
+
+            // Reset button
+            markAbsentBtn.disabled = false;
+            markAbsentBtn.textContent = originalText;
+        });
+    }
+</script>
+{% endblock %}

@@ -1,45 +1,385 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Reports</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <div class="container">
-        <h1>Attendance Reports</h1>
-        <form method="POST" action="{{ url_for('admin.generate_report') }}">
-            <label for="session">Select Session:</label>
-            <select name="session" id="session">
-                {% for session in sessions %}
-                    <option value="{{ session.id }}">{{ session.name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit">Generate Report</button>
-        </form>
+<!-- templates/admin/reports.html -->
+{% extends "admin/base.html" %}
 
-        {% if report %}
-            <h2>Report for {{ report.session_name }}</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Participant Name</th>
-                        <th>Check-in Time</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in report.attendance_records %}
-                        <tr>
-                            <td>{{ record.participant_name }}</td>
-                            <td>{{ record.check_in_time }}</td>
-                            <td>{{ record.status }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% endif %}
+{% block title %}Attendance Reports{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-semibold text-gray-900">Attendance Reports</h1>
+    <p class="mt-1 text-sm text-gray-600">View and export attendance reports</p>
+</div>
+
+<!-- Report Generator -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Generate Report</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">Select parameters for your report</p>
     </div>
-</body>
-</html>
+    <div class="border-t border-gray-200 px-4 py-5 sm:p-6">
+        <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+            <div class="sm:col-span-2">
+                <label for="report-type" class="block text-sm font-medium text-gray-700">Report Type</label>
+                <select id="report-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    <option value="daily">Daily Attendance</option>
+                    <option value="weekly">Weekly Summary</option>
+                    <option value="participant">Participant History</option>
+                    <option value="classroom">Classroom Report</option>
+                </select>
+            </div>
+            
+            <div class="sm:col-span-2" id="date-range-container">
+                <label for="report-date" class="block text-sm font-medium text-gray-700">Date</label>
+                <input type="date" id="report-date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+            </div>
+            
+            <div class="sm:col-span-2" id="session-container">
+                <label for="report-session" class="block text-sm font-medium text-gray-700">Session</label>
+                <select id="report-session" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    <option value="">All Sessions</option>
+                    {% for session in sessions %}
+                    <option value="{{ session.id }}">{{ session.day }} {{ session.time_slot }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="sm:col-span-2" id="participant-container" style="display: none;">
+                <label for="report-participant" class="block text-sm font-medium text-gray-700">Participant</label>
+                <div class="mt-1 flex rounded-md shadow-sm">
+                    <input type="text" id="report-participant" placeholder="Search by name or ID" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                <div id="participant-results" class="mt-1 bg-white shadow rounded-md absolute z-10 w-full max-h-60 overflow-auto hidden"></div>
+            </div>
+            
+            <div class="sm:col-span-2" id="classroom-container" style="display: none;">
+                <label for="report-classroom" class="block text-sm font-medium text-gray-700">Classroom</label>
+                <select id="report-classroom" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    <option value="">All Classrooms</option>
+                    <option value="203">Class 203 (Laptop)</option>
+                    <option value="204">Class 204 (No Laptop)</option>
+                </select>
+            </div>
+            
+            <div class="sm:col-span-6">
+                <button id="generate-report" type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Generate Report
+                </button>
+                <button id="export-csv" type="button" class="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Results -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Report Results</h3>
+    </div>
+    <div class="border-t border-gray-200">
+        <div id="report-container" class="relative min-h-[400px]">
+            <div class="text-center py-8">
+                <p class="text-gray-500">Generate a report to see results</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const reportType = document.getElementById('report-type');
+        const dateRangeContainer = document.getElementById('date-range-container');
+        const sessionContainer = document.getElementById('session-container');
+        const participantContainer = document.getElementById('participant-container');
+        const classroomContainer = document.getElementById('classroom-container');
+        const generateReportBtn = document.getElementById('generate-report');
+        const exportCsvBtn = document.getElementById('export-csv');
+        const participantSearch = document.getElementById('report-participant');
+        const participantResults = document.getElementById('participant-results');
+        
+        // Set today's date as default
+        document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+        
+        // Handle report type change
+        reportType.addEventListener('change', function() {
+            // Show/hide appropriate containers based on report type
+            switch(this.value) {
+                case 'daily':
+                    dateRangeContainer.style.display = '';
+                    sessionContainer.style.display = '';
+                    participantContainer.style.display = 'none';
+                    classroomContainer.style.display = '';
+                    break;
+                case 'weekly':
+                    dateRangeContainer.style.display = '';
+                    sessionContainer.style.display = '';
+                    participantContainer.style.display = 'none';
+                    classroomContainer.style.display = '';
+                    break;
+                case 'participant':
+                    dateRangeContainer.style.display = 'none';
+                    sessionContainer.style.display = 'none';
+                    participantContainer.style.display = '';
+                    classroomContainer.style.display = 'none';
+                    break;
+                case 'classroom':
+                    dateRangeContainer.style.display = '';
+                    sessionContainer.style.display = '';
+                    participantContainer.style.display = 'none';
+                    classroomContainer.style.display = '';
+                    break;
+            }
+        });
+        
+        // Handle participant search
+        participantSearch.addEventListener('input', function() {
+            const query = this.value.trim();
+            
+            if (query.length < 3) {
+                participantResults.classList.add('hidden');
+                return;
+            }
+            
+            fetch(`/admin/search-participant?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        participantResults.innerHTML = '<p class="text-sm text-gray-500 p-2">No results found</p>';
+                    } else {
+                        participantResults.innerHTML = '';
+                        
+                        data.forEach(participant => {
+                            const div = document.createElement('div');
+                            div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                            div.innerHTML = `
+                                <p class="text-sm font-medium">${participant.name}</p>
+                                <p class="text-xs text-gray-500">${participant.email} (${participant.unique_id})</p>
+                            `;
+                            
+                            div.addEventListener('click', function() {
+                                participantSearch.value = participant.name;
+                                participantSearch.dataset.uniqueId = participant.unique_id;
+                                participantResults.classList.add('hidden');
+                            });
+                            
+                            participantResults.appendChild(div);
+                        });
+                    }
+                    
+                    participantResults.classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error searching participants:', error);
+                    participantResults.innerHTML = '<p class="text-sm text-red-500 p-2">Error searching</p>';
+                    participantResults.classList.remove('hidden');
+                });
+        });
+        
+        // Hide participant results when clicking elsewhere
+        document.addEventListener('click', function(e) {
+            if (!participantSearch.contains(e.target) && !participantResults.contains(e.target)) {
+                participantResults.classList.add('hidden');
+            }
+        });
+        
+        // Generate report
+        generateReportBtn.addEventListener('click', function() {
+            const type = reportType.value;
+            const reportContainer = document.getElementById('report-container');
+            
+            // Show loading state
+            reportContainer.classList.add('loading');
+            reportContainer.innerHTML = '<div class="flex justify-center items-center h-64"><p>Generating report...</p></div>';
+            
+            // Prepare parameters based on report type
+            let url;
+            
+            switch(type) {
+                case 'daily':
+                    const date = document.getElementById('report-date').value;
+                    const sessionId = document.getElementById('report-session').value;
+                    const classroom = document.getElementById('report-classroom').value;
+                    
+                    url = `/admin/reports/daily?date=${date}`;
+                    if (sessionId) url += `&session_id=${sessionId}`;
+                    if (classroom) url += `&classroom=${classroom}`;
+                    break;
+                    
+                case 'participant':
+                    const uniqueId = participantSearch.dataset.uniqueId;
+                    if (!uniqueId) {
+                        alert('Please select a participant');
+                        reportContainer.classList.remove('loading');
+                        reportContainer.innerHTML = '<div class="text-center py-8"><p class="text-gray-500">Select a participant first</p></div>';
+                        return;
+                    }
+                    
+                    // Redirect to participant history page
+                    window.location.href = `/admin/participant/${uniqueId}/history`;
+                    return;
+                    
+                default:
+                    alert('This report type is not yet implemented');
+                    reportContainer.classList.remove('loading');
+                    reportContainer.innerHTML = '<div class="text-center py-8"><p class="text-gray-500">Report type not implemented</p></div>';
+                    return;
+            }
+            
+            // Fetch report data
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    reportContainer.classList.remove('loading');
+                    
+                    if (!data.success) {
+                        reportContainer.innerHTML = `<div class="text-center py-8"><p class="text-red-500">${data.message}</p></div>`;
+                        return;
+                    }
+                    
+                    // Store report data for export
+                    window.currentReportData = data;
+                    
+                    // Render report based on type
+                    switch(type) {
+                        case 'daily':
+                            renderDailyReport(data, reportContainer);
+                            break;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error generating report:', error);
+                    reportContainer.classList.remove('loading');
+                    reportContainer.innerHTML = '<div class="text-center py-8"><p class="text-red-500">Error generating report</p></div>';
+                });
+        });
+        
+        // Export CSV
+        exportCsvBtn.addEventListener('click', function() {
+            if (!window.currentReportData) {
+                alert('Generate a report first');
+                return;
+            }
+            
+            const type = reportType.value;
+            let csvContent = '';
+            
+            switch(type) {
+                case 'daily':
+                    csvContent = generateDailyCsv(window.currentReportData);
+                    break;
+                default:
+                    alert('Export not implemented for this report type');
+                    return;
+            }
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${type}_report_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+        
+        // Render daily report
+        function renderDailyReport(data, container) {
+            const report = data.report;
+            
+            // Create summary section
+            const summary = document.createElement('div');
+            summary.className = 'px-4 py-5 sm:p-6';
+            summary.innerHTML = `
+                <h4 class="text-lg font-medium text-gray-900">Summary for ${report.date}</h4>
+                <div class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3">
+                    <div class="bg-gray-50 overflow-hidden rounded-lg shadow">
+                        <div class="px-4 py-5 sm:p-6">
+                            <dt class="text-sm font-medium text-gray-500 truncate">Expected</dt>
+                            <dd class="mt-1 text-3xl font-semibold text-gray-900">${report.total_expected}</dd>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 overflow-hidden rounded-lg shadow">
+                        <div class="px-4 py-5 sm:p-6">
+                            <dt class="text-sm font-medium text-gray-500 truncate">Present</dt>
+                            <dd class="mt-1 text-3xl font-semibold text-gray-900">${report.total_present}</dd>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 overflow-hidden rounded-lg shadow">
+                        <div class="px-4 py-5 sm:p-6">
+                            <dt class="text-sm font-medium text-gray-500 truncate">Attendance Rate</dt>
+                            <dd class="mt-1 text-3xl font-semibold text-gray-900">${report.attendance_rate}%</dd>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Create sessions table
+            const sessionsTable = document.createElement('div');
+            sessionsTable.className = 'px-4 py-5 sm:p-6 border-t border-gray-200';
+            
+            let tableHTML = `
+                <h4 class="text-lg font-medium text-gray-900 mb-4">Sessions</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Slot</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absent</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attendance Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            // Add session rows
+            Object.entries(report.sessions).forEach(([timeSlot, session]) => {
+                tableHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${timeSlot}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${session.expected}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${session.present}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${session.expected - session.present}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${session.attendance_rate >= 90 ? 'text-green-600' : (session.attendance_rate < 60 ? 'text-red-600' : 'text-yellow-600')}">${session.attendance_rate}%</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            sessionsTable.innerHTML = tableHTML;
+            
+            // Add to container
+            container.innerHTML = '';
+            container.appendChild(summary);
+            container.appendChild(sessionsTable);
+        }
+        
+        // Generate CSV for daily report
+        function generateDailyCsv(data) {
+            const report = data.report;
+            let csv = 'Date,' + report.date + '\n';
+            csv += 'Total Expected,' + report.total_expected + '\n';
+            csv += 'Total Present,' + report.total_present + '\n';
+            csv += 'Attendance Rate,' + report.attendance_rate + '%\n\n';
+            
+            csv += 'Time Slot,Expected,Present,Absent,Attendance Rate\n';
+            
+            Object.entries(report.sessions).forEach(([timeSlot, session]) => {
+                csv += `"${timeSlot}",${session.expected},${session.present},${session.expected - session.present},${session.attendance_rate}%\n`;
+            });
+            
+            return csv;
+        }
+    });
+</script>
+{% endblock %}
