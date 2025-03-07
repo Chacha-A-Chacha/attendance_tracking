@@ -4,7 +4,8 @@ from services.verification import AttendanceVerifier
 import os
 from datetime import datetime
 from sqlalchemy import func
-from models import Participant, Session, Attendance, db
+from app import db
+from models import Participant, Session, Attendance
 from utils.session_mapper import get_session_capacity, get_session_count
 
 admin_bp = Blueprint('admin', __name__)
