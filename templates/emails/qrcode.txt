@@ -1,0 +1,27 @@
+<!-- templates/emails/qrcode.txt -->
+Your QR Code for the Programming Course
+======================================
+
+Hello {{ participant.name }},
+
+Thank you for being part of our Computer Programming Course. Your QR code for attendance tracking is attached to this email.
+
+IMPORTANT NOTES:
+- Please bring this QR code to all your sessions
+- You can either print it or show it on your phone
+- Your QR code is unique to you - do not share it
+- You can also access your QR code anytime through the course portal
+
+YOUR SCHEDULE:
+- Saturday Session: {{ participant.saturday_session.time_slot }}
+- Sunday Session: {{ participant.sunday_session.time_slot }}
+- Classroom: {{ participant.classroom }}
+
+If you have any questions, please don't hesitate to contact us.
+
+Best regards,
+The Programming Course Team
+
+---
+This email was sent at {{ timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+Please do not reply to this automated message.
