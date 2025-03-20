@@ -366,7 +366,7 @@ def add_participant():
         # Process form submission
         data = {
             'name': request.form.get('name'),
-            'email': request.form.get('email'),
+            'email': request.form.get('emailc'),
             'phone': request.form.get('phone'),
             'has_laptop': request.form.get('has_laptop') == 'yes',
             'saturday_session_id': request.form.get('saturday_session_id', type=int),

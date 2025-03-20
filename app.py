@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from config import config_by_name
-from utils.email_service import EmailService
+from utils.email import EmailService
 
 # Initialize extensions
 db = SQLAlchemy()

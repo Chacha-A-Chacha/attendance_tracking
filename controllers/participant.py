@@ -85,6 +85,7 @@ def dashboard():
                            sunday_session=sunday_session,
                            current_time=int(current_time))  # Add current time for session timer
 
+
 @participant_bp.route('/email-qrcode', methods=['POST'])
 def email_qrcode():
     """Email QR code to participant"""
@@ -94,36 +95,43 @@ def email_qrcode():
             'success': False,
             'message': 'Unauthorized'
         }), 401
-
+    
     # Get participant
     participant_id = flask_session.get('participant_id')
     participant = Participant.query.get(participant_id)
-
+    
     if not participant:
         return jsonify({
             'success': False,
             'message': 'Participant not found'
         }), 404
-
+    
     # Check if QR code exists
     if not participant.qrcode_path or not os.path.exists(participant.qrcode_path):
         return jsonify({
             'success': False,
             'message': 'QR code not found. Please generate one first.'
         }), 404
-
+    
     try:
-        # TODO: Implement actual email sending here
-        # For now, just return success
+        # Send QR code via email
+        from app import email_service
+        task_id = email_service.send_qr_code(participant.email, participant)
+        
+        # Record the email task
+        participant.last_qrcode_email = datetime.now()
+        db.session.commit()
+        
         return jsonify({
             'success': True,
-            'message': 'QR code sent to your email'
+            'message': 'QR code has been sent to your email',
+            'task_id': task_id
         })
     except Exception as e:
         current_app.logger.error(f"Error sending email: {str(e)}")
         return jsonify({
             'success': False,
-            'message': 'Error sending email. Please try again later.'
+            'message': f'Error sending email: {str(e)}'
         }), 500
 
 

@@ -1,4 +1,4 @@
-# utils/email_service.py
+# utils/email.py
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
