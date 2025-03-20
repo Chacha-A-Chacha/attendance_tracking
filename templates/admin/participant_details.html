@@ -1,0 +1,223 @@
+<!-- templates/admin/participant_details.html -->
+{% extends "admin/base.html" %}
+
+{% block title %}Participant Details{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-semibold text-gray-900">Participant Details</h1>
+        <p class="mt-1 text-sm text-gray-600">
+            {{ participant.name }} ({{ participant.unique_id }})
+        </p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.get_participant_history', unique_id=participant.unique_id) }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            View Attendance History
+        </a>
+    </div>
+</div>
+
+<!-- Success message if redirected from add form -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="rounded-md p-4 mb-6 {% if category == 'success' %}bg-green-50{% else %}bg-red-50{% endif %}">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        {% if category == 'success' %}
+                            <svg class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        {% else %}
+                            <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        {% endif %}
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium {% if category == 'success' %}text-green-800{% else %}text-red-800{% endif %}">
+                            {{ message }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Participant Info -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Personal Information</h3>
+    </div>
+    <div class="border-t border-gray-200">
+        <dl>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Full name</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.name }}</dd>
+            </div>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Email address</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.email }}</dd>
+            </div>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Phone number</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.phone }}</dd>
+            </div>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Unique ID</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ participant.unique_id }}</dd>
+            </div>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Classroom</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    Class {{ participant.classroom }}
+                    {% if participant.has_laptop %}
+                    (With Laptop)
+                    {% else %}
+                    (No Laptop)
+                    {% endif %}
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- Session Info -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg mb-6">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">Session Information</h3>
+    </div>
+    <div class="border-t border-gray-200">
+        <dl>
+            <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Saturday Session</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    {% if saturday_session %}
+                        {{ saturday_session.time_slot }}
+                    {% else %}
+                        Not assigned
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-500">Sunday Session</dt>
+                <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    {% if sunday_session %}
+                        {{ sunday_session.time_slot }}
+                    {% else %}
+                        Not assigned
+                    {% endif %}
+                </dd>
+            </div>
+        </dl>
+    </div>
+</div>
+
+<!-- QR Code -->
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">QR Code</h3>
+    </div>
+    <div class="border-t border-gray-200">
+        <div class="px-4 py-5 sm:p-6 flex flex-col items-center">
+            {% if participant.qrcode_path %}
+                <img src="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" alt="QR Code" class="w-48 h-48 mb-4">
+                <div class="flex space-x-4">
+                    <a href="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" download class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Download QR Code
+                    </a>
+                    <button id="email-qrcode" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Email QR Code
+                    </button>
+                </div>
+            {% else %}
+                <p class="text-gray-500">QR code not generated yet.</p>
+                <button id="generate-qrcode" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Generate QR Code
+                </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle email QR code button
+        const emailQrCodeBtn = document.getElementById('email-qrcode');
+        if (emailQrCodeBtn) {
+            emailQrCodeBtn.addEventListener('click', function() {
+                if (confirm('Send QR code to {{ participant.email }}?')) {
+                    // Show loading state
+                    emailQrCodeBtn.disabled = true;
+                    emailQrCodeBtn.innerHTML = 'Sending...';
+
+                    // Send email request
+                    fetch('/admin/participant/{{ participant.unique_id }}/email-qrcode', {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('QR code sent successfully!');
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+
+                        // Reset button
+                        emailQrCodeBtn.disabled = false;
+                        emailQrCodeBtn.innerHTML = 'Email QR Code';
+                    })
+                    .catch(error => {
+                        console.error('Error sending email:', error);
+                        alert('An error occurred while sending the email.');
+
+                        // Reset button
+                        emailQrCodeBtn.disabled = false;
+                        emailQrCodeBtn.innerHTML = 'Email QR Code';
+                    });
+                }
+            });
+        }
+
+        // Handle generate QR code button
+        const generateQrCodeBtn = document.getElementById('generate-qrcode');
+        if (generateQrCodeBtn) {
+            generateQrCodeBtn.addEventListener('click', function() {
+                // Show loading state
+                generateQrCodeBtn.disabled = true;
+                generateQrCodeBtn.innerHTML = 'Generating...';
+
+                // Send generate request
+                fetch('/admin/participant/{{ participant.unique_id }}/generate-qrcode', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload page to show QR code
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+
+                        // Reset button
+                        generateQrCodeBtn.disabled = false;
+                        generateQrCodeBtn.innerHTML = 'Generate QR Code';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error generating QR code:', error);
+                    alert('An error occurred while generating the QR code.');
+
+                    // Reset button
+                    generateQrCodeBtn.disabled = false;
+                    generateQrCodeBtn.innerHTML = 'Generate QR Code';
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

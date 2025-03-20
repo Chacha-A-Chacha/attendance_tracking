@@ -1,0 +1,398 @@
+<!-- templates/participant/dashboard.html -->
+{% extends "participant/base.html" %}
+
+{% block title %}My Dashboard - Programming Course Portal{% endblock %}
+
+{% block content %}
+<div class="bg-white">
+    <div class="mx-auto max-w-7xl px-6 py-24 sm:py-32 lg:px-8">
+        <!-- Session Expiration Warning -->
+        <div class="relative mb-8">
+            <div class="rounded-md bg-yellow-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Session Notice</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <p>Your session will expire in <span id="session-timer" class="font-medium">30:00</span> minutes. After this time, you'll need to verify your identity again.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="mx-auto grid max-w-3xl grid-cols-1 gap-x-8 gap-y-16 lg:mx-0 lg:max-w-none lg:grid-cols-2">
+            <!-- Personal Details -->
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-gray-900">Personal Information</h2>
+                <dl class="mt-8 grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                        <dt class="text-sm font-medium text-gray-500">Full Name</dt>
+                        <dd class="mt-1 text-lg font-semibold text-gray-900">{{ participant.name }}</dd>
+                    </div>
+                    <div class="sm:col-span-6">
+                        <dt class="text-sm font-medium text-gray-500">Email</dt>
+                        <dd class="mt-1 text-base text-gray-900">{{ participant.email }}</dd>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                        <dd class="mt-1 text-base text-gray-900">{{ participant.phone }}</dd>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <dt class="text-sm font-medium text-gray-500">Unique ID</dt>
+                        <dd class="mt-1 text-base text-gray-900">{{ participant.unique_id }}</dd>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <dt class="text-sm font-medium text-gray-500">Classroom</dt>
+                        <dd class="mt-1 text-base text-gray-900">
+                            Class {{ participant.classroom }}
+                            {% if participant.has_laptop %}
+                            (With Laptop)
+                            {% else %}
+                            (No Laptop)
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- QR Code -->
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-gray-900">Attendance QR Code</h2>
+                <div class="mt-8 flex flex-col items-center">
+                    {% if participant.qrcode_path %}
+                        <div class="relative rounded-lg border border-gray-300 bg-white p-3">
+                            <img src="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" alt="Your QR Code" class="h-64 w-64 object-contain">
+                        </div>
+                        <div class="mt-6 flex flex-col sm:flex-row sm:space-x-4 space-y-3 sm:space-y-0">
+                            <a href="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" download="qrcode-{{ participant.unique_id }}.png" class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                                Download QR Code
+                            </a>
+                            <button type="button" id="email-qrcode" class="inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                </svg>
+                                Email QR Code to Me
+                            </button>
+                        </div>
+                        <p class="mt-3 text-sm text-gray-500">Present this QR code when checking in for your sessions.</p>
+                    {% else %}
+                        <div class="rounded-lg border border-gray-300 bg-gray-50 p-6 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-semibold text-gray-900">No QR code available</h3>
+                            <p class="mt-1 text-sm text-gray-500">Please contact the administrator to generate your QR code.</p>
+                            <div class="mt-6">
+                                <button type="button" id="generate-qrcode" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                                    Request QR Code
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Information -->
+        <div class="mt-16 border-t border-gray-900/10 pt-16">
+            <h2 class="text-2xl font-bold tracking-tight text-gray-900">My Class Schedule</h2>
+            <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <!-- Saturday Session -->
+                <div class="rounded-xl border border-gray-200 bg-white shadow">
+                    <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                        <h3 class="text-base font-semibold leading-7 text-gray-900">Saturday Session</h3>
+                    </div>
+                    <div class="px-6 py-4">
+                        <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                            <div class="sm:col-span-1">
+                                <dt class="text-sm font-medium text-gray-500">Time</dt>
+                                <dd class="mt-1 text-lg font-semibold text-gray-900">{{ saturday_session.time_slot }}</dd>
+                            </div>
+                            <div class="sm:col-span-1">
+                                <dt class="text-sm font-medium text-gray-500">Classroom</dt>
+                                <dd class="mt-1 text-base text-gray-900">{{ participant.classroom }}</dd>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <dt class="text-sm font-medium text-gray-500">What to Bring</dt>
+                                <dd class="mt-1 text-base text-gray-900">
+                                    {% if participant.has_laptop %}
+                                    Laptop, notebook, and pen/pencil
+                                    {% else %}
+                                    Notebook and pen/pencil
+                                    {% endif %}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Sunday Session -->
+                <div class="rounded-xl border border-gray-200 bg-white shadow">
+                    <div class="border-b border-gray-200 bg-gray-50 px-6 py-4">
+                        <h3 class="text-base font-semibold leading-7 text-gray-900">Sunday Session</h3>
+                    </div>
+                    <div class="px-6 py-4">
+                        <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                            <div class="sm:col-span-1">
+                                <dt class="text-sm font-medium text-gray-500">Time</dt>
+                                <dd class="mt-1 text-lg font-semibold text-gray-900">{{ sunday_session.time_slot }}</dd>
+                            </div>
+                            <div class="sm:col-span-1">
+                                <dt class="text-sm font-medium text-gray-500">Classroom</dt>
+                                <dd class="mt-1 text-base text-gray-900">{{ participant.classroom }}</dd>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <dt class="text-sm font-medium text-gray-500">What to Bring</dt>
+                                <dd class="mt-1 text-base text-gray-900">
+                                    {% if participant.has_laptop %}
+                                    Laptop, notebook, and pen/pencil
+                                    {% else %}
+                                    Notebook and pen/pencil
+                                    {% endif %}
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance History -->
+        <div class="mt-16 border-t border-gray-900/10 pt-16">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold tracking-tight text-gray-900">Attendance History</h2>
+                <button id="refresh-attendance" type="button" class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                    <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+            <div class="mt-8 flow-root">
+                <div id="attendance-container" class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-300">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Date</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Session</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Check-in Time</th>
+                                <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200" id="attendance-body">
+                            <tr>
+                                <td colspan="4" class="py-10 text-center text-sm text-gray-500">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <svg class="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p class="mt-2">Loading attendance history...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Session timer
+        const timerElement = document.getElementById('session-timer');
+        let timeLeft = {{ (session.get('verification_time', 0) + 1800) - current_time|int }};
+
+        function updateTimer() {
+            if (timeLeft <= 0) {
+                window.location.href = "{{ url_for('participant.logout') }}";
+                return;
+            }
+
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            timeLeft--;
+        }
+
+        // Update timer every second
+        setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // Email QR code button
+        const emailQrCodeBtn = document.getElementById('email-qrcode');
+        if (emailQrCodeBtn) {
+            emailQrCodeBtn.addEventListener('click', function() {
+                emailQrCodeBtn.disabled = true;
+                emailQrCodeBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Sending...';
+
+                fetch("{{ url_for('participant.email_qrcode') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('QR code sent successfully to your email!');
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+
+                    emailQrCodeBtn.disabled = false;
+                    emailQrCodeBtn.innerHTML = '<svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg> Email QR Code to Me';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+
+                    emailQrCodeBtn.disabled = false;
+                    emailQrCodeBtn.innerHTML = '<svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg> Email QR Code to Me';
+                });
+            });
+        }
+
+        // Generate QR code button
+        const generateQrCodeBtn = document.getElementById('generate-qrcode');
+        if (generateQrCodeBtn) {
+            generateQrCodeBtn.addEventListener('click', function() {
+                generateQrCodeBtn.disabled = true;
+                generateQrCodeBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Generating...';
+
+                fetch("{{ url_for('participant.generate_qrcode') }}", {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                        generateQrCodeBtn.disabled = false;
+                        generateQrCodeBtn.textContent = 'Request QR Code';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                    generateQrCodeBtn.disabled = false;
+                    generateQrCodeBtn.textContent = 'Request QR Code';
+                });
+            });
+        }
+
+        // Load attendance history
+        function loadAttendanceHistory() {
+            const attendanceBody = document.getElementById('attendance-body');
+
+            fetch("{{ url_for('participant.get_attendance_history') }}")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.attendance_history.length === 0) {
+                            attendanceBody.innerHTML = `
+                                <tr>
+                                    <td colspan="4" class="py-10 text-center text-sm text-gray-500">
+                                        <p>No attendance records found. Your attendance will appear here after your first check-in.</p>
+                                    </td>
+                                </tr>
+                            `;
+                            return;
+                        }
+
+                        attendanceBody.innerHTML = '';
+
+                        data.attendance_history.forEach(record => {
+                            const row = document.createElement('tr');
+
+                            // Convert timestamp to date and time
+                            const timestamp = new Date(record.timestamp);
+                            const dateFormatted = timestamp.toLocaleDateString();
+                            const timeFormatted = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                            // Determine status class
+                            let statusClass = '';
+                            let statusText = '';
+
+                            if (record.status === 'absent') {
+                                statusClass = 'bg-red-100 text-red-800';
+                                statusText = 'Absent';
+                            } else if (record.correct_session) {
+                                statusClass = 'bg-green-100 text-green-800';
+                                statusText = 'Present';
+                            } else {
+                                statusClass = 'bg-yellow-100 text-yellow-800';
+                                statusText = 'Wrong Session';
+                            }
+
+                            row.innerHTML = `
+                                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">${dateFormatted}</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${record.session}</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${timeFormatted}</td>
+                                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                    <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${statusClass}">
+                                        ${statusText}
+                                    </span>
+                                </td>
+                            `;
+
+                            attendanceBody.appendChild(row);
+                        });
+                    } else {
+                        attendanceBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="py-10 text-center text-sm text-gray-500">
+                                    <p>Error loading attendance history: ${data.message}</p>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    attendanceBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="py-10 text-center text-sm text-gray-500">
+                                <p>Failed to load attendance history. Please try again later.</p>
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+
+        // Load attendance history on page load
+        loadAttendanceHistory();
+
+        // Refresh attendance button
+        const refreshBtn = document.getElementById('refresh-attendance');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                const originalText = refreshBtn.innerHTML;
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Refreshing...';
+
+                loadAttendanceHistory();
+
+                setTimeout(() => {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = originalText;
+                }, 1000);
+            });
+        }
+    });
+</script>
+{% endblock %}
