@@ -4,6 +4,7 @@ from flask import current_app
 from datetime import datetime
 
 from app import db
+from app import email_service
 from models import Participant, Session
 from services.qrcode_generator import QRCodeGenerator
 
@@ -114,8 +115,7 @@ def email_qrcode():
         }), 404
     
     try:
-        # Send QR code via email
-        from app import email_service
+        # Send QR code via email        
         task_id = email_service.send_qr_code(participant.email, participant)
         
         # Record the email task
