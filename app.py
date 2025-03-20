@@ -2,9 +2,11 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from config import config_by_name
+from utils.email_service import EmailService
 
 # Initialize extensions
 db = SQLAlchemy()
+email_service = EmailService()
 
 
 def create_app(config_name=None):
@@ -18,6 +20,7 @@ def create_app(config_name=None):
 
     # Initialize extensions with app
     db.init_app(app)
+    email_service.init_app(app)
 
     # Import and register blueprints
     from controllers.admin import admin_bp
