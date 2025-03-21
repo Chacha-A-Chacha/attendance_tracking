@@ -82,7 +82,9 @@ def create_app(config_name=None):
     app.register_blueprint(email_bp, url_prefix='/email')
 
     # Create database tables
-    initialize_default_data(app)
+    with app.app_context():
+        db.create_all()
+        initialize_default_data(app)
 
     # Add health check endpoint
     @app.route('/health')
