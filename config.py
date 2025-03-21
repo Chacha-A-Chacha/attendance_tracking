@@ -78,9 +78,6 @@ class ProductionConfig(Config):
     # Use a production database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
-    if not SQLALCHEMY_DATABASE_URI:
-        raise RuntimeError("DATABASE_URL is not set!")
-
 
 class TestingConfig(Config):
     TESTING = True
