@@ -1,6 +1,7 @@
 import os
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
 from config import config_by_name
 from utils.enhanced_email import EnhancedEmailService
 from datetime import datetime
@@ -9,8 +10,10 @@ import json
 from logging.handlers import RotatingFileHandler
 
 # Initialize extensions
+load_dotenv()
 db = SQLAlchemy()
 email_service = EnhancedEmailService()
+
 
 def setup_logging(app):
     """Configure structured logging for the application."""
@@ -35,6 +38,7 @@ def setup_logging(app):
     logging.basicConfig(level=logging.DEBUG, handlers=[file_handler, console_handler])
     app.logger = logging.getLogger(__name__)
 
+
 def validate_config(app):
     """Validate critical configuration settings."""
     required_settings = [
@@ -48,6 +52,7 @@ def validate_config(app):
     for setting in required_settings:
         if not app.config.get(setting):
             raise ValueError(f"Missing required configuration: {setting}")
+
 
 def create_app(config_name=None):
     """Application factory function."""
@@ -92,6 +97,7 @@ def create_app(config_name=None):
 
     return app
 
+
 def initialize_default_data(app):
     """Initialize system with default data if needed."""
     from models import Session
@@ -114,6 +120,7 @@ def initialize_default_data(app):
     except Exception as e:
         app.logger.error(f"Failed to initialize default data: {str(e)}", exc_info=True)
         raise
+
 
 if __name__ == '__main__':
     app = create_app()
