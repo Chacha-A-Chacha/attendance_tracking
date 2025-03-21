@@ -39,7 +39,6 @@ def validate_config(app):
     """Validate critical configuration settings."""
     required_settings = [
         'SECRET_KEY',
-        'SQLALCHEMY_DATABASE_URI',
         'MAIL_SERVER',
         'MAIL_PORT',
         'MAIL_USERNAME',
