@@ -57,7 +57,7 @@ def create_app(config_name=None):
     # Load configuration
     config_name = config_name or os.environ.get('FLASK_ENV', 'development')
     app.config.from_object(config_by_name[config_name])
-    validate_config(app)
+    # validate_config(app)
 
     # Initialize extensions with app
     db.init_app(app)
