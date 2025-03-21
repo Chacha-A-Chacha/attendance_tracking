@@ -122,6 +122,8 @@ def initialize_default_data(app):
         raise
 
 
-if __name__ == '__main__':
-    app = create_app()
-    app.run(debug=True, host='0.0.0.0')
+app = create_app()
+
+# Create the database tables
+with app.app_context():
+    db.create_all()
