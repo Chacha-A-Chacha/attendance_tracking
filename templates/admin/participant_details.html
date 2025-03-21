@@ -123,14 +123,14 @@
     <div class="border-t border-gray-200">
         <div class="px-4 py-5 sm:p-6 flex flex-col items-center">
             {% if participant.qrcode_path %}
-                <img src="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" alt="QR Code" class="w-48 h-48 mb-4">
+                <img src="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" alt="QR Code" class="w-sm h-auto mb-4 ">
                 <div class="flex space-x-4">
                     <a href="{{ url_for('static', filename='qrcodes/' + participant.unique_id + '.png') }}" download class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         Download QR Code
                     </a>
-                    <button id="email-qrcode" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                        Email QR Code
-                    </button>
+{#                    <button id="email-qrcode" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">#}
+{#                        Email QR Code#}
+{#                    </button>#}
                 </div>
             {% else %}
                 <p class="text-gray-500">QR code not generated yet.</p>

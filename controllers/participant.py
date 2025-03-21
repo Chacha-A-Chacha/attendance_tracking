@@ -56,7 +56,7 @@ def dashboard():
     # Check if participant is verified
     if not flask_session.get('participant_verified', False):
         flash('Please verify your identity first', 'error')
-        return redirect(url_for('participant_bp.landing'))
+        return redirect(url_for('participant.landing'))
 
     # Check if verification has expired (30 minutes)
     verification_time = flask_session.get('verification_time', 0)
