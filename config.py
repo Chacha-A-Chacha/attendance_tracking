@@ -62,9 +62,9 @@ class Config:
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 465))
     MAIL_USE_TLS = False
     MAIL_USE_SSL = True
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'your-password')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'Programming Course <noreply@example.com>')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'calex2607@gmail.com')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'DroidVPNStatus')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'Programming Course <calex2607@gmail.com>')
 
 
 class DevelopmentConfig(Config):

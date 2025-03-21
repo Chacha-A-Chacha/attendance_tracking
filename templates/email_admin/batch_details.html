@@ -1,0 +1,401 @@
+{# templates/email_admin/batch_details.html #}
+{% extends "base.html" %}
+
+{% block title %}Batch Details - {{ batch.batch_id }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <div class="flex items-center">
+                <a href="{{ url_for('email_admin.index') }}" class="mr-2 text-indigo-600 hover:text-indigo-500">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                </a>
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">Email Batch Details</h2>
+            </div>
+            <p class="mt-1 text-sm text-gray-500">
+                Batch ID: {{ batch.batch_id }}
+            </p>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0">
+            <button type="button" id="refresh-batch" class="ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd" />
+                </svg>
+                Refresh
+            </button>
+            <button type="button" id="cancel-all" class="ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                </svg>
+                Cancel Remaining
+            </button>
+            <button type="button" id="retry-all" class="ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.75 9.25a.75.75 0 000 1.5h4.59l-2.1 1.95a.75.75 0 001.02 1.1l3.5-3.25a.75.75 0 000-1.1l-3.5-3.25a.75.75 0 10-1.02 1.1l2.1 1.95H6.75z" clip-rule="evenodd" />
+                </svg>
+                Retry Failed
+            </button>
+        </div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <!-- Batch summary -->
+        <div class="grid grid-cols-1 gap-6">
+            <div class="overflow-hidden rounded-lg bg-white shadow">
+                <div class="px-4 py-5 sm:p-6">
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium leading-6 text-gray-900">Total Emails</h3>
+                        <p class="mt-2 text-3xl font-bold text-gray-900">{{ batch.total }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-hidden rounded-lg bg-white shadow">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">Status Summary</h3>
+
+                    {% set queued_count = batch.tasks.values()|selectattr('status', 'eq', 'queued')|list|length %}
+                    {% set sending_count = batch.tasks.values()|selectattr('status', 'eq', 'sending')|list|length %}
+                    {% set sent_count = batch.tasks.values()|selectattr('status', 'eq', 'sent')|list|length %}
+                    {% set failed_count = batch.tasks.values()|selectattr('status', 'eq', 'failed')|list|length %}
+                    {% set cancelled_count = batch.tasks.values()|selectattr('status', 'eq', 'cancelled')|list|length %}
+                    
+                    <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div class="overflow-hidden rounded-lg bg-white">
+                            <div class="p-3">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                                            <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Sent</div>
+                                        <div class="text-lg font-semibold text-gray-900">{{ sent_count }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-hidden rounded-lg bg-white">
+                            <div class="p-3">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
+                                            <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Queued</div>
+                                        <div class="text-lg font-semibold text-gray-900">{{ queued_count }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-hidden rounded-lg bg-white">
+                            <div class="p-3">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Sending</div>
+                                        <div class="text-lg font-semibold text-gray-900">{{ sending_count }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-hidden rounded-lg bg-white">
+                            <div class="p-3">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                                            <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Failed</div>
+                                        <div class="text-lg font-semibold text-gray-900">{{ failed_count }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email list -->
+        <div class="lg:col-span-2 overflow-hidden rounded-lg bg-white shadow">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Email Details</h3>
+                
+                <div class="mt-4 flow-root">
+                    <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                        <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                            <table class="min-w-full divide-y divide-gray-300">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Recipient</th>
+                                        <th scope="col" class="hidden px-3 py-3.5 text-left text-sm font-semibold text-gray-900 lg:table-cell">Subject</th>
+                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Attempts</th>
+                                        <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-0">
+                                            <span class="sr-only">Actions</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    {% for task_id, task in batch.tasks.items() %}
+                                    <tr>
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-0">
+                                            <div class="font-medium text-gray-900">{{ task.recipient }}</div>
+                                            <div class="text-gray-500 truncate" style="max-width: 200px;" title="{{ task_id }}">{{ task_id }}</div>
+                                        </td>
+                                        <td class="hidden whitespace-nowrap px-3 py-4 text-sm text-gray-500 lg:table-cell">{{ task.subject }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm">
+                                            {% if task.status == 'queued' %}
+                                            <span class="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">Queued</span>
+                                            {% elif task.status == 'sending' %}
+                                            <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">Sending</span>
+                                            {% elif task.status == 'sent' %}
+                                            <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Sent</span>
+                                            {% elif task.status == 'failed' %}
+                                            <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Failed</span>
+                                            {% elif task.status == 'cancelled' %}
+                                            <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">Cancelled</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ task.attempts }}/{{ task.max_attempts }}</td>
+                                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                                            {% if task.status == 'queued' %}
+                                            <button type="button" class="cancel-email text-indigo-600 hover:text-indigo-900" data-task-id="{{ task_id }}">Cancel</button>
+                                            {% elif task.status == 'failed' %}
+                                            <button type="button" class="retry-email text-indigo-600 hover:text-indigo-900" data-task-id="{{ task_id }}">Retry</button>
+                                            <button type="button" class="view-error ml-4 text-red-600 hover:text-red-900" data-task-id="{{ task_id }}" data-error="{{ task.error }}">Error</button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error Modal -->
+<div class="relative z-10 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true" id="errorModal">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+    <div class="fixed inset-0 z-10 overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div>
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-5">
+                        <h3 class="text-base font-semibold leading-6 text-gray-900" id="modal-title">Error Details</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500" id="error-message"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                    <button type="button" class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 sm:col-start-2" id="retry-from-modal">Retry Email</button>
+                    <button type="button" class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0" id="close-modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Refresh batch data
+    document.getElementById('refresh-batch').addEventListener('click', function() {
+        window.location.reload();
+    });
+    
+    // Cancel all remaining emails
+    document.getElementById('cancel-all').addEventListener('click', function() {
+        if (!confirm('Are you sure you want to cancel all remaining emails in this batch?')) {
+            return;
+        }
+        
+        fetch('{{ url_for("email_admin.cancel_batch", batch_id=batch.batch_id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error cancelling batch:', error);
+            alert('Error cancelling batch');
+        });
+    });
+    
+    // Retry all failed emails
+    document.getElementById('retry-all').addEventListener('click', function() {
+        const failedEmails = document.querySelectorAll('.retry-email');
+        if (failedEmails.length === 0) {
+            alert('No failed emails to retry');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to retry all ${failedEmails.length} failed emails?`)) {
+            return;
+        }
+        
+        let retried = 0;
+        let promises = [];
+        
+        failedEmails.forEach(button => {
+            const taskId = button.getAttribute('data-task-id');
+            const promise = fetch('{{ url_for("email_admin.retry_email", task_id="PLACEHOLDER") }}'.replace('PLACEHOLDER', taskId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    retried++;
+                }
+                return data;
+            });
+            
+            promises.push(promise);
+        });
+        
+        Promise.all(promises)
+            .then(() => {
+                alert(`Retried ${retried} emails successfully`);
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error retrying emails:', error);
+                alert('Error retrying emails');
+            });
+    });
+    
+    // Cancel individual email
+    document.querySelectorAll('.cancel-email').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            if (!confirm(`Are you sure you want to cancel this email?`)) {
+                return;
+            }
+            
+            fetch('{{ url_for("email_admin.cancel_email", task_id="PLACEHOLDER") }}'.replace('PLACEHOLDER', taskId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling email:', error);
+                alert('Error cancelling email');
+            });
+        });
+    });
+    
+    // Retry individual email
+    document.querySelectorAll('.retry-email').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            retryEmail(taskId);
+        });
+    });
+    
+    // View error details
+    const errorModal = document.getElementById('errorModal');
+    const errorMessage = document.getElementById('error-message');
+    const retryFromModal = document.getElementById('retry-from-modal');
+    
+    document.querySelectorAll('.view-error').forEach(button => {
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-task-id');
+            const error = this.getAttribute('data-error');
+            
+            errorMessage.textContent = error;
+            retryFromModal.setAttribute('data-task-id', taskId);
+            errorModal.classList.remove('hidden');
+        });
+    });
+    
+    // Close modal
+    document.getElementById('close-modal').addEventListener('click', function() {
+        errorModal.classList.add('hidden');
+    });
+    
+    // Retry from error modal
+    retryFromModal.addEventListener('click', function() {
+        const taskId = this.getAttribute('data-task-id');
+        retryEmail(taskId);
+        errorModal.classList.add('hidden');
+    });
+    
+    function retryEmail(taskId) {
+        fetch('{{ url_for("email_admin.retry_email", task_id="PLACEHOLDER") }}'.replace('PLACEHOLDER', taskId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error retrying email:', error);
+            alert('Error retrying email');
+        });
+    }
+});
+</script>
+{% endblock %}

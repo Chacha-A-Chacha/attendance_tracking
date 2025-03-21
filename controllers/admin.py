@@ -366,7 +366,7 @@ def add_participant():
         # Process form submission
         data = {
             'name': request.form.get('name'),
-            'email': request.form.get('emailc'),
+            'email': request.form.get('email'),
             'phone': request.form.get('phone'),
             'has_laptop': request.form.get('has_laptop') == 'yes',
             'saturday_session_id': request.form.get('saturday_session_id', type=int),
@@ -378,7 +378,7 @@ def add_participant():
 
         if result['success']:
             flash('Participant added successfully!', 'success')
-            return redirect(url_for('admin_bp.participant_details', unique_id=result['participant']['unique_id']))
+            return redirect(url_for('admin.participant_details', unique_id=result['participant']['unique_id']))
         else:
             flash(f"Error: {result['message']}", 'danger')
 

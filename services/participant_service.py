@@ -1,7 +1,7 @@
 # services/participant_service.py
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
-from models.participant import Participant, Session
+from models import Participant, Session
 from services.qrcode_generator import QRCodeGenerator
 from utils.data_processing import clean_phone_number, clean_email, normalize_name
 from utils.session_mapper import find_available_session

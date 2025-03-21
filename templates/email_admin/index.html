@@ -1,0 +1,304 @@
+{# templates/email_admin/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Email Administration{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">Email Management</h2>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0">
+            <button type="button" id="refresh-stats" class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd" />
+                </svg>
+                Refresh Stats
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="mt-6">
+        <h3 class="text-base font-semibold leading-6 text-gray-900">Last 24 hours</h3>
+        <dl class="mt-5 grid grid-cols-1 divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow md:grid-cols-4 md:divide-x md:divide-y-0">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Queued</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-indigo-600" id="stat-queued">
+                        {{ stats.queued }}
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Sending</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-indigo-600" id="stat-sending">
+                        {{ stats.sending }}
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Sent</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-indigo-600" id="stat-sent">
+                        {{ stats.sent }}
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Failed</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-indigo-600" id="stat-failed">
+                        {{ stats.failed }}
+                    </div>
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Active Batches -->
+    <div class="mt-8">
+        <h3 class="text-base font-semibold leading-6 text-gray-900">Active Batches</h3>
+        <div class="mt-4 overflow-hidden bg-white shadow sm:rounded-md">
+            <ul role="list" class="divide-y divide-gray-200">
+                {% if stats.batches and stats.batches|length > 0 %}
+                    {% for batch_id, batch_stats in stats.batches.items() %}
+                    <li>
+                        <div class="flex items-center justify-between gap-x-6 px-4 py-5 sm:px-6">
+                            <div class="min-w-0">
+                                <div class="flex items-start gap-x-3">
+                                    <p class="text-sm font-medium leading-6 text-gray-900">{{ batch_id }}</p>
+                                    {% set sent_pct = (batch_stats.sent / batch_stats.total * 100)|int if batch_stats.total > 0 else 0 %}
+                                    {% if sent_pct == 100 %}
+                                    <p class="rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Complete</p>
+                                    {% else %}
+                                    <p class="rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">In progress</p>
+                                    {% endif %}
+                                </div>
+                                <div class="mt-3 flex w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    {% set sent_pct = (batch_stats.sent / batch_stats.total * 100)|int if batch_stats.total > 0 else 0 %}
+                                    {% set queued_pct = (batch_stats.queued / batch_stats.total * 100)|int if batch_stats.total > 0 else 0 %}
+                                    {% set failed_pct = (batch_stats.failed / batch_stats.total * 100)|int if batch_stats.total > 0 else 0 %}
+                                    
+                                    <div class="bg-green-500 h-full" style="width: {{ sent_pct }}%" title="Sent: {{ batch_stats.sent }}"></div>
+                                    <div class="bg-yellow-500 h-full" style="width: {{ queued_pct }}%" title="Queued: {{ batch_stats.queued }}"></div>
+                                    <div class="bg-red-500 h-full" style="width: {{ failed_pct }}%" title="Failed: {{ batch_stats.failed }}"></div>
+                                </div>
+                                <div class="mt-1 flex items-center gap-x-2 text-xs text-gray-500">
+                                    <span>{{ batch_stats.sent }}/{{ batch_stats.total }} emails sent</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-none items-center gap-x-4">
+                                <a href="{{ url_for('email_admin.batch_details', batch_id=batch_id) }}" class="rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">View details</a>
+                                <button type="button" class="cancel-batch rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" data-batch-id="{{ batch_id }}">Cancel</button>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="px-4 py-5 sm:px-6 text-center text-gray-500">
+                        No active batches
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Send Emails Section -->
+    <div class="mt-10 grid grid-cols-1 gap-x-8 gap-y-8 lg:grid-cols-2">
+        <!-- Send QR Codes by Class -->
+        <div class="bg-white shadow sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-base font-semibold leading-6 text-gray-900">Send QR Codes by Class</h3>
+                <p class="mt-1 text-sm text-gray-500">Send QR codes to participants based on classroom or session.</p>
+            </div>
+            <div class="border-t border-gray-100 px-4 py-5 sm:px-6">
+                <form action="{{ url_for('email_admin.send_qr_emails') }}" method="post">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="classroom" class="block text-sm font-medium leading-6 text-gray-900">Classroom</label>
+                            <select id="classroom" name="classroom" class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <option value="">All Classrooms</option>
+                                {% for classroom in classrooms %}
+                                <option value="{{ classroom }}">{{ classroom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium leading-6 text-gray-900">Session (Optional)</label>
+                            <div class="mt-2 grid grid-cols-2 gap-x-4">
+                                <div>
+                                    <select name="session_day" class="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option value="">Any Day</option>
+                                        <option value="Saturday">Saturday</option>
+                                        <option value="Sunday">Sunday</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <select name="session_time" class="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                        <option value="">Any Time</option>
+                                        {% for session in sessions %}
+                                        <option value="{{ session.time_slot }}">{{ session.time_slot }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium leading-6 text-gray-900">Priority</label>
+                            <div class="mt-2 space-y-3">
+                                <div class="flex items-center">
+                                    <input id="priority-high" name="priority" value="high" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                    <label for="priority-high" class="ml-3 block text-sm font-medium leading-6 text-gray-900">High</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input id="priority-normal" name="priority" value="normal" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                    <label for="priority-normal" class="ml-3 block text-sm font-medium leading-6 text-gray-900">Normal</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input id="priority-low" name="priority" value="low" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                    <label for="priority-low" class="ml-3 block text-sm font-medium leading-6 text-gray-900">Low</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                                Send QR Codes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Send Class Notification -->
+        <div class="bg-white shadow sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-base font-semibold leading-6 text-gray-900">Send Class Notification</h3>
+                <p class="mt-1 text-sm text-gray-500">Send customized notifications to participants by classroom.</p>
+            </div>
+            <div class="border-t border-gray-100 px-4 py-5 sm:px-6">
+                <form action="{{ url_for('email_admin.send_class_notification') }}" method="post">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="notification-classroom" class="block text-sm font-medium leading-6 text-gray-900">Classroom</label>
+                            <select id="notification-classroom" name="classroom" required class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <option value="">Select Classroom</option>
+                                {% for classroom in classrooms %}
+                                <option value="{{ classroom }}">{{ classroom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="template" class="block text-sm font-medium leading-6 text-gray-900">Email Template</label>
+                            <select id="template" name="template" required class="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                                <option value="">Select Template</option>
+                                <option value="qrcode">QR Code</option>
+                                <option value="reminder">Reminder</option>
+                                <option value="update">Update</option>
+                                <option value="custom">Custom Message</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label for="subject" class="block text-sm font-medium leading-6 text-gray-900">Subject</label>
+                            <input type="text" name="subject" id="subject" required placeholder="Email subject" class="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+                        </div>
+                        
+                        <div>
+                            <label for="custom_message" class="block text-sm font-medium leading-6 text-gray-900">Custom Message (Optional)</label>
+                            <textarea id="custom_message" name="custom_message" rows="3" placeholder="Additional message to include in the email" class="mt-2 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium leading-6 text-gray-900">Priority</label>
+                            <div class="mt-2 space-y-3">
+                                <div class="flex items-center">
+                                    <input id="notify-priority-high" name="priority" value="high" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                    <label for="notify-priority-high" class="ml-3 block text-sm font-medium leading-6 text-gray-900">High</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input id="notify-priority-normal" name="priority" value="normal" type="radio" checked class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                    <label for="notify-priority-normal" class="ml-3 block text-sm font-medium leading-6 text-gray-900">Normal</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input id="notify-priority-low" name="priority" value="low" type="radio" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                                    <label for="notify-priority-low" class="ml-3 block text-sm font-medium leading-6 text-gray-900">Low</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+                                Send Notification
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Refresh queue stats
+    document.getElementById('refresh-stats').addEventListener('click', function() {
+        fetch('{{ url_for("email_admin.queue_stats") }}')
+            .then(response => response.json())
+            .then(data => {
+                // Update stats display
+                document.getElementById('stat-queued').textContent = data.queued;
+                document.getElementById('stat-sending').textContent = data.sending;
+                document.getElementById('stat-sent').textContent = data.sent;
+                document.getElementById('stat-failed').textContent = data.failed;
+                
+                // Reload page to refresh batches
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error refreshing stats:', error);
+                alert('Error refreshing stats');
+            });
+    });
+    
+    // Cancel batch
+    document.querySelectorAll('.cancel-batch').forEach(button => {
+        button.addEventListener('click', function() {
+            const batchId = this.getAttribute('data-batch-id');
+            if (!confirm(`Are you sure you want to cancel all pending emails in batch ${batchId}?`)) {
+                return;
+            }
+            
+            fetch(`{{ url_for('email_admin.cancel_batch', batch_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', batchId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error cancelling batch:', error);
+                alert('Error cancelling batch');
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

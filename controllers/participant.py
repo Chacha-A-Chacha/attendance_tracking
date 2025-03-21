@@ -1,3 +1,5 @@
+import os
+
 from flask import Blueprint, render_template, request, jsonify, flash, url_for, redirect, session as flask_session
 from flask import current_app
 
@@ -7,6 +9,7 @@ from app import db
 from app import email_service
 from models import Participant, Session
 from services.qrcode_generator import QRCodeGenerator
+from utils.enhanced_email import Priority
 
 participant_bp = Blueprint('participant', __name__)
 
@@ -116,11 +119,15 @@ def email_qrcode():
     
     try:
         # Send QR code via email        
-        task_id = email_service.send_qr_code(participant.email, participant)
+        task_id = email_service.send_qr_code(
+            recipient=participant.email,
+            participant=participant,
+            priority=Priority.HIGH
+        )
         
         # Record the email task
-        participant.last_qrcode_email = datetime.now()
-        db.session.commit()
+        # participant.last_qrcode_email = datetime.now()
+        # db.session.commit()
         
         return jsonify({
             'success': True,
