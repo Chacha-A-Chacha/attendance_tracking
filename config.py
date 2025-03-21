@@ -63,7 +63,7 @@ class Config:
     MAIL_USE_TLS = False
     MAIL_USE_SSL = True
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'calex2607@gmail.com')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'DroidVPNStatus')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '***********')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'Programming Course <test-info@jaribu.org>')
 
 
@@ -77,7 +77,7 @@ class ProductionConfig(Config):
 
     # Use a production database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    
+
     if not SQLALCHEMY_DATABASE_URI:
         raise RuntimeError("DATABASE_URL is not set!")
 
