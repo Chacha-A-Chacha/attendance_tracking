@@ -29,7 +29,7 @@ def verify():
     # Validate inputs
     if not email or not unique_id:
         flash('Please provide both email and ID', 'error')
-        return redirect(url_for('participant_bp.landing'))
+        return redirect(url_for('participant.landing'))
 
     # Look up participant
     participant = Participant.query.filter_by(
@@ -77,7 +77,7 @@ def dashboard():
     if not participant:
         flask_session.clear()
         flash('Participant not found. Please verify again.', 'error')
-        return redirect(url_for('participant_bp.landing'))
+        return redirect(url_for('participant.landing'))
 
     # Get session information
     saturday_session = Session.query.get(participant.saturday_session_id)
