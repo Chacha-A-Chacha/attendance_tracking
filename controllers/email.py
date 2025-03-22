@@ -1,7 +1,7 @@
 # controllers/email_admin.py
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from utils.enhanced_email import EnhancedEmailService, Priority, EmailStatus
-from  app import db
+from  app import db, email_service
 from models import Participant, Session
 from sqlalchemy import or_
 import uuid
@@ -9,7 +9,6 @@ from datetime import datetime
 import os
 
 email_bp = Blueprint('email_admin', __name__, url_prefix='/email-admin')
-email_service = EnhancedEmailService()
 
 
 @email_bp.route('/')

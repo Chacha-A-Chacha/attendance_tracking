@@ -1,3 +1,4 @@
+import itertools
 import os
 import smtplib
 import json
@@ -66,13 +67,17 @@ class PriorityEmailQueue:
     def __init__(self):
         self.queue = queue.PriorityQueue()
         self.task_map = {}  # Maps task_id to task position for cancellation/updates
+        self.counter = itertools.count()  # Unique counter for tie-breaking
 
     def put(self, task, priority=Priority.NORMAL):
         """Add a task to the queue with a priority level"""
         task['priority'] = priority
-        entry = (priority, time.time(), task)
+
+        # Add to queue with priority, timestamp, and a unique counter value
+        entry = (priority, next(self.counter), task)
         self.queue.put(entry)
 
+        # Store reference
         task_id = task.get('task_id')
         if task_id:
             self.task_map[task_id] = task
@@ -90,9 +95,11 @@ class PriorityEmailQueue:
                     return None
             return None
 
+        # Get the highest priority task
         priority, _, task = self.queue.get(block=False)
         task_id = task.get('task_id')
 
+        # Remove from task map
         if task_id and task_id in self.task_map:
             del self.task_map[task_id]
 
@@ -143,6 +150,7 @@ class EnhancedEmailService:
     def init_app(self, app):
         """Initialize with Flask app"""
         self.app = app
+        self.logger.info("Flask app initialized for EnhancedEmailService.")
         self._load_statuses()
 
         if not self.running:
@@ -217,52 +225,51 @@ class EnhancedEmailService:
         """Process emails from the queue"""
         last_save_time = time.time()
 
-        with self.app.app_context():
-            while self.running:
-                try:
-                    task = email_queue.get(timeout=1.0)
+        while self.running:
+            try:
+                task = email_queue.get(timeout=1.0)
 
-                    if task:
-                        task_id = task.get('task_id')
-                        if task.get('cancelled', False):
-                            self.logger.info(f"Task {task_id} was cancelled. Skipping.")
-                            continue
+                if task:
+                    task_id = task.get('task_id')
+                    if task.get('cancelled', False):
+                        self.logger.info(f"Task {task_id} was cancelled. Skipping.")
+                        continue
+
+                    if task_id in email_statuses:
+                        email_statuses[task_id].status = EmailStatus.SENDING
+                        email_statuses[task_id].attempts += 1
+                        email_statuses[task_id].last_attempt = datetime.now()
+
+                    try:
+                        self._send_email(task)
+                        if task_id in email_statuses:
+                            email_statuses[task_id].status = EmailStatus.SENT
+                            email_statuses[task_id].sent_time = datetime.now()
+                            self.logger.info(f"Email sent successfully to {task['recipient']}.")
+                    except Exception as e:
+                        self.logger.error(f"Email sending failed: {str(e)}", exc_info=True)
 
                         if task_id in email_statuses:
-                            email_statuses[task_id].status = EmailStatus.SENDING
-                            email_statuses[task_id].attempts += 1
-                            email_statuses[task_id].last_attempt = datetime.now()
+                            status = email_statuses[task_id]
+                            status.status = EmailStatus.FAILED
+                            status.error = str(e)
 
-                        try:
-                            self._send_email(task)
-                            if task_id in email_statuses:
-                                email_statuses[task_id].status = EmailStatus.SENT
-                                email_statuses[task_id].sent_time = datetime.now()
-                                self.logger.info(f"Email sent successfully to {task['recipient']}.")
-                        except Exception as e:
-                            self.logger.error(f"Email sending failed: {str(e)}", exc_info=True)
+                            if status.attempts < status.max_attempts:
+                                delay = 2 ** status.attempts
+                                self.logger.info(f"Retrying task {task_id} in {delay} seconds.")
+                                time.sleep(delay)
+                                email_queue.put(task, priority=task.get('priority', Priority.NORMAL))
 
-                            if task_id in email_statuses:
-                                status = email_statuses[task_id]
-                                status.status = EmailStatus.FAILED
-                                status.error = str(e)
+                current_time = time.time()
+                if current_time - last_save_time > self.status_save_interval:
+                    self._save_statuses()
+                    last_save_time = current_time
 
-                                if status.attempts < status.max_attempts:
-                                    delay = 2 ** status.attempts
-                                    self.logger.info(f"Retrying task {task_id} in {delay} seconds.")
-                                    time.sleep(delay)
-                                    email_queue.put(task, priority=task.get('priority', Priority.NORMAL))
-
-                    current_time = time.time()
-                    if current_time - last_save_time > self.status_save_interval:
-                        self._save_statuses()
-                        last_save_time = current_time
-
-                except queue.Empty:
-                    pass
-                except Exception as e:
-                    self.logger.error(f"Email worker error: {str(e)}", exc_info=True)
-                    time.sleep(5)
+            except queue.Empty:
+                pass
+            except Exception as e:
+                self.logger.error(f"Email worker error: {str(e)}", exc_info=True)
+                time.sleep(5)
 
     def _send_email(self, task):
         """Send an individual email"""
@@ -314,6 +321,7 @@ class EnhancedEmailService:
 
     def send_qr_code(self, recipient, participant, priority=Priority.NORMAL, batch_id=None):
         """Send QR code to a participant"""
+
         # Create a task ID
         task_id = f"qrcode_{participant.unique_id}_{int(datetime.now().timestamp())}"
 
