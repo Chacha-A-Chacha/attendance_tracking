@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import func
 from app import db
 from models import Participant, Session, Attendance
+from utils.export_data import export_participants_to_excel
 from utils.session_mapper import get_session_capacity, get_session_count
 
 admin_bp = Blueprint('admin', __name__)
@@ -518,3 +519,34 @@ def daily_report():
             'message': f'Error generating report: {str(e)}',
             'error_code': 'report_error'
         }), 500
+
+
+@admin_bp.route('/export/participants', methods=['GET'])
+def export_participants():
+    """
+    Export participant data to Excel file.
+    Endpoint: /admin/export/participants
+    Method: GET
+    Returns: Excel file download
+    """
+    try:
+        from flask import send_file
+        import io
+
+        # Get Excel data
+        excel_data, filename = export_participants_to_excel()
+
+        # Create BytesIO object
+        excel_io = io.BytesIO(excel_data)
+
+        # Send file for download
+        return send_file(
+            excel_io,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error exporting participants: {str(e)}")
+        flash(f"Error exporting participants: {str(e)}", "danger")
+        return redirect(url_for('admin.dashboard'))
