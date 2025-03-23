@@ -225,51 +225,52 @@ class EnhancedEmailService:
         """Process emails from the queue"""
         last_save_time = time.time()
 
-        while self.running:
-            try:
-                task = email_queue.get(timeout=1.0)
+        with self.app.app_context():
+            while self.running:
+                try:
+                    task = email_queue.get(timeout=1.0)
 
-                if task:
-                    task_id = task.get('task_id')
-                    if task.get('cancelled', False):
-                        self.logger.info(f"Task {task_id} was cancelled. Skipping.")
-                        continue
-
-                    if task_id in email_statuses:
-                        email_statuses[task_id].status = EmailStatus.SENDING
-                        email_statuses[task_id].attempts += 1
-                        email_statuses[task_id].last_attempt = datetime.now()
-
-                    try:
-                        self._send_email(task)
-                        if task_id in email_statuses:
-                            email_statuses[task_id].status = EmailStatus.SENT
-                            email_statuses[task_id].sent_time = datetime.now()
-                            self.logger.info(f"Email sent successfully to {task['recipient']}.")
-                    except Exception as e:
-                        self.logger.error(f"Email sending failed: {str(e)}", exc_info=True)
+                    if task:
+                        task_id = task.get('task_id')
+                        if task.get('cancelled', False):
+                            self.logger.info(f"Task {task_id} was cancelled. Skipping.")
+                            continue
 
                         if task_id in email_statuses:
-                            status = email_statuses[task_id]
-                            status.status = EmailStatus.FAILED
-                            status.error = str(e)
+                            email_statuses[task_id].status = EmailStatus.SENDING
+                            email_statuses[task_id].attempts += 1
+                            email_statuses[task_id].last_attempt = datetime.now()
 
-                            if status.attempts < status.max_attempts:
-                                delay = 2 ** status.attempts
-                                self.logger.info(f"Retrying task {task_id} in {delay} seconds.")
-                                time.sleep(delay)
-                                email_queue.put(task, priority=task.get('priority', Priority.NORMAL))
+                        try:
+                            self._send_email(task)
+                            if task_id in email_statuses:
+                                email_statuses[task_id].status = EmailStatus.SENT
+                                email_statuses[task_id].sent_time = datetime.now()
+                                self.logger.info(f"Email sent successfully to {task['recipient']}.")
+                        except Exception as e:
+                            self.logger.error(f"Email sending failed: {str(e)}", exc_info=True)
 
-                current_time = time.time()
-                if current_time - last_save_time > self.status_save_interval:
-                    self._save_statuses()
-                    last_save_time = current_time
+                            if task_id in email_statuses:
+                                status = email_statuses[task_id]
+                                status.status = EmailStatus.FAILED
+                                status.error = str(e)
 
-            except queue.Empty:
-                pass
-            except Exception as e:
-                self.logger.error(f"Email worker error: {str(e)}", exc_info=True)
-                time.sleep(5)
+                                if status.attempts < status.max_attempts:
+                                    delay = 2 ** status.attempts
+                                    self.logger.info(f"Retrying task {task_id} in {delay} seconds.")
+                                    time.sleep(delay)
+                                    email_queue.put(task, priority=task.get('priority', Priority.NORMAL))
+
+                    current_time = time.time()
+                    if current_time - last_save_time > self.status_save_interval:
+                        self._save_statuses()
+                        last_save_time = current_time
+
+                except queue.Empty:
+                    pass
+                except Exception as e:
+                    self.logger.error(f"Email worker error: {str(e)}", exc_info=True)
+                    time.sleep(5)
 
     def _send_email(self, task):
         """Send an individual email"""
