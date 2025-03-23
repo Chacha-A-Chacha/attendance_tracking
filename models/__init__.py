@@ -3,3 +3,4 @@
 from .participant import Participant
 from .session import Session
 from .attendance import Attendance
+from .session_reassignment import SessionReassignmentRequest, ReassignmentStatus

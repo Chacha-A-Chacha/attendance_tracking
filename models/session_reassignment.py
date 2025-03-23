@@ -18,16 +18,17 @@ class SessionReassignmentRequest(db.Model):
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(10), default=ReassignmentStatus.PENDING)
     admin_notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     reviewed_at = db.Column(db.DateTime, nullable=True)
-    reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Assuming an admin User model exists
+    # reviewed_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Assuming an admin User model
+    # exists
 
     # Relationships
     participant = db.relationship('Participant', backref='reassignment_requests')
     current_session = db.relationship('Session', foreign_keys=[current_session_id])
     requested_session = db.relationship('Session', foreign_keys=[requested_session_id])
-    reviewer = db.relationship('User', foreign_keys=[reviewed_by], backref='reviewed_requests')
+    # reviewer = db.relationship('User', foreign_keys=[reviewed_by], backref='reviewed_requests')
 
     def __repr__(self):
         return f'<SessionReassignmentRequest {self.id} - {self.status}>'
