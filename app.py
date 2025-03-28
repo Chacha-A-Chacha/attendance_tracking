@@ -1,6 +1,7 @@
 import os
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from config import config_by_name
 from utils.enhanced_email import EnhancedEmailService
@@ -12,6 +13,7 @@ from logging.handlers import RotatingFileHandler
 # Initialize extensions
 load_dotenv()
 db = SQLAlchemy()
+migrate = Migrate()
 email_service = EnhancedEmailService()
 
 
@@ -66,6 +68,7 @@ def create_app(config_name=None):
 
     # Initialize extensions with app
     db.init_app(app)
+    migrate.init_app(app, db)
     email_service.init_app(app)
 
     # Register blueprints
@@ -96,6 +99,19 @@ def create_app(config_name=None):
     def handle_exception(e):
         app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
         return jsonify({'error': 'An unexpected error occurred', 'message': str(e)}), 500
+
+    @app.cli.command("init-reassignments-count")
+    def init_reassignments_count():
+        """Initialize reassignments_count for all participants."""
+        from models import Participant
+
+        participants = Participant.query.all()
+        for participant in participants:
+            # Logic to determine the initial value (usually 0)
+            participant.reassignments_count = 0
+
+        db.session.commit()
+        print(f"Updated {len(participants)} participants with initial reassignments count.")
 
     return app
 

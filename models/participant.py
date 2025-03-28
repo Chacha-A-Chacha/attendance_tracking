@@ -13,7 +13,8 @@ class Participant(db.Model):
     has_laptop = db.Column(db.Boolean, default=False)
     classroom = db.Column(db.String(10), nullable=False)  # 203 or 204
     qrcode_path = db.Column(db.String(255), nullable=True)
-    registration_timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    registration_timestamp = db.Column(db.DateTime, default=datetime.now)
+    reassignments_count = db.Column(db.Integer, default=0)
 
     # Relationships
     saturday_session_id = db.Column(db.Integer, db.ForeignKey('session.id'))

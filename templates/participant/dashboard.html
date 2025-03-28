@@ -167,6 +167,127 @@
             </div>
         </div>
 
+        {#  Reassignment Section  #}
+        <div class="mt-16 border-t border-gray-900/10 pt-16">
+          <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold tracking-tight text-gray-900">Session Reassignment</h2>
+            <button id="new-reassignment-request" type="button" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
+              <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+              </svg>
+              Request Session Change
+            </button>
+          </div>
+
+          <!-- Reassignment Limits Info -->
+          <div class="mt-4 rounded-md bg-blue-50 p-4">
+            <div class="flex">
+              <div class="shrink-0">
+                <svg class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div class="ml-3 flex-1 md:flex md:justify-between">
+                <p class="text-sm text-blue-700">
+                  You can request to change your assigned sessions if needed. Maximum of 2 approved reassignments allowed.
+                  <span class="font-semibold">
+                    You have used {{ participant.reassignments_count|default(0) }} of 2 reassignments.
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reassignment Requests History -->
+          <div class="mt-8 flow-root">
+            <div id="reassignment-container" class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-300">
+                <thead>
+                  <tr>
+                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Day</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">From Session</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">To Session</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Requested On</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200" id="reassignment-requests-body">
+                  <tr>
+                    <td colspan="5" class="py-10 text-center text-sm text-gray-500">
+                      <div class="flex flex-col items-center justify-center">
+                        <svg class="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="mt-2">Loading reassignment requests...</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reassignment Request Modal -->
+        <div id="reassignment-modal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div class="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all max-w-lg w-full">
+            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div class="sm:flex sm:items-start">
+                <div class="mx-auto shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                  </svg>
+                </div>
+                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                    Request Session Reassignment
+                  </h3>
+                  <div class="mt-2">
+                    <p class="text-sm text-gray-500">
+                      Please select which day's session you'd like to change and provide a reason for your request.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-5">
+                <form id="reassignment-form" class="space-y-4">
+                  <!-- Day Selection -->
+                  <div>
+                    <label for="day-type" class="block text-sm font-medium text-gray-700">Day to Change</label>
+                    <select id="day-type" name="day_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                      <option value="Saturday">Saturday (Currently: {{ saturday_session.time_slot }})</option>
+                      <option value="Sunday">Sunday (Currently: {{ sunday_session.time_slot }})</option>
+                    </select>
+                  </div>
+
+                  <!-- New Session Selection -->
+                  <div>
+                    <label for="new-session" class="block text-sm font-medium text-gray-700">New Session</label>
+                    <select id="new-session" name="requested_session_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                      <option value="">Loading available sessions...</option>
+                    </select>
+                    <p id="capacity-info" class="mt-1 text-xs text-gray-500"></p>
+                  </div>
+
+                  <!-- Reason -->
+                  <div>
+                    <label for="reason" class="block text-sm font-medium text-gray-700">Reason for Change</label>
+                    <textarea id="reason" name="reason" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Please explain why you need to change sessions"></textarea>
+                  </div>
+                </form>
+              </div>
+            </div>
+            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button type="button" id="submit-reassignment" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm">
+                Submit Request
+              </button>
+              <button type="button" id="cancel-reassignment" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Attendance History -->
         <div class="mt-16 border-t border-gray-900/10 pt-16">
             <div class="flex items-center justify-between">
@@ -394,5 +515,267 @@
             });
         }
     });
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const newRequestBtn = document.getElementById('new-reassignment-request');
+    const modal = document.getElementById('reassignment-modal');
+    const cancelBtn = document.getElementById('cancel-reassignment');
+    const submitBtn = document.getElementById('submit-reassignment');
+    const dayTypeSelect = document.getElementById('day-type');
+    const newSessionSelect = document.getElementById('new-session');
+    const capacityInfo = document.getElementById('capacity-info');
+    const form = document.getElementById('reassignment-form');
+
+    // Load reassignment requests history
+    function loadReassignmentRequests() {
+      const requestsBody = document.getElementById('reassignment-requests-body');
+
+      fetch("{{ url_for('participant.get_reassignment_requests') }}")
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            if (data.requests.length === 0) {
+              requestsBody.innerHTML = `
+                <tr>
+                  <td colspan="5" class="py-10 text-center text-sm text-gray-500">
+                    <p>No reassignment requests found. Use the "Request Session Change" button to make a request.</p>
+                  </td>
+                </tr>
+              `;
+              return;
+            }
+
+            requestsBody.innerHTML = '';
+
+            data.requests.forEach(request => {
+              const row = document.createElement('tr');
+
+              // Determine status class
+              let statusClass = '';
+              let statusText = request.status;
+
+              if (request.status === 'pending') {
+                statusClass = 'bg-yellow-100 text-yellow-800';
+                statusText = 'Pending';
+              } else if (request.status === 'approved') {
+                statusClass = 'bg-green-100 text-green-800';
+                statusText = 'Approved';
+              } else if (request.status === 'rejected') {
+                statusClass = 'bg-red-100 text-red-800';
+                statusText = 'Rejected';
+              }
+
+              row.innerHTML = `
+                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-0">${request.day_type}</td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${request.current_session}</td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${request.requested_session}</td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                  <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${statusClass}">
+                    ${statusText}
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">${request.created_at}</td>
+              `;
+
+              requestsBody.appendChild(row);
+            });
+          } else {
+            requestsBody.innerHTML = `
+              <tr>
+                <td colspan="5" class="py-10 text-center text-sm text-gray-500">
+                  <p>Error loading requests: ${data.message}</p>
+                </td>
+              </tr>
+            `;
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          requestsBody.innerHTML = `
+            <tr>
+              <td colspan="5" class="py-10 text-center text-sm text-gray-500">
+                <p>Failed to load requests. Please try again later.</p>
+              </td>
+            </tr>
+          `;
+        });
+    }
+
+    // Load available sessions for a day
+    function loadAvailableSessions(day) {
+      newSessionSelect.innerHTML = '<option value="">Loading available sessions...</option>';
+      capacityInfo.textContent = '';
+
+      fetch(`{{ url_for('participant.get_available_sessions', day='') }}${day}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Clear the dropdown
+            newSessionSelect.innerHTML = '';
+
+            // First option - please select
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Please select a session';
+            newSessionSelect.appendChild(defaultOption);
+
+            // Add options for each available session
+            data.sessions.forEach(session => {
+              // Skip the current session
+              if ((day === 'Saturday' && session.time_slot === '{{ saturday_session.time_slot }}') ||
+                  (day === 'Sunday' && session.time_slot === '{{ sunday_session.time_slot }}')) {
+                return;
+              }
+
+              const option = document.createElement('option');
+              option.value = session.id;
+              option.textContent = session.time_slot;
+              option.dataset.capacity = JSON.stringify(session.capacity);
+
+              // Disable if no capacity available
+              if (!session.has_capacity) {
+                option.disabled = true;
+                option.textContent += ' (Full)';
+              }
+
+              newSessionSelect.appendChild(option);
+            });
+
+            // If no valid options were added
+            if (newSessionSelect.options.length === 1) {
+              const option = document.createElement('option');
+              option.value = '';
+              option.textContent = 'No other sessions available';
+              option.disabled = true;
+              newSessionSelect.innerHTML = '';
+              newSessionSelect.appendChild(option);
+            }
+          } else {
+            newSessionSelect.innerHTML = `<option value="">Error: ${data.message}</option>`;
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          newSessionSelect.innerHTML = '<option value="">Error loading sessions</option>';
+        });
+    }
+
+    // Show capacity info when a session is selected
+    newSessionSelect.addEventListener('change', function() {
+      if (this.selectedIndex > 0) {
+        const selectedOption = this.options[this.selectedIndex];
+        const capacityData = JSON.parse(selectedOption.dataset.capacity);
+
+        capacityInfo.innerHTML = `
+          <span class="font-medium">Capacity:</span>
+          ${capacityData.used}/${capacityData.total} (${capacityData.available} spots available,
+          ${capacityData.percentage_filled}% filled)
+        `;
+      } else {
+        capacityInfo.textContent = '';
+      }
+    });
+
+    // Update available sessions when day type changes
+    dayTypeSelect.addEventListener('change', function() {
+      loadAvailableSessions(this.value);
+    });
+
+    // Show modal
+    newRequestBtn.addEventListener('click', function() {
+      // Reset form
+      form.reset();
+
+      // Load initial sessions for Saturday (default option)
+      loadAvailableSessions('Saturday');
+
+      // Show modal
+      modal.classList.remove('hidden');
+    });
+
+    // Hide modal
+    cancelBtn.addEventListener('click', function() {
+      modal.classList.add('hidden');
+    });
+
+    // Submit form
+    submitBtn.addEventListener('click', function() {
+      // Validate form
+      const dayType = dayTypeSelect.value;
+      const requestedSessionId = newSessionSelect.value;
+      const reason = document.getElementById('reason').value.trim();
+
+      if (!dayType) {
+        alert('Please select a day to change.');
+        return;
+      }
+
+      if (!requestedSessionId) {
+        alert('Please select a new session.');
+        return;
+      }
+
+      if (!reason) {
+        alert('Please provide a reason for the change.');
+        return;
+      }
+
+      // Disable submit button
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Submitting...';
+
+      // Submit request
+      fetch("{{ url_for('participant.request_reassignment') }}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          day_type: dayType,
+          requested_session_id: requestedSessionId,
+          reason: reason
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Request';
+
+        if (data.success) {
+          // Hide modal
+          modal.classList.add('hidden');
+
+          // Show success message
+          alert('Reassignment request submitted successfully!');
+
+          // Reload requests
+          loadReassignmentRequests();
+        } else {
+          alert(`Error: ${data.message}`);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Request';
+      });
+    });
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(event) {
+      if (event.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+
+    // Load requests on page load
+    loadReassignmentRequests();
+  });
 </script>
 {% endblock %}

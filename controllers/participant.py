@@ -1,15 +1,16 @@
 import os
-
-from flask import Blueprint, render_template, request, jsonify, flash, url_for, redirect, session as flask_session
-from flask import current_app
-
 from datetime import datetime
+from flask import Blueprint, render_template, request, jsonify, flash, url_for, redirect, session as flask_session, current_app
 
-from app import db
-from app import email_service
+from app import db, email_service
 from models import Participant, Session
+
 from services.qrcode_generator import QRCodeGenerator
+from services.session_reassignment_service import SessionReassignmentService
+
 from utils.enhanced_email import Priority
+
+reassignment_service = SessionReassignmentService()
 
 participant_bp = Blueprint('participant', __name__)
 
@@ -99,36 +100,36 @@ def email_qrcode():
             'success': False,
             'message': 'Unauthorized'
         }), 401
-    
+
     # Get participant
     participant_id = flask_session.get('participant_id')
     participant = Participant.query.get(participant_id)
-    
+
     if not participant:
         return jsonify({
             'success': False,
             'message': 'Participant not found'
         }), 404
-    
+
     # Check if QR code exists
     if not participant.qrcode_path or not os.path.exists(participant.qrcode_path):
         return jsonify({
             'success': False,
             'message': 'QR code not found. Please generate one first.'
         }), 404
-    
+
     try:
-        # Send QR code via email        
+        # Send QR code via email
         task_id = email_service.send_qr_code(
             recipient=participant.email,
             participant=participant,
             priority=Priority.HIGH
         )
-        
+
         # Record the email task
         # participant.last_qrcode_email = datetime.now()
         # db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': 'QR code has been sent to your email',
@@ -220,6 +221,80 @@ def logout():
     flask_session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('participant.landing'))
+
+
+@participant_bp.route('/available-sessions/<day>', methods=['GET'])
+def get_available_sessions(day):
+    """Get available sessions for reassignment"""
+    # Verify participant is logged in
+    if not flask_session.get('participant_verified', False):
+        return jsonify({
+            'success': False,
+            'message': 'Unauthorized'
+        }), 401
+
+    # Get participant
+    participant_id = flask_session.get('participant_id')
+    participant = Participant.query.get(participant_id)
+
+    if not participant:
+        return jsonify({
+            'success': False,
+            'message': 'Participant not found'
+        }), 404
+
+    # Validate day
+    if day not in ['Saturday', 'Sunday']:
+        return jsonify({
+            'success': False,
+            'message': 'Invalid day parameter. Must be Saturday or Sunday'
+        }), 400
+
+    # Get available sessions
+    result = reassignment_service.get_available_sessions(day, participant.has_laptop)
+
+    return jsonify(result)
+
+
+@participant_bp.route('/request-reassignment', methods=['POST'])
+def request_reassignment():
+    """Submit a session reassignment request"""
+    # Verify participant is logged in
+    if not flask_session.get('participant_verified', False):
+        return jsonify({
+            'success': False,
+            'message': 'Unauthorized'
+        }), 401
+
+    # Get participant
+    participant_id = flask_session.get('participant_id')
+
+    # Get request data
+    data = request.json
+
+    # Create reassignment request
+    result = reassignment_service.create_reassignment_request(participant_id, data)
+
+    return jsonify(result)
+
+
+@participant_bp.route('/reassignment-requests', methods=['GET'])
+def get_reassignment_requests():
+    """Get reassignment requests for the current participant"""
+    # Verify participant is logged in
+    if not flask_session.get('participant_verified', False):
+        return jsonify({
+            'success': False,
+            'message': 'Unauthorized'
+        }), 401
+
+    # Get participant
+    participant_id = flask_session.get('participant_id')
+
+    # Get requests
+    result = reassignment_service.get_participant_requests(participant_id)
+
+    return jsonify(result)
 
 
 @participant_bp.route('/participant/<int:participant_id>', methods=['GET'])

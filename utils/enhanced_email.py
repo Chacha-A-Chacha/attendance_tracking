@@ -182,7 +182,7 @@ class EnhancedEmailService:
 
             with open(status_file, 'w') as f:
                 json.dump(statuses, f, indent=2)
-            self.logger.debug("Email statuses saved to file.")
+            # self.logger.debug("Email statuses saved to file.")
         except Exception as e:
             self.logger.error(f"Failed to save email statuses: {str(e)}", exc_info=True)
 

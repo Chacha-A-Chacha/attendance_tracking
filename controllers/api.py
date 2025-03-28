@@ -48,31 +48,74 @@ def scanner_data():
         start_time_str = session.time_slot.split(' - ')[0]
 
         # Convert to 24-hour format for comparison
-        if 'am' in start_time_str.lower():
-            hour, minute = start_time_str.replace('am', '').split('.')
-            start_hour = int(hour)
-            if start_hour == 12:  # Handle 12am as 0
-                start_hour = 0
-        else:
-            hour, minute = start_time_str.replace('pm', '').split('.')
-            start_hour = int(hour)
-            if start_hour < 12:  # Handle 1pm-11pm
-                start_hour += 12
+        try:
+            if 'am' in start_time_str.lower():
+                # Handle the case where the time might use colon (10:00am) or period (10.00am)
+                if '.' in start_time_str:
+                    hour, minute = start_time_str.replace('am', '').split('.')
+                elif ':' in start_time_str:
+                    hour, minute = start_time_str.replace('am', '').split(':')
+                else:
+                    # If neither format is found, log error and skip this session
+                    current_app.logger.error(f"Invalid time format: {start_time_str}")
+                    continue
+
+                start_hour = int(hour)
+                if start_hour == 12:  # Handle 12am as 0
+                    start_hour = 0
+            else:  # pm case
+                if '.' in start_time_str:
+                    hour, minute = start_time_str.replace('pm', '').split('.')
+                elif ':' in start_time_str:
+                    hour, minute = start_time_str.replace('pm', '').split(':')
+                else:
+                    # If neither format is found, log error and skip this session
+                    current_app.logger.error(f"Invalid time format: {start_time_str}")
+                    continue
+
+                start_hour = int(hour)
+                if start_hour < 12:  # Handle 1pm-11pm
+                    start_hour += 12
+        except ValueError as e:
+            # Log the error but continue processing other sessions
+            current_app.logger.error(f"Error parsing time '{start_time_str}': {str(e)}")
+            continue
 
         start_time = f"{start_hour:02d}:{minute}"
 
         # Get end time for determining current session
         end_time_str = session.time_slot.split(' - ')[1]
-        if 'am' in end_time_str.lower():
-            hour, minute = end_time_str.replace('am', '').split('.')
-            end_hour = int(hour)
-            if end_hour == 12:  # Handle 12am as 0
-                end_hour = 0
-        else:
-            hour, minute = end_time_str.replace('pm', '').split('.')
-            end_hour = int(hour)
-            if end_hour < 12:  # Handle 1pm-11pm
-                end_hour += 12
+        try:
+            if 'am' in end_time_str.lower():
+                if '.' in end_time_str:
+                    hour, minute = end_time_str.replace('am', '').split('.')
+                elif ':' in end_time_str:
+                    hour, minute = end_time_str.replace('am', '').split(':')
+                else:
+                    # If neither format is found, log error and skip this session
+                    current_app.logger.error(f"Invalid time format: {end_time_str}")
+                    continue
+
+                end_hour = int(hour)
+                if end_hour == 12:  # Handle 12am as 0
+                    end_hour = 0
+            else:  # pm case
+                if '.' in end_time_str:
+                    hour, minute = end_time_str.replace('pm', '').split('.')
+                elif ':' in end_time_str:
+                    hour, minute = end_time_str.replace('pm', '').split(':')
+                else:
+                    # If neither format is found, log error and skip this session
+                    current_app.logger.error(f"Invalid time format: {end_time_str}")
+                    continue
+
+                end_hour = int(hour)
+                if end_hour < 12:  # Handle 1pm-11pm
+                    end_hour += 12
+        except ValueError as e:
+            # Log the error but continue processing other sessions
+            current_app.logger.error(f"Error parsing time '{end_time_str}': {str(e)}")
+            continue
 
         end_time = f"{end_hour:02d}:{minute}"
 
@@ -101,7 +144,7 @@ def scanner_data():
         'time_slot': session.time_slot,
         'day': session.day
     } for session in sessions]
-    
+
     current_session_data = None
     if current_session:
         current_session_data = {

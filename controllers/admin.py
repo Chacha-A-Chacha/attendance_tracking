@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from services.importer import import_spreadsheet
 from services.verification import AttendanceVerifier
+from services.session_reassignment_service import SessionReassignmentService
 import os
 from datetime import datetime
 from sqlalchemy import func
@@ -8,6 +9,8 @@ from app import db
 from models import Participant, Session, Attendance
 from utils.export_data import export_participants_to_excel
 from utils.session_mapper import get_session_capacity, get_session_count
+
+reassignment_service = SessionReassignmentService()
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -550,3 +553,57 @@ def export_participants():
         current_app.logger.error(f"Error exporting participants: {str(e)}")
         flash(f"Error exporting participants: {str(e)}", "danger")
         return redirect(url_for('admin.dashboard'))
+
+
+@admin_bp.route('/reassignment-requests', methods=['GET'])
+def get_reassignment_requests():
+    """Admin view for pending reassignment requests"""
+    # Get pending requests
+    result = reassignment_service.get_pending_requests()
+
+    # For AJAX requests, return JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(result)
+
+    # For regular requests, render template
+    return render_template('admin/reassignment_requests.html',
+                           requests=result.get('requests', []) if result['success'] else [],
+                           error=None if result['success'] else result.get('message'))
+
+
+@admin_bp.route('/process-reassignment/<int:request_id>', methods=['POST'])
+def process_reassignment_request(request_id):
+    """Process (approve/reject) a reassignment request"""
+    # Get request data
+    approve_value = request.form.get('approve', '')
+    # Log the actual value for debugging
+    current_app.logger.info(f"Processing reassignment request {request_id} with approve value: {approve_value}")
+
+    # Convert strings to boolean properly
+    approve = approve_value.lower() == 'true'
+    admin_notes = request.form.get('admin_notes', '')
+
+    # TODO: Get admin ID from session/auth system
+    admin_id = 1  # Placeholder, replace with actual admin ID
+
+    # Process the request
+    result = reassignment_service.process_reassignment_request(
+        request_id=request_id,
+        admin_id=admin_id,
+        approve=approve,
+        admin_notes=admin_notes
+    )
+
+    current_app.logger.info(f"Result: {result}")
+
+    # For AJAX requests, return JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(result)
+
+    # For regular requests, show flash message and redirect
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(f"Error: {result['message']}", 'danger')
+
+    return redirect(url_for('admin.get_reassignment_requests'))
