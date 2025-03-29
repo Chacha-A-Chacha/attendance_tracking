@@ -4,7 +4,8 @@ import multiprocessing
 bind = "127.0.0.1:8000"  # Only accessible locally, NGINX will proxy requests
 
 # Worker Settings
-workers = multiprocessing.cpu_count() * 2 + 1  # Efficient worker count
+# workers = multiprocessing.cpu_count() * 2 + 1  # Efficient worker count
+workers = 5
 threads = 2  # Each worker handles 2 threads for concurrency
 worker_class = "gthread"  # Threaded workers for better async handling
 
@@ -16,8 +17,8 @@ max_requests = 1000  # Restart workers after processing 1000 requests (memory le
 max_requests_jitter = 50  # Staggered restarts to avoid downtime
 
 # Logging
-accesslog = "/var/log/gunicorn/access.log"
-errorlog = "/var/log/gunicorn/error.log"
+accesslog = "/home/academy/km120/attendance_tracking/log/gunicorn/access.log"
+errorlog = "/home/academy/km120/attendance_tracking/log/gunicorn/error.log"
 loglevel = "info"
 
 # Process Name
