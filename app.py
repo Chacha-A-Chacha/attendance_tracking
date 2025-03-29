@@ -122,8 +122,7 @@ def create_app(config_name=None):
         """
         Reset session assignments for participants in a specific classroom.
 
-        This will set both Saturday and Sunday sessions to None, allowing participants
-        to request new sessions through the reassignment system.
+        This allows them to request reassignment to their preferred sessions.
 
         Example usage:
             flask reset-session-assignments 203         # Reset assignments for classroom 203
@@ -178,12 +177,19 @@ def create_app(config_name=None):
             return
 
         # Confirm before proceeding
-        confirm = input("\nAre you sure you want to reset session assignments to None for these participants? (y/n): ")
+        confirm = input("\nAre you sure you want to reset session assignments for these participants? (y/n): ")
         if confirm.lower() != 'y':
             print("Operation cancelled.")
             return
 
-        # Reset session assignments and reassignment counter
+        # Reset session assignments and increment reassignment counter
+        from services.session_reassignment_service import SessionReassignmentService
+        reassignment_service = SessionReassignmentService()
+
+        # Get default sessions from the session mapper
+        from utils.session_mapper import get_default_session
+
+        # Track changes
         reset_count = 0
         reset_errors = []
 
@@ -194,11 +200,18 @@ def create_app(config_name=None):
                 old_saturday = p.saturday_session_id
                 old_sunday = p.sunday_session_id
 
-                # Reset sessions to None
-                p.saturday_session_id = None
-                p.sunday_session_id = None
-                p.reassignments_count = 0  # Reset reassignment counter
-                reset_count += 1
+                # Reset to default sessions
+                default_saturday = get_default_session('Saturday')
+                default_sunday = get_default_session('Sunday')
+
+                if default_saturday and default_sunday:
+                    p.saturday_session_id = default_saturday.id
+                    p.sunday_session_id = default_sunday.id
+                    p.reassignments_count = 0  # Reset reassignment counter
+                    reset_count += 1
+                else:
+                    reset_errors.append(f"No default sessions available for {p.unique_id} ({p.name})")
+                    continue
 
             except Exception as e:
                 reset_errors.append(f"Error resetting {p.unique_id} ({p.name}): {str(e)}")
@@ -207,7 +220,7 @@ def create_app(config_name=None):
         if reset_count > 0:
             try:
                 db.session.commit()
-                print(f"\nSuccessfully reset session assignments to None for {reset_count} participants.")
+                print(f"\nSuccessfully reset session assignments for {reset_count} participants.")
             except Exception as e:
                 db.session.rollback()
                 print(f"\nError committing changes: {str(e)}")
@@ -219,7 +232,7 @@ def create_app(config_name=None):
             for error in reset_errors:
                 print(f"- {error}")
 
-        print("\nDone! Participants now have no assigned sessions and can request their preferred sessions.")
+        print("\nDone! Participants can now request reassignment to their preferred sessions.")
     return app
 
 
