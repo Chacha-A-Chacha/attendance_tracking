@@ -69,7 +69,7 @@ def dashboard():
         flask_session.pop('verification_time', None)
 
         flash('Your session has expired. Please verify again.', 'error')
-        return redirect(url_for('participant_bp.landing'))
+        return redirect(url_for('participant.landing'))
 
     # Get participant data
     participant_id = flask_session.get('participant_id')
