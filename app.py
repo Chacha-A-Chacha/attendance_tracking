@@ -4,6 +4,8 @@ import click
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
+
 from dotenv import load_dotenv
 from config import config_by_name
 from models import User
@@ -21,6 +23,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 email_service = EnhancedEmailService()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 
 
 def setup_logging(app):
@@ -74,6 +77,7 @@ def create_app(config_name=None):
 
     # Initialize extensions with app
     db.init_app(app)
+    csrf.init_app(app)
     migrate.init_app(app, db)
     email_service.init_app(app)
     login_manager.init_app(app)
