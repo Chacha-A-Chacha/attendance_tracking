@@ -43,6 +43,19 @@ class Attendance(BaseModel):
               db.func.date('timestamp'), unique=True),
     )
 
+    def save(self):
+        """Override save to update participant's attendance tracking."""
+        db.session.add(self)
+        db.session.commit()
+
+        # Update participant's consecutive missed sessions
+        if self.participant:
+            is_present = self.status in ['present', 'late']
+            self.participant.record_attendance(self.session_id, is_present)
+            db.session.commit()
+
+        return self
+
     def __repr__(self):
         status = "Correct" if self.is_correct_session else "Incorrect"
-        return f'<Attendance {self.participant.name if self.participant else "Unknown"} - {status}>'
+        return f'<Attendance {self.participant.full_name if self.participant else "Unknown"} - {status}>'

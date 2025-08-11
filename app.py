@@ -6,17 +6,21 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from config import config_by_name
+from models import User
 from utils.enhanced_email import EnhancedEmailService
 from datetime import datetime
 import logging
 import json
+
 from logging.handlers import RotatingFileHandler
+from flask_login import LoginManager
 
 # Initialize extensions
 load_dotenv()
 db = SQLAlchemy()
 migrate = Migrate()
 email_service = EnhancedEmailService()
+login_manager = LoginManager()
 
 
 def setup_logging(app):
@@ -72,6 +76,16 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     email_service.init_app(app)
+    login_manager.init_app(app)
+
+    # Configure login manager
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(user_id)
 
     # Register blueprints
     from controllers.admin import admin_bp

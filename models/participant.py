@@ -34,6 +34,7 @@ class Participant(BaseModel):
     graduation_date = db.Column(db.DateTime, nullable=True)
     graduation_verified_by = db.Column(db.String(36), nullable=True)  # Admin who verified graduation
     graduation_verified_at = db.Column(db.DateTime, nullable=True)
+    consecutive_missed_sessions = db.Column(db.Integer, default=0, nullable=False)
 
     # Foreign keys with proper indexing
     saturday_session_id = db.Column(db.String(36), db.ForeignKey('session.id'), index=True)
@@ -58,14 +59,20 @@ class Participant(BaseModel):
         Index('idx_participant_classroom', 'classroom'),
         Index('idx_participant_has_laptop', 'has_laptop'),
         Index('idx_participant_registration', 'registration_timestamp'),
+        Index('idx_participant_graduation_status', 'graduation_status'),
+        Index('idx_participant_graduation_fee_paid', 'graduation_fee_paid'),
+        Index('idx_participant_graduation_date', 'graduation_date'),
+        Index('idx_participant_consecutive_missed', 'consecutive_missed_sessions'),
 
         # Composite indexes for common query patterns
         Index('idx_participant_classroom_laptop', 'classroom', 'has_laptop'),
         Index('idx_participant_classroom_created', 'classroom', 'created_at'),
+        Index('idx_participant_graduation_status_score', 'graduation_status', 'graduation_score'),
+        Index('idx_participant_graduation_fee_status', 'graduation_fee_paid', 'graduation_status'),
 
         # Covering index for common participant lookups
         # PostgreSQL only - includes name in index to avoid table lookup
-        Index('idx_participant_lookup', 'unique_id', postgresql_include=['name', 'email']),
+        Index('idx_participant_lookup', 'unique_id', postgresql_include=['first_name', 'surname', 'email']),
     )
 
     @staticmethod
@@ -75,6 +82,13 @@ class Participant(BaseModel):
             unique_id = ''.join(random.choices(string.digits, k=5))
             if not Participant.query.filter_by(unique_id=unique_id).first():
                 return unique_id
+
+    @property
+    def full_name(self):
+        """Get full name with optional second name."""
+        if self.second_name:
+            return f"{self.first_name} {self.second_name} {self.surname}"
+        return f"{self.first_name} {self.surname}"
 
     def is_correct_session(self, session_id, is_saturday=True):
         """Check if participant is in the correct session"""
@@ -100,7 +114,7 @@ class Participant(BaseModel):
             username=username,
             email=self.email,
             first_name=self.first_name,
-            last_name= self.surname or self.second_name,
+            last_name=self.surname or self.second_name,
             participant_id=self.id
         )
 
@@ -160,6 +174,10 @@ class Participant(BaseModel):
         self.graduation_verified_by = verified_by_user_id
         self.graduation_verified_at = db.func.now()
 
+        # Deactivate user account upon graduation
+        if self.user:
+            self.user.is_active = False
+
     def is_eligible_for_graduation(self):
         """Check if participant meets graduation requirements."""
         # Can be customized based on attendance rate, assignments, etc.
@@ -168,6 +186,25 @@ class Participant(BaseModel):
                 self.graduation_fee_paid
         )
 
+    def record_attendance(self, session_id, is_present=True):
+        """Record attendance and handle consecutive absences."""
+        if is_present:
+            # Reset consecutive missed sessions on attendance
+            self.consecutive_missed_sessions = 0
+        else:
+            # Increment consecutive missed sessions
+            self.consecutive_missed_sessions += 1
+
+            # Deactivate user account after 3 consecutive misses
+            if self.consecutive_missed_sessions >= 3 and self.user:
+                self.user.is_active = False
+
+    def reactivate_user_account(self):
+        """Reactivate user account and reset consecutive missed sessions."""
+        if self.user:
+            self.user.is_active = True
+        self.consecutive_missed_sessions = 0
+
     def to_dict(self, include_relationships=False):
         """Override to include computed fields."""
         result = super().to_dict(include_relationships=include_relationships)
@@ -175,6 +212,7 @@ class Participant(BaseModel):
         # Add computed fields
         result['has_user_account'] = self.has_user_account()
         result['attendance_summary'] = self.get_attendance_summary()
+        result['full_name'] = self.full_name
 
         if include_relationships and self.user:
             result['user'] = self.user.to_dict()
@@ -182,80 +220,4 @@ class Participant(BaseModel):
         return result
 
     def __repr__(self):
-        return f'<Participant {self.name} ({self.unique_id})>'
-
-
-# Example Flask app integration (app.py additions)
-"""
-from models.user import User
-from flask_login import LoginManager
-
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Please log in to access this page.'
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(user_id)
-
-# Register CLI commands
-from utils.auth import register_auth_commands
-register_auth_commands(app)
-"""
-
-# Example usage in routes/views
-"""
-from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
-from utils.auth import permission_required, role_required, staff_required
-from models.user import Permission, RoleType
-from models.participant import Participant
-
-# Example route with permission checking
-@app.route('/api/participants')
-@login_required
-@permission_required(Permission.VIEW_PARTICIPANTS)
-def get_participants():
-    if current_user.is_student():
-        # Students can only see themselves
-        participants = [current_user.participant] if current_user.participant else []
-    else:
-        # Staff can see all participants
-        participants = Participant.query.all()
-
-    return jsonify([p.to_dict() for p in participants])
-
-@app.route('/api/participants/<participant_id>/attendance')
-@login_required
-def get_participant_attendance(participant_id):
-    participant = Participant.query.get_or_404(participant_id)
-
-    # Check if user can view this participant
-    from utils.auth import PermissionChecker
-    if not PermissionChecker.can_view_participant(current_user, participant):
-        return jsonify({'error': 'Access denied'}), 403
-
-    attendances = participant.get_recent_attendances()
-    return jsonify([a.to_dict() for a in attendances])
-
-@app.route('/api/admin/create-student-accounts', methods=['POST'])
-@login_required
-@role_required(RoleType.ADMIN, RoleType.CHAPLAIN)
-def create_student_accounts():
-    from services.user_service import UserService
-
-    created_accounts = UserService.bulk_create_student_accounts()
-    return jsonify({
-        'message': f'Created {len(created_accounts)} student accounts',
-        'accounts': [
-            {
-                'participant_name': acc['participant'].name,
-                'username': acc['username'],
-                'password': acc['password']
-            }
-            for acc in created_accounts
-        ]
-    })
-"""
+        return f'<Participant {self.full_name} ({self.unique_id})>'
