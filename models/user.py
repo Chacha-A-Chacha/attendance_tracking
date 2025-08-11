@@ -248,7 +248,7 @@ class User(UserMixin, BaseModel):
         back_populates='users'
     )
 
-    participant = db.relationship('Participant', backref='user', uselist=False)
+    participant = db.relationship('Participant', back_populates='user', uselist=False)
 
     # Additional relationship for tracking who assigned roles (optional)
     assigned_roles = db.relationship(
