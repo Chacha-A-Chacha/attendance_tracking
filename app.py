@@ -76,12 +76,14 @@ def create_app(config_name=None):
     # Register blueprints
     from controllers.admin import admin_bp
     from controllers.check_in import check_in_bp
+    from controllers.registration import registration_bp
     from controllers.participant import participant_bp
     from controllers.api import api_bp
     from controllers.email import email_bp
 
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(check_in_bp, url_prefix='/check-in')
+    app.register_blueprint(registration_bp, url_prefix='/registration')
     app.register_blueprint(participant_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(email_bp, url_prefix='/email')

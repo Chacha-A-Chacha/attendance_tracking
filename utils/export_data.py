@@ -26,8 +26,10 @@ def export_participants_to_excel():
 
         data.append({
             'Name': participant.name,
-            'Unique ID': participant.unique_id,
+            # 'Unique ID': participant.unique_id,
             'Classroom': participant.classroom,
+            'Phone': participant.phone,
+            'Email': participant.email,
             'Saturday Session': saturday_session.time_slot if saturday_session else 'N/A',
             'Sunday Session': sunday_session.time_slot if sunday_session else 'N/A'
         })

@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, render_template, request, jsonify, flash, url_for, redirect, session as flask_session, current_app
+from flask import render_template, request, jsonify, flash, url_for, redirect, session as flask_session, current_app
 
 from app import db, email_service
 from models import Participant, Session
@@ -10,9 +10,9 @@ from services.session_reassignment_service import SessionReassignmentService
 
 from utils.enhanced_email import Priority
 
-reassignment_service = SessionReassignmentService()
+from . import participant_bp
 
-participant_bp = Blueprint('participant', __name__)
+reassignment_service = SessionReassignmentService()
 
 
 @participant_bp.route('/')
