@@ -1,5 +1,5 @@
 # models/session.py
-from app import db
+from . import db
 from sqlalchemy import Index
 from .base import BaseModel
 

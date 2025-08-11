@@ -84,8 +84,14 @@ class Role(BaseModel):
     is_active = db.Column(db.Boolean, default=True)
     hierarchy_level = db.Column(db.Integer, default=0)  # For role hierarchy (higher = more privileges)
 
-    # Relationships
-    users = db.relationship('User', secondary=user_roles, back_populates='roles')
+    # Relationships - Fixed with explicit foreign_keys
+    users = db.relationship(
+        'User',
+        secondary=user_roles,
+        primaryjoin='Role.id == user_roles.c.role_id',
+        secondaryjoin='User.id == user_roles.c.user_id',
+        back_populates='roles'
+    )
 
     # Optimized indexing
     __table_args__ = (
@@ -233,9 +239,26 @@ class User(UserMixin, BaseModel):
     # Link to participant for students
     participant_id = db.Column(db.String(36), db.ForeignKey('participant.id'), nullable=True, index=True)
 
-    # Relationships
-    roles = db.relationship('Role', secondary=user_roles, back_populates='users')
+    # Relationships - Fixed with explicit foreign_keys
+    roles = db.relationship(
+        'Role',
+        secondary=user_roles,
+        primaryjoin='User.id == user_roles.c.user_id',
+        secondaryjoin='Role.id == user_roles.c.role_id',
+        back_populates='users'
+    )
+
     participant = db.relationship('Participant', backref='user', uselist=False)
+
+    # Additional relationship for tracking who assigned roles (optional)
+    assigned_roles = db.relationship(
+        'User',
+        secondary=user_roles,
+        primaryjoin='User.id == user_roles.c.assigned_by',
+        secondaryjoin='User.id == user_roles.c.user_id',
+        foreign_keys=[user_roles.c.assigned_by, user_roles.c.user_id],
+        viewonly=True
+    )
 
     # Optimized indexing
     __table_args__ = (

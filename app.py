@@ -8,7 +8,6 @@ from flask_wtf.csrf import CSRFProtect
 
 from dotenv import load_dotenv
 from config import config_by_name
-from models import User
 from utils.enhanced_email import EnhancedEmailService
 from datetime import datetime
 import logging
@@ -89,19 +88,21 @@ def create_app(config_name=None):
 
     @login_manager.user_loader
     def load_user(user_id):
+        from models import User
+
         return User.query.get(user_id)
 
     # Register blueprints
     from controllers.admin import admin_bp
     from controllers.check_in import check_in_bp
-    from controllers.registration import registration_bp
+    from controllers.enrollment import enrollment_bp
     from controllers.participant import participant_bp
     from controllers.api import api_bp
     from controllers.email import email_bp
 
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(check_in_bp, url_prefix='/check-in')
-    app.register_blueprint(registration_bp, url_prefix='/registration')
+    app.register_blueprint(enrollment_bp, url_prefix='/enrollment')
     app.register_blueprint(participant_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(email_bp, url_prefix='/email')
