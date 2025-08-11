@@ -143,6 +143,31 @@ class Participant(BaseModel):
         """Get recent attendance records."""
         return self.attendances.order_by(db.desc('timestamp')).limit(limit).all()
 
+    def mark_graduation_fee_paid(self, receipt_number, verified_by_user_id=None):
+        """Mark graduation fee as paid."""
+        self.graduation_fee_paid = True
+        self.graduation_fee_receipt_number = receipt_number
+
+        if verified_by_user_id:
+            self.graduation_verified_by = verified_by_user_id
+            self.graduation_verified_at = db.func.now()
+
+    def record_graduation(self, score, verified_by_user_id):
+        """Record successful graduation."""
+        self.graduation_score = score
+        self.graduation_status = 'graduated'
+        self.graduation_date = db.func.now()
+        self.graduation_verified_by = verified_by_user_id
+        self.graduation_verified_at = db.func.now()
+
+    def is_eligible_for_graduation(self):
+        """Check if participant meets graduation requirements."""
+        # Can be customized based on attendance rate, assignments, etc.
+        return (
+                self.graduation_status in ['eligible', 'graduated'] and
+                self.graduation_fee_paid
+        )
+
     def to_dict(self, include_relationships=False):
         """Override to include computed fields."""
         result = super().to_dict(include_relationships=include_relationships)
