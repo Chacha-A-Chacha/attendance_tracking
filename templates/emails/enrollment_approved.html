@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Programming Course!</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+        <!-- Header -->
+        <div style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">🎉 Welcome to {{ site_name }}!</h1>
+            <p style="color: #dbeafe; margin: 10px 0 0 0; font-size: 16px;">Your Programming Course Journey Begins</p>
+        </div>
+
+        <!-- Main Content -->
+        <div style="padding: 40px;">
+            <!-- Success Badge -->
+            <div style="text-align: center; margin: 0 0 30px 0;">
+                <div style="background-color: #10b981; color: #ffffff; display: inline-block; padding: 12px 24px; border-radius: 25px; font-size: 18px; font-weight: 600;">
+                    ✓ ENROLLMENT APPROVED
+                </div>
+            </div>
+
+            <h2 style="color: #1e40af; margin: 0 0 20px 0; font-size: 24px; font-weight: 600; text-align: center;">Congratulations {{ enrollment.full_name }}!</h2>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">
+                We are thrilled to inform you that your application has been approved! Welcome to our Programming Course community.
+            </p>
+
+            <!-- Login Credentials Box -->
+            <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 25px; margin: 30px 0;">
+                <h3 style="color: #92400e; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">🔐 Your Login Credentials</h3>
+                <div style="background-color: #ffffff; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                    <p style="color: #374151; margin: 5px 0; font-size: 14px;"><strong>Student ID:</strong> {{ participant_id }}</p>
+                    <p style="color: #374151; margin: 5px 0; font-size: 14px;"><strong>Username:</strong> {{ username }}</p>
+                    <p style="color: #374151; margin: 5px 0; font-size: 14px;"><strong>Temporary Password:</strong> {{ temporary_password }}</p>
+                </div>
+                <p style="color: #92400e; margin: 10px 0 0 0; font-size: 13px;">
+                    ⚠️ Please change your password after first login for security.
+                </p>
+            </div>
+
+            <!-- Student Portal Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ login_url }}" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-size: 18px; font-weight: 600; display: inline-block;">
+                    Access Student Portal
+                </a>
+            </div>
+
+            <!-- Important Information -->
+            <div style="background-color: #dbeafe; border-left: 4px solid #2563eb; padding: 20px; margin: 25px 0;">
+                <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Important Information</h3>
+                <p style="color: #1e40af; margin: 5px 0; font-size: 14px;"><strong>Application Number:</strong> {{ enrollment.application_number }}</p>
+                <p style="color: #1e40af; margin: 5px 0; font-size: 14px;"><strong>Approval Date:</strong> {{ approval_date }}</p>
+                <p style="color: #1e40af; margin: 5px 0; font-size: 14px;"><strong>Course Start:</strong> Check your student portal for schedule</p>
+            </div>
+
+            <!-- Next Steps -->
+            <h3 style="color: #1e40af; margin: 30px 0 15px 0; font-size: 18px; font-weight: 600;">Your next steps:</h3>
+            <ol style="color: #374151; margin: 0 0 25px 0; padding-left: 20px; font-size: 15px;">
+                {% for step in next_steps %}
+                <li style="margin: 10px 0;">{{ step }}</li>
+                {% endfor %}
+            </ol>
+
+            <div style="background-color: #ecfdf5; border-radius: 6px; padding: 20px; margin: 25px 0;">
+                <p style="color: #047857; margin: 0; font-size: 16px; text-align: center;">
+                    <strong>🚀 We can't wait to see what you'll build!</strong><br>
+                    Your programming journey starts now.
+                </p>
+            </div>
+
+            <p style="color: #374151; margin: 25px 0 0 0; font-size: 16px;">
+                If you have any questions or need assistance getting started, our support team is here to help. Welcome aboard!
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; margin: 0 0 15px 0; font-size: 14px;">
+                <strong>Need help getting started?</strong> Contact our support team at
+                <a href="mailto:{{ support_email }}" style="color: #2563eb; text-decoration: none;">{{ support_email }}</a>
+            </p>
+
+            <div style="border-top: 1px solid #d1d5db; padding-top: 20px; margin-top: 20px;">
+                <p style="color: #9ca3af; margin: 0; font-size: 12px;">
+                    {{ site_name }}<br>
+                    123 Tech Street, Innovation District<br>
+                    Nairobi, Kenya
+                </p>
+                <p style="color: #9ca3af; margin: 10px 0 0 0; font-size: 12px;">
+                    This is a transactional email. If you received this in error, please contact us.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

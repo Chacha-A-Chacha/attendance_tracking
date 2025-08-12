@@ -1314,6 +1314,9 @@
   .text-pretty {
     text-wrap: pretty;
   }
+  .break-all {
+    word-break: break-all;
+  }
   .whitespace-nowrap {
     white-space: nowrap;
   }

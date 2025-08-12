@@ -1,0 +1,39 @@
+<!-- enrollment_approved.txt -->
+{{ site_name }} - Programming Course Application
+
+🎉 CONGRATULATIONS {{ enrollment.full_name }}! 🎉
+
+ENROLLMENT APPROVED ✓
+
+We are thrilled to inform you that your application has been approved! Welcome to our Programming Course community.
+
+YOUR LOGIN CREDENTIALS:
+- Student ID: {{ participant_id }}
+- Username: {{ username }}
+- Temporary Password: {{ temporary_password }}
+
+⚠️ Please change your password after first login for security.
+
+Access your Student Portal: {{ login_url }}
+
+IMPORTANT INFORMATION:
+- Application Number: {{ enrollment.application_number }}
+- Approval Date: {{ approval_date }}
+- Course Start: Check your student portal for schedule
+
+YOUR NEXT STEPS:
+{% for step in next_steps %}
+{{ loop.index }}. {{ step }}
+{% endfor %}
+
+🚀 We can't wait to see what you'll build! Your programming journey starts now.
+
+If you have any questions or need assistance getting started, our support team is here to help. Welcome aboard!
+
+Need help getting started? Contact our support team at {{ support_email }}
+
+{{ site_name }}
+123 Tech Street, Innovation District
+Nairobi, Kenya
+
+This is a transactional email. If you received this in error, please contact us.

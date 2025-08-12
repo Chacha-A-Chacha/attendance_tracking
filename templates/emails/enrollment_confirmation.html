@@ -1,0 +1,90 @@
+<!-- enrollment_confirmation.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Received - Verify Email</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+        <!-- Header -->
+        <div style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">{{ site_name }}</h1>
+            <p style="color: #dbeafe; margin: 10px 0 0 0; font-size: 16px;">Programming Course Application</p>
+        </div>
+
+        <!-- Main Content -->
+        <div style="padding: 40px;">
+            <h2 style="color: #1e40af; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Application Received Successfully!</h2>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">Hi {{ enrollment.full_name }},</p>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">
+                Thank you for submitting your application to our Programming Course. We have successfully received your complete application including your payment receipt.
+            </p>
+
+            <!-- Application Details Box -->
+            <div style="background-color: #f1f5f9; border-left: 4px solid #2563eb; padding: 20px; margin: 25px 0;">
+                <h3 style="color: #1e40af; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Application Details</h3>
+                <p style="color: #475569; margin: 5px 0; font-size: 14px;"><strong>Application Number:</strong> {{ enrollment.application_number }}</p>
+                <p style="color: #475569; margin: 5px 0; font-size: 14px;"><strong>Submitted:</strong> {{ submission_date }}</p>
+                <p style="color: #475569; margin: 5px 0; font-size: 14px;"><strong>Receipt Number:</strong> {{ enrollment.receipt_number }}</p>
+                <p style="color: #475569; margin: 5px 0; font-size: 14px;"><strong>Payment Amount:</strong> ${{ enrollment.payment_amount }}</p>
+            </div>
+
+            <!-- Important Notice -->
+            <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 20px; margin: 25px 0;">
+                <h3 style="color: #92400e; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">📧 Email Verification Required</h3>
+                <p style="color: #92400e; margin: 0; font-size: 14px;">
+                    Please verify your email address to continue processing your application.
+                </p>
+            </div>
+
+            <!-- Verify Email Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ verification_url }}" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-size: 16px; font-weight: 600; display: inline-block;">
+                    Verify Email Address
+                </a>
+            </div>
+
+            <p style="color: #6b7280; margin: 20px 0; font-size: 14px; text-align: center;">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                <span style="word-break: break-all;">{{ verification_url }}</span>
+            </p>
+
+            <!-- Next Steps -->
+            <h3 style="color: #1e40af; margin: 30px 0 15px 0; font-size: 18px; font-weight: 600;">What happens next?</h3>
+            <ol style="color: #374151; margin: 0 0 25px 0; padding-left: 20px; font-size: 15px;">
+                {% for step in next_steps %}
+                <li style="margin: 8px 0;">{{ step }}</li>
+                {% endfor %}
+            </ol>
+
+            <p style="color: #374151; margin: 25px 0 0 0; font-size: 16px;">
+                We typically process applications within 3-5 business days. You will receive an email notification once your payment is verified and your application is reviewed.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; margin: 0 0 15px 0; font-size: 14px;">
+                <strong>Need help?</strong> Contact our support team at
+                <a href="mailto:{{ support_email }}" style="color: #2563eb; text-decoration: none;">{{ support_email }}</a>
+            </p>
+
+            <div style="border-top: 1px solid #d1d5db; padding-top: 20px; margin-top: 20px;">
+                <p style="color: #9ca3af; margin: 0; font-size: 12px;">
+                    {{ site_name }}<br>
+                    123 Tech Street, Innovation District<br>
+                    Nairobi, Kenya
+                </p>
+                <p style="color: #9ca3af; margin: 10px 0 0 0; font-size: 12px;">
+                    This is a transactional email. If you received this in error, please contact us.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

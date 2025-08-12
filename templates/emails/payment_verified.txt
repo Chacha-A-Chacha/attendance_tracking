@@ -1,0 +1,29 @@
+<!-- payment_verified.txt -->
+{{ site_name }} - Programming Course Application
+
+Hi {{ enrollment.full_name }},
+
+PAYMENT SUCCESSFULLY VERIFIED ✓
+
+Great news! Our admissions team has successfully verified your payment for the Programming Course application.
+
+APPLICATION STATUS UPDATE:
+- Application Number: {{ enrollment.application_number }}
+- Payment Status: Verified ✓
+- Verification Date: {{ verification_date }}
+- Current Status: Ready for Final Review
+
+WHAT'S NEXT?
+Your application is now ready for final processing by our admissions committee. We will review your application and notify you of the enrollment decision within 2-3 business days.
+
+Keep an eye on your inbox! You'll receive your enrollment decision and next steps soon.
+
+Thank you for your patience during this process. We're excited about the possibility of welcoming you to our Programming Course!
+
+Questions? Contact our admissions team at {{ support_email }}
+
+{{ site_name }}
+123 Tech Street, Innovation District
+Nairobi, Kenya
+
+This is a transactional email. If you received this in error, please contact us.

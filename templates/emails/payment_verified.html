@@ -1,0 +1,82 @@
+<!-- payment_verified.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Verified</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+        <!-- Header -->
+        <div style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">{{ site_name }}</h1>
+            <p style="color: #dbeafe; margin: 10px 0 0 0; font-size: 16px;">Programming Course Application</p>
+        </div>
+
+        <!-- Main Content -->
+        <div style="padding: 40px;">
+            <!-- Success Badge -->
+            <div style="text-align: center; margin: 0 0 30px 0;">
+                <div style="background-color: #10b981; color: #ffffff; display: inline-block; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                    ✓ PAYMENT VERIFIED
+                </div>
+            </div>
+
+            <h2 style="color: #1e40af; margin: 0 0 20px 0; font-size: 24px; font-weight: 600; text-align: center;">Payment Successfully Verified</h2>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">Hi {{ enrollment.full_name }},</p>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">
+                Great news! Our admissions team has successfully verified your payment for the Programming Course application.
+            </p>
+
+            <!-- Application Status Box -->
+            <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0;">
+                <h3 style="color: #047857; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Application Status Update</h3>
+                <p style="color: #065f46; margin: 5px 0; font-size: 14px;"><strong>Application Number:</strong> {{ enrollment.application_number }}</p>
+                <p style="color: #065f46; margin: 5px 0; font-size: 14px;"><strong>Payment Status:</strong> Verified ✓</p>
+                <p style="color: #065f46; margin: 5px 0; font-size: 14px;"><strong>Verification Date:</strong> {{ verification_date }}</p>
+                <p style="color: #065f46; margin: 5px 0; font-size: 14px;"><strong>Current Status:</strong> Ready for Final Review</p>
+            </div>
+
+            <h3 style="color: #1e40af; margin: 30px 0 15px 0; font-size: 18px; font-weight: 600;">What's next?</h3>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">
+                Your application is now ready for final processing by our admissions committee. We will review your application and notify you of the enrollment decision within 2-3 business days.
+            </p>
+
+            <div style="background-color: #dbeafe; border-radius: 6px; padding: 20px; margin: 25px 0;">
+                <p style="color: #1e40af; margin: 0; font-size: 14px; text-align: center;">
+                    <strong>📧 Keep an eye on your inbox!</strong><br>
+                    You'll receive your enrollment decision and next steps soon.
+                </p>
+            </div>
+
+            <p style="color: #374151; margin: 25px 0 0 0; font-size: 16px;">
+                Thank you for your patience during this process. We're excited about the possibility of welcoming you to our Programming Course!
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; margin: 0 0 15px 0; font-size: 14px;">
+                <strong>Questions?</strong> Contact our admissions team at
+                <a href="mailto:{{ support_email }}" style="color: #2563eb; text-decoration: none;">{{ support_email }}</a>
+            </p>
+
+            <div style="border-top: 1px solid #d1d5db; padding-top: 20px; margin-top: 20px;">
+                <p style="color: #9ca3af; margin: 0; font-size: 12px;">
+                    {{ site_name }}<br>
+                    123 Tech Street, Innovation District<br>
+                    Nairobi, Kenya
+                </p>
+                <p style="color: #9ca3af; margin: 10px 0 0 0; font-size: 12px;">
+                    This is a transactional email. If you received this in error, please contact us.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

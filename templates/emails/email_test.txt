@@ -1,0 +1,36 @@
+<!-- templates/emails/email_test.txt -->
+EMAIL SYSTEM TEST
+{{ site_name }}
+
+TEMPLATE RENDERING SUCCESSFUL!
+
+This email was generated using Flask templates, confirming that your email system is working correctly.
+
+Test Message:
+{{ test_message }}
+
+TEST DETAILS:
+- Recipient: {{ recipient_email }}
+- Task ID: {{ task_id }}
+- Template Type: {{ template_type }}
+- Timestamp: {{ timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+- Template Engine: Jinja2
+- Email Service: Enhanced Email Service
+
+SYSTEM INFORMATION:
+- Site Name: {{ site_name }}
+- Support Email: {{ support_email }}
+- Base URL: {{ base_url }}
+
+WHAT THIS TEST CONFIRMS:
+- Email templates are loading correctly
+- Template context variables are being passed
+- Jinja2 template engine is working
+- Text email formatting is working
+- Email delivery system is functional
+
+If you received this email, your Programming Course email system is configured and working properly!
+
+---
+This is an automated test email from {{ site_name }}
+For support, contact: {{ support_email }}

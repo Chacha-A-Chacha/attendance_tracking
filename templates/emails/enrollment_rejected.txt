@@ -1,0 +1,44 @@
+<!-- enrollment_rejected.txt -->
+{{ site_name }} - Programming Course Application Update
+
+Hi {{ enrollment.full_name }},
+
+APPLICATION STATUS UPDATE
+
+Thank you for your interest in our Programming Course and for taking the time to submit your application.
+
+APPLICATION DETAILS:
+- Application Number: {{ enrollment.application_number }}
+- Review Date: {{ rejection_date }}
+- Status: Not approved for this cohort
+
+After careful review of your application, we regret to inform you that we are unable to offer you a place in our current Programming Course cohort.
+
+{% if rejection_reason %}
+ADDITIONAL INFORMATION:
+{{ rejection_reason }}
+{% endif %}
+
+MOVING FORWARD:
+While this decision may be disappointing, we encourage you not to give up on your programming aspirations. Here are some options to consider:
+
+• Apply for our next cohort when applications open
+• Consider our online preparatory courses to strengthen your application
+• Explore other programming learning opportunities in the meantime
+• Connect with our community for learning resources and support
+
+FUTURE OPPORTUNITIES:
+We'll notify you when applications open for future cohorts. Your interest in programming is valuable, and we hope to see you apply again.
+
+Thank you again for your interest in our program. We wish you all the best in your programming journey and hope our paths cross again in the future.
+
+Best regards,
+The {{ site_name }} Admissions Team
+
+Questions about this decision? Contact our admissions team at {{ support_email }}
+
+{{ site_name }}
+123 Tech Street, Innovation District
+Nairobi, Kenya
+
+This is a transactional email. If you received this in error, please contact us.

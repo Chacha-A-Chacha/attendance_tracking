@@ -294,3 +294,289 @@ def clean_old_status():
 
     flash(f'Removed {result["removed"]} old email status entries', 'success')
     return redirect(url_for('email_admin.index'))
+
+
+# Add this to your existing app.py or create a new route file
+
+from flask import jsonify, request, current_app
+from utils.enhanced_email import email_service, email_queue, email_statuses, EmailStatus, Priority
+from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+
+@email_bp.route('/test-email')
+def test_email_setup():
+    """
+    Simple endpoint to test email configuration.
+    Usage:
+    - GET /test-email - Shows current config (without password)
+    - GET /test-email?send=true&to=your@email.com - Sends test email
+    - GET /test-email?direct=true&to=your@email.com - Tests direct SMTP
+    """
+
+    # Get parameters
+    send_test = request.args.get('send', '').lower() == 'true'
+    direct_test = request.args.get('direct', '').lower() == 'true'
+    recipient = request.args.get('to', '')
+
+    # Show current configuration
+    config_info = {
+        'email_service_running': email_service.running if email_service else False,
+        'worker_thread_alive': email_service.worker_thread.is_alive() if email_service and email_service.worker_thread else False,
+        'queue_size': email_service.get_queue_stats()['queue_size'] if email_service else 0,
+        'config': {
+            'MAIL_SERVER': current_app.config.get('MAIL_SERVER'),
+            'MAIL_PORT': current_app.config.get('MAIL_PORT'),
+            'MAIL_USE_TLS': current_app.config.get('MAIL_USE_TLS'),
+            'MAIL_USE_SSL': current_app.config.get('MAIL_USE_SSL'),
+            'MAIL_USERNAME': current_app.config.get('MAIL_USERNAME'),
+            'MAIL_DEFAULT_SENDER': current_app.config.get('MAIL_DEFAULT_SENDER'),
+            'MAIL_PASSWORD_SET': bool(current_app.config.get('MAIL_PASSWORD'))
+        }
+    }
+
+    # If not sending test, just return config
+    if not send_test and not direct_test:
+        return jsonify({
+            'status': 'success',
+            'message': 'Email configuration display',
+            'config': config_info,
+            'usage': {
+                'send_via_service': '/test-email?send=true&to=your@email.com',
+                'send_direct_smtp': '/test-email?direct=true&to=your@email.com'
+            }
+        })
+
+    # Validate recipient email
+    if not recipient:
+        return jsonify({
+            'status': 'error',
+            'message': 'Recipient email required. Add ?to=your@email.com'
+        }), 400
+
+    if '@' not in recipient:
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid email format'
+        }), 400
+
+    try:
+        if direct_test:
+            # Test direct SMTP connection
+            result = test_direct_smtp(recipient)
+            return jsonify({
+                'status': 'success' if result['success'] else 'error',
+                'message': result['message'],
+                'method': 'direct_smtp',
+                'config': config_info
+            })
+
+        else:
+            # Test via email service
+            result = test_via_service(recipient)
+            return jsonify({
+                'status': 'success' if result['success'] else 'error',
+                'message': result['message'],
+                'task_id': result.get('task_id'),
+                'method': 'email_service',
+                'config': config_info
+            })
+
+    except Exception as e:
+        current_app.logger.error(f"Email test failed: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': f'Email test failed: {str(e)}',
+            'config': config_info
+        }), 500
+
+
+def test_direct_smtp(recipient):
+    """Test direct SMTP connection without using the email service."""
+    try:
+        # Validate configuration
+        required_config = ['MAIL_SERVER', 'MAIL_PORT', 'MAIL_USERNAME', 'MAIL_PASSWORD']
+        missing_config = [key for key in required_config if not current_app.config.get(key)]
+
+        if missing_config:
+            return {
+                'success': False,
+                'message': f'Missing configuration: {", ".join(missing_config)}'
+            }
+
+        # Create test message
+        msg = MIMEMultipart()
+        msg['Subject'] = '[DIRECT SMTP TEST] Email Configuration Test'
+        msg['From'] = current_app.config['MAIL_DEFAULT_SENDER']
+        msg['To'] = recipient
+
+        # Create email body
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        body = f"""
+This is a direct SMTP test email from the Programming Course system.
+
+Test Details:
+- Timestamp: {timestamp}
+- Server: {current_app.config['MAIL_SERVER']}:{current_app.config['MAIL_PORT']}
+- SSL: {current_app.config['MAIL_USE_SSL']}
+- TLS: {current_app.config['MAIL_USE_TLS']}
+- Username: {current_app.config['MAIL_USERNAME']}
+
+If you received this email, your SMTP configuration is working correctly!
+        """
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Connect and send
+        if current_app.config['MAIL_USE_SSL']:
+            server = smtplib.SMTP_SSL(
+                current_app.config['MAIL_SERVER'],
+                current_app.config['MAIL_PORT']
+            )
+        else:
+            server = smtplib.SMTP(
+                current_app.config['MAIL_SERVER'],
+                current_app.config['MAIL_PORT']
+            )
+            if current_app.config['MAIL_USE_TLS']:
+                server.starttls()
+
+        server.login(
+            current_app.config['MAIL_USERNAME'],
+            current_app.config['MAIL_PASSWORD']
+        )
+
+        server.send_message(msg)
+        server.quit()
+
+        return {
+            'success': True,
+            'message': f'Test email sent successfully to {recipient} via direct SMTP'
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Direct SMTP test failed: {str(e)}'
+        }
+
+
+def test_via_service(recipient):
+    """Test email via the enhanced email service."""
+    try:
+        # Check if service is running
+        if not email_service or not email_service.running:
+            return {
+                'success': False,
+                'message': 'Email service is not running'
+            }
+
+        # Create task ID
+        task_id = f"test_{int(datetime.now().timestamp())}"
+
+        # Create email status
+        status = EmailStatus(
+            recipient=recipient,
+            subject='[SERVICE TEST] Email Service Test',
+            task_id=task_id,
+            group_id='system_test'
+        )
+        status.priority = Priority.HIGH
+        email_statuses[task_id] = status
+
+        # Create email body
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        html_body = f"""
+        <html>
+        <body>
+            <h2>Email Service Test</h2>
+            <p><strong>This is a test email from the Programming Course enhanced email service.</strong></p>
+
+            <h3>Test Details:</h3>
+            <ul>
+                <li>Task ID: {task_id}</li>
+                <li>Timestamp: {timestamp}</li>
+                <li>Priority: High</li>
+                <li>Service: Enhanced Email Service</li>
+                <li>Queue Status: Active</li>
+            </ul>
+
+            <p>If you received this email, your email service is working correctly!</p>
+        </body>
+        </html>
+        """
+
+        text_body = f"""
+Email Service Test
+
+This is a test email from the Programming Course enhanced email service.
+
+Test Details:
+- Task ID: {task_id}
+- Timestamp: {timestamp}
+- Priority: High
+- Service: Enhanced Email Service
+- Queue Status: Active
+
+If you received this email, your email service is working correctly!
+        """
+
+        # Create email task
+        task = {
+            'recipient': recipient,
+            'subject': '[SERVICE TEST] Email Service Test',
+            'html_body': html_body,
+            'text_body': text_body,
+            'task_id': task_id,
+            'group_id': 'system_test'
+        }
+
+        # Add to queue
+        email_queue.put(task, Priority.HIGH)
+
+        return {
+            'success': True,
+            'message': f'Test email queued successfully for {recipient}',
+            'task_id': task_id
+        }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Email service test failed: {str(e)}'
+        }
+
+
+# Optional: Add task status check endpoint
+@email_bp.route('/test-email/status/<task_id>')
+def check_email_task_status(task_id):
+    """Check the status of a specific email task."""
+    try:
+        if task_id in email_statuses:
+            status = email_statuses[task_id]
+            return jsonify({
+                'status': 'success',
+                'task_status': {
+                    'task_id': task_id,
+                    'recipient': status.recipient,
+                    'subject': status.subject,
+                    'status': status.status,
+                    'attempts': status.attempts,
+                    'timestamp': status.timestamp.isoformat() if status.timestamp else None,
+                    'sent_time': status.sent_time.isoformat() if status.sent_time else None,
+                    'error': status.error
+                }
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Task not found'
+            }), 404
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
