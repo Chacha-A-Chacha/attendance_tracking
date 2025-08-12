@@ -27,15 +27,15 @@ csrf = CSRFProtect()
 
 def setup_logging(app):
     """Configure structured logging for the application."""
-    log_format = json.dumps({
-        'timestamp': '%(asctime)s',
-        'level': '%(levelname)s',
-        'message': '%(message)s',
-        'module': '%(module)s',
-        'function': '%(funcName)s',
-        'pathname': '%(pathname)s',
-        'lineno': '%(lineno)d'
-    })
+    # log_format = json.dumps({
+    #     'timestamp': '%(asctime)s',
+    #     'level': '%(levelname)s',
+    #     'message': '%(message)s',
+    #     'module': '%(module)s',
+    #     'function': '%(funcName)s',
+    #     'pathname': '%(pathname)s',
+    #     'lineno': '%(lineno)d'
+    # })
 
     file_handler = RotatingFileHandler('app.log', maxBytes=1024 * 1024 * 10, backupCount=5)
     file_handler.setFormatter(logging.Formatter(log_format))
@@ -67,7 +67,7 @@ def validate_config(app):
 def create_app(config_name=None):
     """Application factory function."""
     app = Flask(__name__)
-    setup_logging(app)
+    # setup_logging(app)
 
     # Load configuration
     config_name = config_name or os.environ.get('FLASK_ENV', 'development')
@@ -281,7 +281,7 @@ def initialize_default_data(app):
         raise
 
 
-app = create_app()
+app = create_app('development')
 
 if __name__ == '__main__':
     app = create_app()

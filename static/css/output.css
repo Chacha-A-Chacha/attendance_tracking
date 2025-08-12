@@ -927,6 +927,9 @@
   .border-blue-200 {
     border-color: var(--color-blue-200);
   }
+  .border-blue-400 {
+    border-color: var(--color-blue-400);
+  }
   .border-gray-100 {
     border-color: var(--color-gray-100);
   }
@@ -1809,6 +1812,13 @@
     &:hover {
       @media (hover: hover) {
         color: var(--color-green-100);
+      }
+    }
+  }
+  .hover\:text-green-600 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-green-600);
       }
     }
   }

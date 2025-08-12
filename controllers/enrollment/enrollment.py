@@ -9,7 +9,7 @@ from config import Config
 import os
 from datetime import datetime
 
-from . import  enrollment_bp
+from . import enrollment_bp
 
 
 @enrollment_bp.route('/', methods=['GET', 'POST'])
@@ -73,7 +73,7 @@ def create_enrollment():
     return render_template('enrollment/create.html',
                            form=form,
                            config=current_app.config,
-                           max_file_size=Config.MAX_RECEIPT_SIZE)
+                           max_file_size=current_app.config['MAX_RECEIPT_SIZE'])
 
 
 @enrollment_bp.route('/success/<enrollment_id>')

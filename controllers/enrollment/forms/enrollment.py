@@ -1,4 +1,5 @@
 # enrollment/forms/enrollment.py
+from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
 from wtforms import (
@@ -156,7 +157,7 @@ class EnrollmentForm(BaseEnrollmentForm):
         """Additional validation for receipt file size."""
         if field.data:
             # Check file size (5MB limit)
-            max_size = getattr(Config, 'MAX_RECEIPT_SIZE', 5 * 1024 * 1024)
+            max_size = current_app.config['MAX_RECEIPT_SIZE']
             if hasattr(field.data, 'content_length') and field.data.content_length > max_size:
                 raise ValidationError(f'File size must be less than {max_size // (1024 * 1024)}MB')
 
@@ -257,7 +258,7 @@ class ReceiptUpdateForm(FlaskForm):
         """Additional validation for receipt file size."""
         if field.data:
             # Check file size (5MB limit)
-            max_size = getattr(Config, 'MAX_RECEIPT_SIZE', 5 * 1024 * 1024)
+            max_size = current_app.config['MAX_RECEIPT_SIZE']
             if hasattr(field.data, 'content_length') and field.data.content_length > max_size:
                 raise ValidationError(f'File size must be less than {max_size // (1024 * 1024)}MB')
 
