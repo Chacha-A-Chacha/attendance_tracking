@@ -12,6 +12,8 @@ class Config:
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///attendance.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = True
+    SQLALCHEMY_RECORD_QUERIES = True
+    SQLALCHEMY_ECHO = False
 
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
