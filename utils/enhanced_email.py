@@ -1,9 +1,12 @@
 import itertools
+import mimetypes
 import os
 import smtplib
 import json
 import random
 import logging
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
@@ -156,6 +159,39 @@ class EnhancedEmailService:
         if not self.running:
             self.start_worker()
 
+    def _validate_email_config(self):
+        """Validate email configuration against config.py settings"""
+        required_config = {
+            'MAIL_SERVER': 'SMTP server address',
+            'MAIL_PORT': 'SMTP server port',
+            'MAIL_USERNAME': 'SMTP username',
+            'MAIL_PASSWORD': 'SMTP password',
+            'MAIL_DEFAULT_SENDER': 'Default sender email'
+        }
+
+        missing_config = []
+        for key, description in required_config.items():
+            if not self.app.config.get(key):
+                missing_config.append(f"{key} ({description})")
+
+        if missing_config:
+            error_msg = f"Missing email configuration: {', '.join(missing_config)}"
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        # Validate SSL/TLS configuration
+        use_ssl = self.app.config.get('MAIL_USE_SSL', False)
+        use_tls = self.app.config.get('MAIL_USE_TLS', False)
+
+        if use_ssl and use_tls:
+            self.logger.warning("Both MAIL_USE_SSL and MAIL_USE_TLS are enabled. SSL will take precedence.")
+
+        if not use_ssl and not use_tls:
+            self.logger.warning("Neither MAIL_USE_SSL nor MAIL_USE_TLS is enabled. Using SSL by default.")
+
+        self.logger.info(
+            f"Email config validated: {self.app.config.get('MAIL_SERVER')}:{self.app.config.get('MAIL_PORT')} (SSL: {use_ssl}, TLS: {use_tls})")
+
     def start_worker(self):
         """Start the email worker thread"""
         if self.worker_thread is None or not self.worker_thread.is_alive():
@@ -291,18 +327,16 @@ class EnhancedEmailService:
             msg.attach(MIMEText(html_body, 'html'))
 
         for attachment in attachments:
-            with open(attachment['path'], 'rb') as f:
-                img = MIMEImage(f.read())
-                img.add_header('Content-Disposition', 'attachment', filename=attachment['filename'])
-                msg.attach(img)
+            self._add_attachment(msg, attachment)
 
         max_retries = 3
         retry_count = 0
 
         while retry_count < max_retries:
             try:
-                server = smtplib.SMTP_SSL(current_app.config['MAIL_SERVER'], current_app.config['MAIL_PORT'])
-                server.login(current_app.config['MAIL_USERNAME'], current_app.config['MAIL_PASSWORD'])
+                # Use proper SSL/TLS configuration from config.py
+                server = self._create_smtp_connection()
+                server.login(self.app.config['MAIL_USERNAME'], self.app.config['MAIL_PASSWORD'])
                 server.send_message(msg)
                 server.quit()
                 return
@@ -319,6 +353,77 @@ class EnhancedEmailService:
             except Exception as e:
                 self.logger.error(f"SMTP error: {str(e)}", exc_info=True)
                 raise
+
+    def _create_smtp_connection(self):
+        """Create SMTP connection using config.py settings"""
+        mail_server = self.app.config['MAIL_SERVER']
+        mail_port = self.app.config['MAIL_PORT']
+        use_ssl = self.app.config.get('MAIL_USE_SSL', False)
+        use_tls = self.app.config.get('MAIL_USE_TLS', False)
+
+        try:
+            if use_ssl:
+                # Use SSL (port 465 typically)
+                self.logger.debug(f"Creating SMTP_SSL connection to {mail_server}:{mail_port}")
+                server = smtplib.SMTP_SSL(mail_server, mail_port)
+            else:
+                # Use regular SMTP
+                self.logger.debug(f"Creating SMTP connection to {mail_server}:{mail_port}")
+                server = smtplib.SMTP(mail_server, mail_port)
+
+                if use_tls:
+                    # Upgrade to TLS (port 587 typically)
+                    self.logger.debug("Upgrading connection to TLS")
+                    server.starttls()
+
+            return server
+
+        except Exception as e:
+            self.logger.error(f"Failed to create SMTP connection: {str(e)}")
+            raise
+
+    def _add_attachment(self, msg, attachment):
+        """Add attachment with proper MIME type detection"""
+        try:
+            filepath = attachment['path']
+            filename = attachment['filename']
+
+            if not os.path.exists(filepath):
+                self.logger.warning(f"Attachment file not found: {filepath}")
+                return
+
+            # Guess MIME type
+            mime_type, _ = mimetypes.guess_type(filepath)
+
+            with open(filepath, 'rb') as f:
+                file_data = f.read()
+
+            if mime_type and mime_type.startswith('image/'):
+                # Handle images
+                attachment_part = MIMEImage(file_data)
+            elif mime_type == 'application/pdf':
+                # Handle PDFs
+                attachment_part = MIMEBase('application', 'pdf')
+                attachment_part.set_payload(file_data)
+                encoders.encode_base64(attachment_part)
+            else:
+                # Handle other file types
+                main_type, sub_type = (mime_type or 'application/octet-stream').split('/', 1)
+                attachment_part = MIMEBase(main_type, sub_type)
+                attachment_part.set_payload(file_data)
+                encoders.encode_base64(attachment_part)
+
+            attachment_part.add_header(
+                'Content-Disposition',
+                'attachment',
+                filename=filename
+            )
+            msg.attach(attachment_part)
+
+            self.logger.debug(f"Added attachment: {filename} ({mime_type})")
+
+        except Exception as e:
+            self.logger.error(f"Failed to add attachment {attachment.get('filename', 'unknown')}: {str(e)}")
 
     def send_qr_code(self, recipient, participant, priority=Priority.NORMAL, batch_id=None):
         """Send QR code to a participant"""
@@ -727,3 +832,50 @@ class EnhancedEmailService:
         self._save_statuses()
 
         return {'removed': removed}
+
+    def send_simple_test_email(self, recipient, subject, message, priority=Priority.HIGH):
+        """Simple method to send a test email"""
+        task_id = f"simple_test_{int(datetime.now().timestamp())}"
+
+        status = EmailStatus(
+            recipient=recipient,
+            subject=subject,
+            task_id=task_id,
+            group_id='test'
+        )
+        status.priority = priority
+        email_statuses[task_id] = status
+
+        # Create simple email content
+        html_body = f"""
+        <html>
+        <body>
+            <h2>Test Email</h2>
+            <p>{message}</p>
+            <p><strong>Task ID:</strong> {task_id}</p>
+            <p><strong>Timestamp:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </body>
+        </html>
+        """
+
+        text_body = f"""
+Test Email
+
+{message}
+
+Task ID: {task_id}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        """
+
+        task = {
+            'recipient': recipient,
+            'subject': subject,
+            'html_body': html_body,
+            'text_body': text_body,
+            'task_id': task_id,
+            'group_id': 'test'
+        }
+
+        email_queue.put(task, priority)
+        return task_id
+    

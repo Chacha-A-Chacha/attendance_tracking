@@ -1,14 +1,19 @@
 # controllers/email_admin.py
+
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from utils.enhanced_email import EnhancedEmailService, Priority, EmailStatus
 from app import db, email_service
 from models import Participant, Session
 from sqlalchemy import or_
+
 import uuid
 from datetime import datetime
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-email_bp = Blueprint('email_admin', __name__, url_prefix='/email-admin')
+email_bp = Blueprint('email_admin', __name__,)
 
 
 @email_bp.route('/')
@@ -296,23 +301,13 @@ def clean_old_status():
     return redirect(url_for('email_admin.index'))
 
 
-# Add this to your existing app.py or create a new route file
-
-from flask import jsonify, request, current_app
-from utils.enhanced_email import email_service, email_queue, email_statuses, EmailStatus, Priority
-from datetime import datetime
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-
 @email_bp.route('/test-email')
 def test_email_setup():
     """
-    Simple endpoint to test email configuration.
+    Test endpoint for email configuration and template rendering using the EnhancedEmailService.
     Usage:
-    - GET /test-email - Shows current config (without password)
-    - GET /test-email?send=true&to=your@email.com - Sends test email
+    - GET /test-email - Shows current config
+    - GET /test-email?send=true&to=your@email.com - Sends test email via service
     - GET /test-email?direct=true&to=your@email.com - Tests direct SMTP
     """
 
@@ -321,11 +316,24 @@ def test_email_setup():
     direct_test = request.args.get('direct', '').lower() == 'true'
     recipient = request.args.get('to', '')
 
+    # Get email service status using the actual service
+    try:
+        service_running = email_service.running if email_service else False
+        worker_alive = email_service.worker_thread.is_alive() if service_running and email_service.worker_thread else False
+        queue_stats = email_service.get_queue_stats() if service_running else {}
+        queue_size = queue_stats.get('queue_size', 0)
+    except Exception as e:
+        service_running = False
+        worker_alive = False
+        queue_size = 0
+        queue_stats = {}
+
     # Show current configuration
     config_info = {
-        'email_service_running': email_service.running if email_service else False,
-        'worker_thread_alive': email_service.worker_thread.is_alive() if email_service and email_service.worker_thread else False,
-        'queue_size': email_service.get_queue_stats()['queue_size'] if email_service else 0,
+        'email_service_running': service_running,
+        'worker_thread_alive': worker_alive,
+        'queue_size': queue_size,
+        'queue_stats': queue_stats,
         'config': {
             'MAIL_SERVER': current_app.config.get('MAIL_SERVER'),
             'MAIL_PORT': current_app.config.get('MAIL_PORT'),
@@ -365,7 +373,7 @@ def test_email_setup():
     try:
         if direct_test:
             # Test direct SMTP connection
-            result = test_direct_smtp(recipient)
+            result = test_direct_smtp_with_template(recipient)
             return jsonify({
                 'status': 'success' if result['success'] else 'error',
                 'message': result['message'],
@@ -374,13 +382,13 @@ def test_email_setup():
             })
 
         else:
-            # Test via email service
-            result = test_via_service(recipient)
+            # Test via email service using the service methods
+            result = test_via_email_service(recipient)
             return jsonify({
                 'status': 'success' if result['success'] else 'error',
                 'message': result['message'],
                 'task_id': result.get('task_id'),
-                'method': 'email_service',
+                'method': 'enhanced_email_service',
                 'config': config_info
             })
 
@@ -393,8 +401,8 @@ def test_email_setup():
         }), 500
 
 
-def test_direct_smtp(recipient):
-    """Test direct SMTP connection without using the email service."""
+def test_direct_smtp_with_template(recipient):
+    """Test direct SMTP connection with template rendering."""
     try:
         # Validate configuration
         required_config = ['MAIL_SERVER', 'MAIL_PORT', 'MAIL_USERNAME', 'MAIL_PASSWORD']
@@ -406,28 +414,63 @@ def test_direct_smtp(recipient):
                 'message': f'Missing configuration: {", ".join(missing_config)}'
             }
 
+        # Prepare template context
+        context = {
+            'recipient_email': recipient,
+            'test_message': 'This is a direct SMTP test using Flask templates.',
+            'timestamp': datetime.now(),
+            'site_name': current_app.config.get('SITE_NAME', 'Programming Course'),
+            'support_email': current_app.config.get('CONTACT_EMAIL', 'support@example.com'),
+            'base_url': current_app.config.get('BASE_URL', 'http://localhost:5000'),
+            'template_type': 'direct_smtp_test'
+        }
+
+        # Try to render templates
+        try:
+            html_body = render_template('emails/email_test.html', **context)
+            text_body = render_template('emails/email_test.txt', **context)
+            template_success = True
+            template_error = None
+        except Exception as e:
+            # Fallback if templates don't exist
+            template_error = str(e)
+            template_success = False
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            html_body = f"""
+            <html>
+            <body>
+                <h2>Direct SMTP Test Email</h2>
+                <p><strong>This is a test email from the Programming Course system.</strong></p>
+                <p>Template Status: Fallback (template files not found)</p>
+                <p>Template Error: {template_error}</p>
+                <p>Recipient: {recipient}</p>
+                <p>Timestamp: {timestamp}</p>
+                <p>If you received this email, your SMTP configuration is working!</p>
+            </body>
+            </html>
+            """
+            text_body = f"""
+Direct SMTP Test Email
+
+This is a test email from the Programming Course system.
+
+Template Status: Fallback (template files not found)
+Template Error: {template_error}
+Recipient: {recipient}
+Timestamp: {timestamp}
+
+If you received this email, your SMTP configuration is working!
+            """
+
         # Create test message
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['Subject'] = '[DIRECT SMTP TEST] Email Configuration Test'
         msg['From'] = current_app.config['MAIL_DEFAULT_SENDER']
         msg['To'] = recipient
 
-        # Create email body
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        body = f"""
-This is a direct SMTP test email from the Programming Course system.
-
-Test Details:
-- Timestamp: {timestamp}
-- Server: {current_app.config['MAIL_SERVER']}:{current_app.config['MAIL_PORT']}
-- SSL: {current_app.config['MAIL_USE_SSL']}
-- TLS: {current_app.config['MAIL_USE_TLS']}
-- Username: {current_app.config['MAIL_USERNAME']}
-
-If you received this email, your SMTP configuration is working correctly!
-        """
-
-        msg.attach(MIMEText(body, 'plain'))
+        # Add both text and HTML versions
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
 
         # Connect and send
         if current_app.config['MAIL_USE_SSL']:
@@ -451,9 +494,15 @@ If you received this email, your SMTP configuration is working correctly!
         server.send_message(msg)
         server.quit()
 
+        message = f'Test email sent successfully to {recipient} via direct SMTP'
+        if not template_success:
+            message += f' (using fallback template due to: {template_error})'
+
         return {
             'success': True,
-            'message': f'Test email sent successfully to {recipient} via direct SMTP'
+            'message': message,
+            'template_success': template_success,
+            'template_error': template_error
         }
 
     except Exception as e:
@@ -463,117 +512,207 @@ If you received this email, your SMTP configuration is working correctly!
         }
 
 
-def test_via_service(recipient):
-    """Test email via the enhanced email service."""
+def test_via_email_service(recipient):
+    """Test email using the EnhancedEmailService methods."""
     try:
-        # Check if service is running
-        if not email_service or not email_service.running:
+        # Check if service is available
+        if not email_service:
             return {
                 'success': False,
-                'message': 'Email service is not running'
+                'message': 'Email service not initialized'
             }
 
+        if not email_service.running:
+            return {
+                'success': False,
+                'message': 'Email service is not running. Check if email_service.start_worker() was called.'
+            }
+
+        # Create a mock participant for testing the service method
+        class MockParticipant:
+            def __init__(self, recipient):
+                self.unique_id = f"TEST{datetime.now().strftime('%H%M%S')}"
+                self.full_name = "Test User"
+                self.email = recipient
+                self.classroom = "TEST"
+                self.qrcode_path = None  # No QR code for test
+
+        mock_participant = MockParticipant(recipient)
+
+        # Use the actual email service method
+        # We'll use send_custom_group_email since it's the most flexible
+        task_result = email_service.send_custom_group_email(
+            participant_ids=[],  # Empty list since we're using mock data
+            subject="[EMAIL SERVICE TEST] Enhanced Email Service Test",
+            template="email_test",  # This will try to use our template
+            template_context={
+                'recipient_email': recipient,
+                'test_message': 'This is a test email sent via the Enhanced Email Service.',
+                'template_type': 'service_test',
+                'mock_participant': mock_participant
+            },
+            priority=0  # High priority
+        )
+
+        if task_result and 'task_ids' in task_result:
+            return {
+                'success': True,
+                'message': f'Test email queued successfully via Enhanced Email Service for {recipient}',
+                'task_id': task_result['task_ids'][0] if task_result['task_ids'] else None,
+                'batch_id': task_result.get('batch_id'),
+                'participant_count': task_result.get('participant_count', 0)
+            }
+        else:
+            # Fallback: manually queue a test email using the service's internal methods
+            return send_manual_test_email(recipient)
+
+    except Exception as e:
+        current_app.logger.error(f"Email service test error: {str(e)}", exc_info=True)
+        # Try fallback method
+        return send_manual_test_email(recipient)
+
+
+def send_manual_test_email(recipient):
+    """Fallback method to manually send test email using service internals."""
+    try:
+        from utils.enhanced_email import email_queue, email_statuses, EmailStatus, Priority
+
         # Create task ID
-        task_id = f"test_{int(datetime.now().timestamp())}"
+        task_id = f"manual_test_{int(datetime.now().timestamp())}"
 
         # Create email status
         status = EmailStatus(
             recipient=recipient,
-            subject='[SERVICE TEST] Email Service Test',
+            subject='[MANUAL TEST] Email Service Fallback Test',
             task_id=task_id,
-            group_id='system_test'
+            group_id='manual_test'
         )
         status.priority = Priority.HIGH
         email_statuses[task_id] = status
 
-        # Create email body
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        html_body = f"""
-        <html>
-        <body>
-            <h2>Email Service Test</h2>
-            <p><strong>This is a test email from the Programming Course enhanced email service.</strong></p>
+        # Prepare template context
+        context = {
+            'recipient_email': recipient,
+            'test_message': 'This is a manual test email via the Enhanced Email Service (fallback method).',
+            'timestamp': datetime.now(),
+            'site_name': current_app.config.get('SITE_NAME', 'Programming Course'),
+            'support_email': current_app.config.get('CONTACT_EMAIL', 'support@example.com'),
+            'base_url': current_app.config.get('BASE_URL', 'http://localhost:5000'),
+            'template_type': 'manual_test',
+            'task_id': task_id
+        }
 
-            <h3>Test Details:</h3>
-            <ul>
-                <li>Task ID: {task_id}</li>
-                <li>Timestamp: {timestamp}</li>
-                <li>Priority: High</li>
-                <li>Service: Enhanced Email Service</li>
-                <li>Queue Status: Active</li>
-            </ul>
+        # Try to render templates
+        try:
+            html_body = render_template('emails/email_test.html', **context)
+            text_body = render_template('emails/email_test.txt', **context)
+            template_success = True
+        except Exception as e:
+            # Fallback content
+            template_success = False
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            html_body = f"""
+            <html>
+            <body>
+                <h2>Manual Email Service Test</h2>
+                <p><strong>This is a manual test of the Enhanced Email Service.</strong></p>
+                <p>Task ID: {task_id}</p>
+                <p>Recipient: {recipient}</p>
+                <p>Timestamp: {timestamp}</p>
+                <p>Template Error: {str(e)}</p>
+                <p>If you received this email, your email service is working!</p>
+            </body>
+            </html>
+            """
+            text_body = f"""
+Manual Email Service Test
 
-            <p>If you received this email, your email service is working correctly!</p>
-        </body>
-        </html>
-        """
+This is a manual test of the Enhanced Email Service.
 
-        text_body = f"""
-Email Service Test
+Task ID: {task_id}
+Recipient: {recipient}
+Timestamp: {timestamp}
+Template Error: {str(e)}
 
-This is a test email from the Programming Course enhanced email service.
-
-Test Details:
-- Task ID: {task_id}
-- Timestamp: {timestamp}
-- Priority: High
-- Service: Enhanced Email Service
-- Queue Status: Active
-
-If you received this email, your email service is working correctly!
-        """
+If you received this email, your email service is working!
+            """
 
         # Create email task
         task = {
             'recipient': recipient,
-            'subject': '[SERVICE TEST] Email Service Test',
+            'subject': '[MANUAL TEST] Email Service Fallback Test',
             'html_body': html_body,
             'text_body': text_body,
             'task_id': task_id,
-            'group_id': 'system_test'
+            'group_id': 'manual_test'
         }
 
-        # Add to queue
+        # Add to queue using the service's queue
         email_queue.put(task, Priority.HIGH)
 
         return {
             'success': True,
-            'message': f'Test email queued successfully for {recipient}',
-            'task_id': task_id
+            'message': f'Manual test email queued successfully for {recipient}',
+            'task_id': task_id,
+            'template_success': template_success
         }
 
     except Exception as e:
         return {
             'success': False,
-            'message': f'Email service test failed: {str(e)}'
+            'message': f'Manual email service test failed: {str(e)}'
         }
 
 
-# Optional: Add task status check endpoint
+# Task status check endpoint using the service method
 @email_bp.route('/test-email/status/<task_id>')
 def check_email_task_status(task_id):
-    """Check the status of a specific email task."""
+    """Check the status of a specific email task using the service."""
     try:
-        if task_id in email_statuses:
-            status = email_statuses[task_id]
+        if email_service:
+            # Use the service method
+            status = email_service.get_email_status(task_id)
+            if status:
+                return jsonify({
+                    'status': 'success',
+                    'task_status': status
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Task not found'
+                }), 404
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Email service not available'
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+
+# Additional endpoint to check service stats
+@email_bp.route('/test-email/stats')
+def get_email_service_stats():
+    """Get detailed email service statistics."""
+    try:
+        if email_service:
+            stats = email_service.get_queue_stats()
             return jsonify({
                 'status': 'success',
-                'task_status': {
-                    'task_id': task_id,
-                    'recipient': status.recipient,
-                    'subject': status.subject,
-                    'status': status.status,
-                    'attempts': status.attempts,
-                    'timestamp': status.timestamp.isoformat() if status.timestamp else None,
-                    'sent_time': status.sent_time.isoformat() if status.sent_time else None,
-                    'error': status.error
-                }
+                'stats': stats,
+                'service_running': email_service.running,
+                'worker_alive': email_service.worker_thread.is_alive() if email_service.worker_thread else False
             })
         else:
             return jsonify({
                 'status': 'error',
-                'message': 'Task not found'
-            }), 404
+                'message': 'Email service not available'
+            })
 
     except Exception as e:
         return jsonify({
