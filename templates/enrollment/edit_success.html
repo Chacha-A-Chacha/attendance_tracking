@@ -1,0 +1,239 @@
+{% extends "enrollment_base.html" %}
+
+{% block title %}Application Updated - Programming Course{% endblock %}
+
+{% block content %}
+<div class="space-y-12">
+    <!-- Success Header -->
+    <div class="text-center">
+        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6 text-green-600">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.53L7.53 10.05a.75.75 0 00-1.06 1.061l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd"></path>
+            </svg>
+        </div>
+        <h1 class="mt-6 text-3xl/9 font-bold tracking-tight text-gray-900">Application Updated Successfully!</h1>
+        <p class="mt-2 text-base/7 text-gray-600">Your application information has been updated and saved. Your changes have been recorded.</p>
+    </div>
+
+    <!-- Application Details -->
+    <div class="border-b border-gray-900/10 pb-12">
+        <h2 class="text-base/7 font-semibold text-gray-900">Updated Application</h2>
+        <p class="mt-1 text-sm/6 text-gray-600">Here are the current details of your application.</p>
+
+        <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Application Number</dt>
+                <dd class="mt-2 text-base/7 font-mono text-blue-600">{{ enrollment.application_number }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Applicant Name</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">{{ enrollment.full_name }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Phone Number</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">{{ enrollment.phone }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Last Updated</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">{{ enrollment.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Laptop Status</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">
+                    {% if enrollment.has_laptop %}
+                        Has laptop{% if enrollment.laptop_brand %} ({{ enrollment.laptop_brand }}{% if enrollment.laptop_model %} {{ enrollment.laptop_model }}{% endif %}){% endif %}
+                    {% else %}
+                        No laptop{% if enrollment.needs_laptop_rental %} - rental assistance requested{% endif %}
+                    {% endif %}
+                </dd>
+            </div>
+
+            {% if enrollment.emergency_contact %}
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Emergency Contact</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">
+                    {{ enrollment.emergency_contact }}
+                    {% if enrollment.emergency_phone %}<br><span class="text-sm text-gray-600">{{ enrollment.emergency_phone }}</span>{% endif %}
+                </dd>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Update Summary -->
+    <div class="border-b border-gray-900/10 pb-12">
+        <h2 class="text-base/7 font-semibold text-gray-900">What Changed?</h2>
+        <p class="mt-1 text-sm/6 text-gray-600">Summary of your recent updates.</p>
+
+        <div class="mt-6 rounded-md bg-green-50 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-green-400">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.53L7.53 10.05a.75.75 0 00-1.06 1.061l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm/6 font-medium text-green-800">Information Updated</h3>
+                    <div class="mt-2 text-sm/6 text-green-700">
+                        <p>Your application details have been successfully updated. These changes are now part of your enrollment record and will be considered in the review process.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Status -->
+    <div class="border-b border-gray-900/10 pb-12">
+        <h2 class="text-base/7 font-semibold text-gray-900">Application Status</h2>
+        <p class="mt-1 text-sm/6 text-gray-600">Your current enrollment progress remains unchanged.</p>
+
+        <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
+            <!-- Email Verification Status -->
+            <div class="rounded-lg border border-gray-200 p-4">
+                <div class="flex items-center">
+                    {% if enrollment.email_verified %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-green-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.53L7.53 10.05a.75.75 0 00-1.06 1.061l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-green-700">Email Verified</span>
+                    {% else %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-yellow-500">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-yellow-700">Email Verification Needed</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="rounded-lg border border-gray-200 p-4">
+                <div class="flex items-center">
+                    {% if enrollment.payment_status == 'verified' %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-green-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.53L7.53 10.05a.75.75 0 00-1.06 1.061l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-green-700">Payment Verified</span>
+                    {% elif enrollment.payment_status == 'paid' %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-yellow-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-yellow-700">Payment Under Review</span>
+                    {% else %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-gray-400">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-gray-600">Payment Pending</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Enrollment Status -->
+            <div class="rounded-lg border border-gray-200 p-4">
+                <div class="flex items-center">
+                    {% if enrollment.enrollment_status == 'enrolled' %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-green-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.53L7.53 10.05a.75.75 0 00-1.06 1.061l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-green-700">Enrolled</span>
+                    {% elif enrollment.enrollment_status == 'rejected' %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-red-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-red-700">Application Rejected</span>
+                    {% else %}
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-blue-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-2 text-sm/6 font-medium text-blue-700">Under Review</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="border-b border-gray-900/10 pb-12">
+        <h2 class="text-base/7 font-semibold text-gray-900">What's Next?</h2>
+        <p class="mt-1 text-sm/6 text-gray-600">Continue managing your application from your dashboard.</p>
+
+        <div class="mt-6 space-y-4">
+            {% if not enrollment.email_verified %}
+            <div class="rounded-md bg-blue-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-blue-400">
+                            <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z"></path>
+                            <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm/6 font-medium text-blue-800">Email Verification Still Required</h3>
+                        <div class="mt-2 text-sm/6 text-blue-700">
+                            <p>Don't forget to verify your email address to continue with the enrollment process. Check your inbox for the verification email.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if enrollment.payment_status == 'paid' %}
+            <div class="rounded-md bg-yellow-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-yellow-400">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm/6 font-medium text-yellow-800">Payment Under Review</h3>
+                        <div class="mt-2 text-sm/6 text-yellow-700">
+                            <p>Our team is reviewing your payment. This typically takes 1-2 business days. You'll be notified once verification is complete.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if enrollment.enrollment_status == 'payment_verified' %}
+            <div class="rounded-md bg-green-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-green-400">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.53L7.53 10.05a.75.75 0 00-1.06 1.061l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm/6 font-medium text-green-800">Ready for Review</h3>
+                        <div class="mt-2 text-sm/6 text-green-700">
+                            <p>Your application is complete and ready for final review by our admissions team. You'll receive an enrollment decision soon.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="{{ url_for('enrollment.application_dashboard', enrollment_id=enrollment.id) }}"
+           class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 text-center">
+            Return to Dashboard
+        </a>
+
+        <a href="{{ url_for('enrollment.application_summary', enrollment_id=enrollment.id) }}"
+           class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 text-center">
+            View Full Summary
+        </a>
+
+        <a href="{{ url_for('enrollment.search_application') }}"
+           class="text-sm/6 font-semibold text-gray-900 py-2 text-center">
+            Search Another Application
+        </a>
+    </div>
+</div>
+{% endblock %}

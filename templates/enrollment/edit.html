@@ -1,33 +1,53 @@
 {% extends "enrollment_base.html" %}
 
-{% block title %}Apply Now - Programming Course{% endblock %}
+{% block title %}Edit Application - Programming Course{% endblock %}
 
 {% block content %}
 <!-- Page Header -->
-<div class="mb-8 text-center">
-    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Apply for Programming Course</h1>
-    <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-        Join our comprehensive programming course and start your journey into software development.
-        Please fill out all sections below to complete your application.
-    </p>
-    <div class="mt-4 text-sm text-blue-600">
-        <span class="font-medium">Application Fee Required:</span> Complete payment information needed to process your application
+<div class="mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl/9 font-bold tracking-tight text-gray-900">Edit Application</h1>
+            <p class="mt-2 text-base/7 text-gray-600">
+                Update your application information. Only certain fields can be modified at this stage.
+            </p>
+        </div>
+        <div class="flex items-center gap-x-3">
+            <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                Application #{{ enrollment.application_number }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Current Status Info -->
+<div class="mb-8 rounded-md bg-blue-50 p-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-blue-400">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+        </div>
+        <div class="ml-3">
+            <h3 class="text-sm/6 font-medium text-blue-800">What can be edited?</h3>
+            <div class="mt-2 text-sm/6 text-blue-700">
+                <p>You can update your contact information, learning resources, and additional details. Personal information (name, email) and payment details cannot be changed here.</p>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Form Validation Errors -->
 {% if form.errors %}
-    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+    <div class="mb-6 rounded-md bg-red-50 p-4">
         <div class="flex">
             <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-red-400">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
                 </svg>
             </div>
             <div class="ml-3">
-                <h3 class="text-sm/6 font-medium text-red-800">
-                    Please correct the following errors:
-                </h3>
+                <h3 class="text-sm/6 font-medium text-red-800">Please correct the following errors:</h3>
                 <div class="mt-2 text-sm/6 text-red-700">
                     <ul class="list-disc list-inside space-y-1">
                         {% for field_name, errors in form.errors.items() %}
@@ -42,101 +62,24 @@
     </div>
 {% endif %}
 
-<!-- Enrollment Form -->
+<!-- Edit Form -->
 <form method="POST"
-      action="{{ url_for('enrollment.create_enrollment') }}"
-      enctype="multipart/form-data"
-      x-data="enrollmentForm()"
+      action="{{ url_for('enrollment.edit_enrollment', enrollment_id=enrollment.id) }}"
+      x-data="editForm()"
       @submit="handleSubmit">
 
     {{ form.hidden_tag() }}
 
     <div class="space-y-12">
 
-        <!-- Personal Information Section -->
-        <div class="border-b border-gray-900/10 pb-12">
-            <h2 class="text-base/7 font-semibold text-gray-900">Personal Information</h2>
-            <p class="mt-1 text-sm/6 text-gray-600">Please provide your full legal name as it appears on your identification.</p>
-
-            <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                <!-- First Name -->
-                <div class="sm:col-span-2">
-                    <label for="{{ form.first_name.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.first_name.label.text }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-2">
-                        {{ form.first_name(class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6",
-                            autocomplete="given-name") }}
-                    </div>
-                    {% if form.first_name.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.first_name.errors[0] }}</p>
-                    {% endif %}
-                </div>
-
-                <!-- Second Name -->
-                <div class="sm:col-span-2">
-                    <label for="{{ form.second_name.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.second_name.label.text }}
-                    </label>
-                    <div class="mt-2">
-                        {{ form.second_name(class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6",
-                            autocomplete="additional-name") }}
-                    </div>
-                    {% if form.second_name.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.second_name.errors[0] }}</p>
-                    {% endif %}
-                </div>
-
-                <!-- Surname -->
-                <div class="sm:col-span-2">
-                    <label for="{{ form.surname.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.surname.label.text }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-2">
-                        {{ form.surname(class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6",
-                            autocomplete="family-name") }}
-                    </div>
-                    {% if form.surname.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.surname.errors[0] }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
         <!-- Contact Information Section -->
         <div class="border-b border-gray-900/10 pb-12">
             <h2 class="text-base/7 font-semibold text-gray-900">Contact Information</h2>
-            <p class="mt-1 text-sm/6 text-gray-600">We'll use this information to communicate with you throughout the course.</p>
+            <p class="mt-1 text-sm/6 text-gray-600">Update your contact details for course communication.</p>
 
             <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                <!-- Email Address -->
-                <div class="sm:col-span-4">
-                    <label for="{{ form.email.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.email.label.text }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-2">
-                        {{ form.email(class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6",
-                            autocomplete="email",
-                            **{'x-model': 'formData.email', '@blur': 'checkEmailAvailability()'}) }}
-                    </div>
-
-                    <!-- Email availability feedback -->
-                    <div x-show="emailCheckMessage" class="mt-2 text-sm/6"
-                         :class="{
-                             'text-red-600': !emailAvailable && emailAvailable !== null,
-                             'text-green-600': emailAvailable,
-                             'text-gray-600': emailAvailable === null
-                         }">
-                        <span x-text="emailCheckMessage"></span>
-                    </div>
-
-                    {% if form.email.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.email.errors[0] }}</p>
-                    {% endif %}
-                </div>
-
                 <!-- Phone Number -->
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-3">
                     <label for="{{ form.phone.id }}" class="block text-sm/6 font-medium text-gray-900">
                         {{ form.phone.label.text }} <span class="text-red-500">*</span>
                     </label>
@@ -148,13 +91,25 @@
                         <p class="mt-2 text-sm/6 text-red-600">{{ form.phone.errors[0] }}</p>
                     {% endif %}
                 </div>
+
+                <!-- Read-only Email for Reference -->
+                <div class="sm:col-span-3">
+                    <label class="block text-sm/6 font-medium text-gray-900">Email Address</label>
+                    <div class="mt-2">
+                        <input type="email"
+                               value="{{ enrollment.email }}"
+                               disabled
+                               class="block w-full rounded-md bg-gray-50 px-3 py-1.5 text-base text-gray-500 outline-1 -outline-offset-1 outline-gray-300 sm:text-sm/6">
+                    </div>
+                    <p class="mt-2 text-sm/6 text-gray-500">Email address cannot be changed. Contact support if needed.</p>
+                </div>
             </div>
         </div>
 
         <!-- Learning Resources Section -->
         <div class="border-b border-gray-900/10 pb-12">
             <h2 class="text-base/7 font-semibold text-gray-900">Learning Resources</h2>
-            <p class="mt-1 text-sm/6 text-gray-600">Help us understand your equipment needs for the course.</p>
+            <p class="mt-1 text-sm/6 text-gray-600">Update your equipment needs and laptop information.</p>
 
             <div class="mt-10 space-y-10">
                 <!-- Has Laptop -->
@@ -245,81 +200,10 @@
             </div>
         </div>
 
-        <!-- Payment Information Section -->
-        <div class="border-b border-gray-900/10 pb-12">
-            <h2 class="text-base/7 font-semibold text-gray-900">Payment Information</h2>
-            <p class="mt-1 text-sm/6 text-gray-600">Please provide your payment details and upload a receipt to complete your application.</p>
-
-            <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
-                <!-- Receipt Number -->
-                <div>
-                    <label for="{{ form.receipt_number.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.receipt_number.label.text }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-2">
-                        {{ form.receipt_number(class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6") }}
-                    </div>
-                    {% if form.receipt_number.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.receipt_number.errors[0] }}</p>
-                    {% endif %}
-                </div>
-
-                <!-- Payment Amount -->
-                <div>
-                    <label for="{{ form.payment_amount.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.payment_amount.label.text }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-2">
-                        {{ form.payment_amount(class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm/6") }}
-                    </div>
-                    {% if form.payment_amount.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.payment_amount.errors[0] }}</p>
-                    {% endif %}
-                </div>
-
-                <!-- Receipt Upload -->
-                <div class="sm:col-span-2">
-                    <label for="{{ form.receipt_file.id }}" class="block text-sm/6 font-medium text-gray-900">
-                        {{ form.receipt_file.label.text }} <span class="text-red-500">*</span>
-                    </label>
-                    <div class="mt-2 flex justify-center rounded-lg border border-dashed border-gray-900/25 px-6 py-10"
-                         x-data="fileUpload({{ max_file_size or 5242880 }}, ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf'])">
-                        <div class="text-center">
-                            <svg viewBox="0 0 24 24" fill="currentColor" class="mx-auto size-12 text-gray-300">
-                                <path d="M1.5 6a2.25 2.25 0 0 1 2.25-2.25h16.5A2.25 2.25 0 0 1 22.5 6v12a2.25 2.25 0 0 1-2.25 2.25H3.75A2.25 2.25 0 0 1 1.5 18V6ZM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0 0 21 18v-1.94l-2.69-2.689a1.5 1.5 0 0 0-2.12 0l-.88.879.97.97a.75.75 0 1 1-1.06 1.06l-5.16-5.159a1.5 1.5 0 0 0-2.12 0L3 16.061Zm10.125-7.81a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0Z" clip-rule="evenodd" fill-rule="evenodd" />
-                            </svg>
-                            <div class="mt-4 flex text-sm/6 text-gray-600">
-                                <label for="{{ form.receipt_file.id }}" class="relative cursor-pointer rounded-md bg-transparent font-semibold text-blue-600 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-600 hover:text-blue-500">
-                                    <span>Upload a file</span>
-                                    {{ form.receipt_file(class="sr-only", **{'@change': 'handleFileSelect($event)'}) }}
-                                </label>
-                                <p class="pl-1">or drag and drop</p>
-                            </div>
-                            <p class="text-xs/5 text-gray-600">PNG, JPG, PDF, WebP up to 5MB</p>
-
-                            <!-- File info display -->
-                            <div x-show="fileName" class="mt-3 text-sm/6 text-gray-700">
-                                <p><strong>Selected:</strong> <span x-text="fileName"></span></p>
-                                <p><strong>Size:</strong> <span x-text="fileSize"></span></p>
-                            </div>
-
-                            <!-- Error display -->
-                            <div x-show="error" class="mt-3 text-sm/6 text-red-600">
-                                <p x-text="error"></p>
-                            </div>
-                        </div>
-                    </div>
-                    {% if form.receipt_file.errors %}
-                        <p class="mt-2 text-sm/6 text-red-600">{{ form.receipt_file.errors[0] }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
         <!-- Additional Information Section -->
         <div>
             <h2 class="text-base/7 font-semibold text-gray-900">Additional Information</h2>
-            <p class="mt-1 text-sm/6 text-gray-600">Help us better understand your needs and background.</p>
+            <p class="mt-1 text-sm/6 text-gray-600">Update your background information and special requirements.</p>
 
             <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
                 <!-- Emergency Contact -->
@@ -407,49 +291,63 @@
     </div>
 
     <div class="mt-6 flex items-center justify-end gap-x-6">
-        <a href="{{ url_for('enrollment.search_application') }}"
+        <a href="{{ url_for('enrollment.application_dashboard', enrollment_id=enrollment.id) }}"
            class="text-sm/6 font-semibold text-gray-900">
-            Search Existing Application
+            Cancel
         </a>
 
         <button type="submit"
                 class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="submitting">
-            <span x-show="!submitting">Submit Application</span>
-            <span x-show="submitting" class="flex items-center">
+                :disabled="saving">
+            <span x-show="!saving">Save Changes</span>
+            <span x-show="saving" class="flex items-center">
                 <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Submitting...
+                Saving...
             </span>
         </button>
     </div>
 
     <p class="mt-6 text-xs/5 text-gray-600 text-center">
-        By submitting this application, you agree to our terms and conditions.
-        All information provided will be kept confidential.
+        Changes will be reviewed and may affect your application status. Payment information cannot be changed here - use the "Update Receipt" option if needed.
     </p>
 </form>
+
+<!-- Non-Editable Information Notice -->
+<div class="mt-12 rounded-md bg-gray-50 p-4">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-gray-400">
+                <path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"></path>
+            </svg>
+        </div>
+        <div class="ml-3">
+            <h3 class="text-sm/6 font-medium text-gray-800">Cannot be changed here</h3>
+            <div class="mt-2 text-sm/6 text-gray-700">
+                <p><strong>Personal Information:</strong> Name and email address cannot be modified. Contact <a href="mailto:{{ config.CONTACT_EMAIL or 'info@jaribu.org' }}" class="text-blue-600 hover:text-blue-500">support</a> if you need to change these details.</p>
+                <p class="mt-1"><strong>Payment Information:</strong> Use the <a href="{{ url_for('enrollment.update_receipt', enrollment_id=enrollment.id) }}" class="text-blue-600 hover:text-blue-500">"Update Receipt"</a> option from your dashboard to modify payment details.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Enrollment form specific Alpine.js component
-function enrollmentForm() {
+// Edit form specific Alpine.js component
+function editForm() {
     return {
-        submitting: false,
+        saving: false,
         formData: {
             hasLaptop: '{{ form.has_laptop.data or "" }}',
             laptopBrand: '{{ form.laptop_brand.data or "" }}',
-            laptopModel: '{{ form.laptop_model.data or "" }}',
-            email: '{{ form.email.data or "" }}'
+            laptopModel: '{{ form.laptop_model.data or "" }}'
         },
-        emailAvailable: null,
-        emailCheckMessage: '',
 
         handleSubmit(event) {
-            this.submitting = true;
+            this.saving = true;
             // Form will submit normally, this just handles UI state
         },
 
@@ -463,44 +361,6 @@ function enrollmentForm() {
                 if (brandField) brandField.value = '';
                 if (modelField) modelField.value = '';
             }
-        },
-
-        async checkEmailAvailability() {
-            if (!this.formData.email || !this.validateEmail(this.formData.email)) {
-                this.emailCheckMessage = '';
-                this.emailAvailable = null;
-                return;
-            }
-
-            try {
-                const response = await this.fetchWithCSRF('{{ url_for("enrollment.check_email") }}', {
-                    method: 'POST',
-                    body: JSON.stringify({ email: this.formData.email })
-                });
-
-                const result = await response.json();
-
-                if (result.exists) {
-                    this.emailAvailable = false;
-                    if (result.type === 'enrollment') {
-                        this.emailCheckMessage = `Email already has application #${result.application_number}`;
-                    } else {
-                        this.emailCheckMessage = result.message;
-                    }
-                } else {
-                    this.emailAvailable = true;
-                    this.emailCheckMessage = 'Email is available';
-                }
-            } catch (error) {
-                console.error('Email check failed:', error);
-                this.emailCheckMessage = 'Unable to verify email availability';
-                this.emailAvailable = null;
-            }
-        },
-
-        validateEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
         }
     }
 }
