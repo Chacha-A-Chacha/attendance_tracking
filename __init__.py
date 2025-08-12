@@ -1,0 +1,322 @@
+# __init__.py
+"""
+Application factory for the Flask enrollment system.
+This module creates and configures the Flask application using the application factory pattern.
+"""
+
+import os
+import logging
+import json
+from datetime import datetime
+from logging.handlers import RotatingFileHandler
+
+from flask import Flask, jsonify
+from dotenv import load_dotenv
+
+from config import config_by_name
+from extensions import init_extensions, validate_email_config, db, email_service
+
+
+def setup_logging(app):
+    """
+    Configure structured logging for the application.
+
+    Args:
+        app: Flask application instance
+    """
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(app.root_path, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Configure log format
+    log_format = logging.Formatter(
+        '%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s'
+    )
+
+    # File handler with rotation
+    file_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'app.log'),
+        maxBytes=1024 * 1024 * 10,  # 10MB
+        backupCount=5
+    )
+    file_handler.setFormatter(log_format)
+    file_handler.setLevel(logging.INFO)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_format)
+    console_handler.setLevel(logging.DEBUG if app.debug else logging.INFO)
+
+    # Configure root logger
+    app.logger.setLevel(logging.DEBUG if app.debug else logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.addHandler(console_handler)
+
+    # Configure specific loggers
+    logging.getLogger('email_service').setLevel(logging.DEBUG)
+    logging.getLogger('enrollment_service').setLevel(logging.DEBUG)
+
+    # Suppress excessive SQLAlchemy logging in production
+    if not app.debug:
+        logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+
+
+def register_blueprints(app):
+    """
+    Register all application blueprints.
+
+    Args:
+        app: Flask application instance
+    """
+    try:
+        # Import blueprints here to avoid circular imports
+        from controllers.admin import admin_bp
+        from controllers.check_in import check_in_bp
+        from controllers.registration import registration_bp
+        from controllers.participant import participant_bp
+        from controllers.api import api_bp
+        from controllers.email import email_bp
+
+        # Register blueprints with their URL prefixes
+        app.register_blueprint(admin_bp, url_prefix='/admin')
+        app.register_blueprint(check_in_bp, url_prefix='/check-in')
+        app.register_blueprint(registration_bp, url_prefix='/registration')
+        app.register_blueprint(participant_bp)
+        app.register_blueprint(api_bp)
+        app.register_blueprint(email_bp, url_prefix='/email')
+
+        app.logger.info("All blueprints registered successfully")
+
+    except ImportError as e:
+        app.logger.error(f"Failed to import blueprint: {str(e)}")
+        raise
+    except Exception as e:
+        app.logger.error(f"Failed to register blueprints: {str(e)}")
+        raise
+
+
+def register_error_handlers(app):
+    """
+    Register global error handlers.
+
+    Args:
+        app: Flask application instance
+    """
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        app.logger.error(f"Unhandled exception: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'An unexpected error occurred',
+            'message': str(e) if app.debug else 'Internal server error'
+        }), 500
+
+    @app.errorhandler(404)
+    def handle_404(e):
+        return jsonify({'error': 'Resource not found'}), 404
+
+    @app.errorhandler(403)
+    def handle_403(e):
+        return jsonify({'error': 'Access forbidden'}), 403
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        app.logger.error(f"Internal server error: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+def register_shell_context(app):
+    """
+    Register shell context for flask shell command.
+
+    Args:
+        app: Flask application instance
+    """
+
+    @app.shell_context_processor
+    def make_shell_context():
+        from models import (
+            User, Role, Permission, Participant, Session,
+            Attendance, SessionReassignmentRequest, StudentEnrollment
+        )
+        return {
+            'db': db,
+            'User': User,
+            'Role': Role,
+            'Permission': Permission,
+            'Participant': Participant,
+            'Session': Session,
+            'Attendance': Attendance,
+            'SessionReassignmentRequest': SessionReassignmentRequest,
+            'StudentEnrollment': StudentEnrollment,
+            'email_service': email_service
+        }
+
+
+def initialize_default_data(app):
+    """
+    Initialize system with default data if needed.
+
+    Args:
+        app: Flask application instance
+    """
+    try:
+        with app.app_context():
+            # Create all database tables
+            db.create_all()
+
+            # Initialize default sessions if none exist
+            from models import Session
+            if Session.query.count() == 0:
+                from services.importer import init_sessions
+                init_sessions()
+                app.logger.info("Default sessions initialized")
+
+            # Initialize default roles if none exist
+            from models import Role
+            if Role.query.count() == 0:
+                Role.create_default_roles()
+                app.logger.info("Default roles initialized")
+
+            # Import default data if file exists
+            data_path = os.path.join(app.root_path, 'data', 'sessions_data.xlsx')
+            if os.path.exists(data_path):
+                app.logger.info(f"Importing default data from {data_path}")
+                from services.importer import import_spreadsheet
+                import_spreadsheet(data_path)
+            else:
+                app.logger.info("No default data file found")
+
+    except Exception as e:
+        app.logger.error(f"Failed to initialize default data: {str(e)}", exc_info=True)
+        # Don't raise in production - app should still start
+        if app.debug:
+            raise
+
+
+def register_health_checks(app):
+    """
+    Register health check endpoints.
+
+    Args:
+        app: Flask application instance
+    """
+
+    @app.route('/health')
+    def health_check():
+        """Basic health check endpoint."""
+        return jsonify({
+            'status': 'ok',
+            'timestamp': datetime.now().isoformat(),
+            'version': app.config.get('VERSION', '1.0.0')
+        })
+
+    @app.route('/health/email')
+    def email_health_check():
+        """Email service health check endpoint."""
+        try:
+            # Validate email configuration
+            config_issues = validate_email_config(app)
+
+            # Check worker thread status
+            worker_alive = (
+                    email_service.worker_thread and
+                    email_service.worker_thread.is_alive()
+            )
+
+            # Check queue status
+            queue_size = getattr(email_service, 'task_queue', None)
+            queue_info = queue_size.qsize() if queue_size else 'unknown'
+
+            status = 'healthy' if not config_issues and worker_alive else 'degraded'
+
+            return jsonify({
+                'status': status,
+                'config_issues': config_issues,
+                'worker_thread': 'running' if worker_alive else 'stopped',
+                'queue_size': queue_info,
+                'timestamp': datetime.now().isoformat()
+            })
+
+        except Exception as e:
+            app.logger.error(f"Email health check failed: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }), 503
+
+    @app.route('/health/database')
+    def database_health_check():
+        """Database health check endpoint."""
+        try:
+            # Simple database query to test connection
+            from models import User
+            user_count = User.query.count()
+
+            return jsonify({
+                'status': 'healthy',
+                'user_count': user_count,
+                'timestamp': datetime.now().isoformat()
+            })
+
+        except Exception as e:
+            app.logger.error(f"Database health check failed: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }), 503
+
+
+def create_app(config_name=None):
+    """
+    Application factory function.
+
+    Args:
+        config_name (str): Configuration name ('development', 'production', 'testing')
+
+    Returns:
+        Flask: Configured Flask application instance
+    """
+    # Load environment variables
+    load_dotenv()
+
+    # Create Flask application
+    app = Flask(__name__)
+
+    # Load configuration
+    config_name = config_name or os.environ.get('FLASK_ENV', 'development')
+    app.config.from_object(config_by_name[config_name])
+
+    # Setup logging first
+    setup_logging(app)
+    app.logger.info(f"Starting application with config: {config_name}")
+
+    # Initialize extensions
+    init_extensions(app)
+    app.logger.info("Extensions initialized")
+
+    # Validate email configuration
+    email_issues = validate_email_config(app)
+    if email_issues:
+        app.logger.warning(f"Email configuration issues: {'; '.join(email_issues)}")
+    else:
+        app.logger.info("Email configuration validated successfully")
+
+    # Register components
+    register_blueprints(app)
+    register_error_handlers(app)
+    register_shell_context(app)
+    register_health_checks(app)
+
+    # Register CLI commands
+    from cli import register_cli_commands
+    register_cli_commands(app)
+
+    # Initialize default data
+    initialize_default_data(app)
+
+    app.logger.info("Application factory completed successfully")
+
+    return app
