@@ -8,9 +8,7 @@ from config import Config
 import os
 from datetime import datetime
 
-# Create blueprint
-enrollment_bp = Blueprint('enrollment', __name__, url_prefix='/enrollment')
-
+from . import  enrollment_bp
 
 @enrollment_bp.route('/', methods=['GET', 'POST'])
 def create_enrollment():

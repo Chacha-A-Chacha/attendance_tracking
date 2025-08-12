@@ -406,4 +406,3 @@ class User(UserMixin, BaseModel):
         result['is_locked'] = self.is_locked()
 
         return result
-    

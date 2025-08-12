@@ -110,7 +110,7 @@ def create_app(config_name=None):
     # Create database tables
     with app.app_context():
         db.create_all()
-        initialize_default_data(app)
+        # initialize_default_data(app)
 
     # Add health check endpoint
     @app.route('/health')
@@ -267,7 +267,7 @@ def initialize_default_data(app):
 
             if Session.query.count() == 0:
                 from services.importer import init_sessions
-                init_sessions()
+                # init_sessions()
 
                 data_path = os.path.join(app.root_path, 'data', 'sessions_data.xlsx')
                 if os.path.exists(data_path):
