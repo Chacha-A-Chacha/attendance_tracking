@@ -4,95 +4,77 @@ from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
 from services.enrollment_service import EnrollmentService
 from models.enrollment import EnrollmentStatus, PaymentStatus
+from .forms import EnrollmentForm, EditEnrollmentForm, ReceiptUpdateForm, SearchApplicationForm, EmailVerificationForm
 from config import Config
 import os
 from datetime import datetime
 
-from . import  enrollment_bp
+# Create blueprint
+enrollment_bp = Blueprint('enrollment', __name__, url_prefix='/enrollment')
+
 
 @enrollment_bp.route('/', methods=['GET', 'POST'])
 def create_enrollment():
     """Create new enrollment application."""
-    if request.method == 'GET':
-        # Show enrollment form
-        return render_template('enrollment/create.html',
-                               config=current_app.config,
-                               max_file_size=Config.MAX_RECEIPT_SIZE)
+    form = EnrollmentForm()
 
-    try:
-        # Extract form data
-        personal_info = {
-            'surname': request.form.get('surname', '').strip(),
-            'first_name': request.form.get('first_name', '').strip(),
-            'second_name': request.form.get('second_name', '').strip() or None
-        }
+    if form.validate_on_submit():
+        try:
+            # Extract form data
+            personal_info = {
+                'surname': form.surname.data.strip(),
+                'first_name': form.first_name.data.strip(),
+                'second_name': form.second_name.data.strip() if form.second_name.data else None
+            }
 
-        contact_info = {
-            'email': request.form.get('email', '').strip().lower(),
-            'phone': request.form.get('phone', '').strip()
-        }
+            contact_info = {
+                'email': form.email.data.strip().lower(),
+                'phone': form.phone.data.strip()
+            }
 
-        learning_resources_info = {
-            'has_laptop': request.form.get('has_laptop') == 'yes',
-            'laptop_brand': request.form.get('laptop_brand', '').strip() or None,
-            'laptop_model': request.form.get('laptop_model', '').strip() or None,
-            'needs_laptop_rental': request.form.get('needs_laptop_rental') == 'yes'
-        }
+            learning_resources_info = {
+                'has_laptop': form.has_laptop.data == 'yes',
+                'laptop_brand': form.laptop_brand.data.strip() if form.laptop_brand.data else None,
+                'laptop_model': form.laptop_model.data.strip() if form.laptop_model.data else None,
+                'needs_laptop_rental': form.needs_laptop_rental.data
+            }
 
-        payment_info = {
-            'receipt_number': request.form.get('receipt_number', '').strip(),
-            'payment_amount': float(request.form.get('payment_amount', 0)),
-            'receipt_file': request.files.get('receipt_file')
-        }
+            payment_info = {
+                'receipt_number': form.receipt_number.data.strip(),
+                'payment_amount': float(form.payment_amount.data),
+                'receipt_file': form.receipt_file.data
+            }
 
-        additional_info = {
-            'emergency_contact': request.form.get('emergency_contact', '').strip() or None,
-            'emergency_phone': request.form.get('emergency_phone', '').strip() or None,
-            'special_requirements': request.form.get('special_requirements', '').strip() or None,
-            'how_did_you_hear': request.form.get('how_did_you_hear', '').strip() or None,
-            'previous_attendance': request.form.get('previous_attendance') == 'yes'
-        }
+            additional_info = {
+                'emergency_contact': form.emergency_contact.data.strip() if form.emergency_contact.data else None,
+                'emergency_phone': form.emergency_phone.data.strip() if form.emergency_phone.data else None,
+                'special_requirements': form.special_requirements.data.strip() if form.special_requirements.data else None,
+                'how_did_you_hear': form.how_did_you_hear.data if form.how_did_you_hear.data else None,
+                'previous_attendance': form.previous_attendance.data == 'yes' if form.previous_attendance.data else False
+            }
 
-        # Basic validation
-        if not all([personal_info['surname'], personal_info['first_name'],
-                    contact_info['email'], contact_info['phone']]):
-            flash('Please fill in all required fields.', 'error')
-            return render_template('enrollment/create.html',
-                                   form_data=request.form,
-                                   config=current_app.config)
+            # Create enrollment with confirmation email
+            base_url = request.url_root.rstrip('/')
+            enrollment, task_id, token = EnrollmentService.create_enrollment_with_confirmation(
+                personal_info, contact_info, learning_resources_info,
+                payment_info, additional_info, base_url
+            )
 
-        if not payment_info['receipt_file'] or payment_info['receipt_file'].filename == '':
-            flash('Please upload a payment receipt.', 'error')
-            return render_template('enrollment/create.html',
-                                   form_data=request.form,
-                                   config=current_app.config)
+            flash(f'Application submitted successfully! Application Number: {enrollment.application_number}', 'success')
+            return redirect(url_for('enrollment.enrollment_success', enrollment_id=enrollment.id))
 
-        # Create enrollment with confirmation email
-        base_url = request.url_root.rstrip('/')
-        enrollment, task_id, token = EnrollmentService.create_enrollment_with_confirmation(
-            personal_info, contact_info, learning_resources_info,
-            payment_info, additional_info, base_url
-        )
+        except ValueError as e:
+            flash(str(e), 'error')
+        except RequestEntityTooLarge:
+            flash('File too large. Please upload a smaller receipt file.', 'error')
+        except Exception as e:
+            current_app.logger.error(f"Enrollment creation error: {str(e)}")
+            flash('An error occurred while processing your application. Please try again.', 'error')
 
-        flash(f'Application submitted successfully! Application Number: {enrollment.application_number}', 'success')
-        return redirect(url_for('enrollment.enrollment_success', enrollment_id=enrollment.id))
-
-    except ValueError as e:
-        flash(str(e), 'error')
-        return render_template('enrollment/create.html',
-                               form_data=request.form,
-                               config=current_app.config)
-    except RequestEntityTooLarge:
-        flash('File too large. Please upload a smaller receipt file.', 'error')
-        return render_template('enrollment/create.html',
-                               form_data=request.form,
-                               config=current_app.config)
-    except Exception as e:
-        current_app.logger.error(f"Enrollment creation error: {str(e)}")
-        flash('An error occurred while processing your application. Please try again.', 'error')
-        return render_template('enrollment/create.html',
-                               form_data=request.form,
-                               config=current_app.config)
+    return render_template('enrollment/create.html',
+                           form=form,
+                           config=current_app.config,
+                           max_file_size=Config.MAX_RECEIPT_SIZE)
 
 
 @enrollment_bp.route('/success/<enrollment_id>')
@@ -112,33 +94,30 @@ def enrollment_success(enrollment_id):
 @enrollment_bp.route('/search', methods=['GET', 'POST'])
 def search_application():
     """Search for application to view dashboard."""
-    if request.method == 'GET':
-        return render_template('enrollment/search.html')
+    form = SearchApplicationForm()
 
-    search_term = request.form.get('search_term', '').strip()
+    if form.validate_on_submit():
+        search_term = form.search_term.data.strip()
 
-    if not search_term:
-        flash('Please enter an email address or application number.', 'error')
-        return render_template('enrollment/search.html')
+        try:
+            # Try to find by email first
+            enrollment = EnrollmentService.get_enrollment_by_email(search_term)
 
-    try:
-        # Try to find by email first
-        enrollment = EnrollmentService.get_enrollment_by_email(search_term)
+            # If not found by email, try application number
+            if not enrollment:
+                enrollment = EnrollmentService.get_enrollment_by_application_number(search_term)
 
-        # If not found by email, try application number
-        if not enrollment:
-            enrollment = EnrollmentService.get_enrollment_by_application_number(search_term)
+            if not enrollment:
+                flash('No application found with that email or application number.', 'error')
+                return render_template('enrollment/search.html', form=form)
 
-        if not enrollment:
-            flash('No application found with that email or application number.', 'error')
-            return render_template('enrollment/search.html')
+            # Redirect to application dashboard
+            return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment.id))
 
-        # Redirect to application dashboard
-        return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment.id))
+        except ValueError as e:
+            flash(str(e), 'error')
 
-    except ValueError as e:
-        flash(str(e), 'error')
-        return render_template('enrollment/search.html')
+    return render_template('enrollment/search.html', form=form)
 
 
 @enrollment_bp.route('/dashboard/<enrollment_id>')
@@ -216,53 +195,64 @@ def edit_enrollment(enrollment_id):
 
         if not can_edit:
             flash(f'Cannot edit this application: {edit_info}', 'error')
-            return redirect(url_for('enrollment.application_status', enrollment_id=enrollment_id))
+            return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment_id))
 
     except ValueError:
         flash('Enrollment not found.', 'error')
         return redirect(url_for('enrollment.search_application'))
 
+    form = EditEnrollmentForm(enrollment=enrollment)
+
     if request.method == 'GET':
-        return render_template('enrollment/edit.html',
-                               enrollment=enrollment,
-                               edit_info=edit_info,
-                               config=current_app.config)
+        # Pre-populate form with existing data
+        form.phone.data = enrollment.phone
+        form.has_laptop.data = 'yes' if enrollment.has_laptop else 'no'
+        form.laptop_brand.data = enrollment.laptop_brand
+        form.laptop_model.data = enrollment.laptop_model
+        form.needs_laptop_rental.data = enrollment.needs_laptop_rental
+        form.emergency_contact.data = enrollment.emergency_contact
+        form.emergency_phone.data = enrollment.emergency_phone
+        form.how_did_you_hear.data = enrollment.how_did_you_hear
+        form.previous_attendance.data = 'yes' if enrollment.previous_attendance else 'no'
+        form.special_requirements.data = enrollment.special_requirements
 
-    try:
-        # Extract updates from form
-        updates = {
-            'phone': request.form.get('phone', '').strip(),
-            'has_laptop': request.form.get('has_laptop') == 'yes',
-            'laptop_brand': request.form.get('laptop_brand', '').strip() or None,
-            'laptop_model': request.form.get('laptop_model', '').strip() or None,
-            'needs_laptop_rental': request.form.get('needs_laptop_rental') == 'yes',
-            'emergency_contact': request.form.get('emergency_contact', '').strip() or None,
-            'emergency_phone': request.form.get('emergency_phone', '').strip() or None,
-            'special_requirements': request.form.get('special_requirements', '').strip() or None,
-            'how_did_you_hear': request.form.get('how_did_you_hear', '').strip() or None,
-            'previous_attendance': request.form.get('previous_attendance') == 'yes'
-        }
+    if form.validate_on_submit():
+        try:
+            # Extract updates from form
+            updates = {
+                'phone': form.phone.data.strip(),
+                'has_laptop': form.has_laptop.data == 'yes',
+                'laptop_brand': form.laptop_brand.data.strip() if form.laptop_brand.data else None,
+                'laptop_model': form.laptop_model.data.strip() if form.laptop_model.data else None,
+                'needs_laptop_rental': form.needs_laptop_rental.data,
+                'emergency_contact': form.emergency_contact.data.strip() if form.emergency_contact.data else None,
+                'emergency_phone': form.emergency_phone.data.strip() if form.emergency_phone.data else None,
+                'special_requirements': form.special_requirements.data.strip() if form.special_requirements.data else None,
+                'how_did_you_hear': form.how_did_you_hear.data if form.how_did_you_hear.data else None,
+                'previous_attendance': form.previous_attendance.data == 'yes' if form.previous_attendance.data else False
+            }
 
-        # Remove empty values to avoid unnecessary updates
-        updates = {k: v for k, v in updates.items() if v != '' and v is not None}
+            # Remove empty values to avoid unnecessary updates
+            updates = {k: v for k, v in updates.items() if v is not None and v != ''}
 
-        # Update enrollment
-        updated_enrollment, changes = EnrollmentService.update_enrollment_info(enrollment_id, updates)
+            # Update enrollment
+            updated_enrollment, changes = EnrollmentService.update_enrollment_info(enrollment_id, updates)
 
-        if changes:
-            flash(f'Information updated successfully! {len(changes)} fields changed.', 'success')
-        else:
-            flash('No changes were made.', 'info')
+            if changes:
+                flash(f'Information updated successfully! {len(changes)} fields changed.', 'success')
+            else:
+                flash('No changes were made.', 'info')
 
-        return redirect(url_for('enrollment.edit_success', enrollment_id=enrollment_id))
+            return redirect(url_for('enrollment.edit_success', enrollment_id=enrollment_id))
 
-    except ValueError as e:
-        flash(str(e), 'error')
-        return render_template('enrollment/edit.html',
-                               enrollment=enrollment,
-                               edit_info=edit_info,
-                               form_data=request.form,
-                               config=current_app.config)
+        except ValueError as e:
+            flash(str(e), 'error')
+
+    return render_template('enrollment/edit.html',
+                           form=form,
+                           enrollment=enrollment,
+                           edit_info=edit_info,
+                           config=current_app.config)
 
 
 @enrollment_bp.route('/edit/success/<enrollment_id>')
@@ -285,51 +275,41 @@ def update_receipt(enrollment_id):
 
         if not can_edit or not edit_info.get('receipt_editable', False):
             flash('Cannot update receipt for this application.', 'error')
-            return redirect(url_for('enrollment.application_status', enrollment_id=enrollment_id))
+            return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment_id))
 
     except ValueError:
         flash('Enrollment not found.', 'error')
         return redirect(url_for('enrollment.search_application'))
 
+    form = ReceiptUpdateForm()
+
     if request.method == 'GET':
-        return render_template('enrollment/update_receipt.html',
-                               enrollment=enrollment,
-                               config=current_app.config)
+        # Pre-populate form with existing data
+        form.receipt_number.data = enrollment.receipt_number
+        form.payment_amount.data = enrollment.payment_amount
 
-    try:
-        # Extract receipt data
-        receipt_number = request.form.get('receipt_number', '').strip()
-        payment_amount = float(request.form.get('payment_amount', 0))
-        receipt_file = request.files.get('receipt_file')
+    if form.validate_on_submit():
+        try:
+            # Update receipt
+            updated_enrollment, filename = EnrollmentService.update_receipt(
+                enrollment_id,
+                form.receipt_file.data,
+                form.receipt_number.data.strip(),
+                float(form.payment_amount.data)
+            )
 
-        # Validate
-        if not receipt_number or not payment_amount or not receipt_file:
-            flash('Please fill in all fields and upload a receipt.', 'error')
-            return render_template('enrollment/update_receipt.html',
-                                   enrollment=enrollment,
-                                   form_data=request.form,
-                                   config=current_app.config)
+            flash('Receipt updated successfully! Admin will verify the new payment.', 'success')
+            return redirect(url_for('enrollment.receipt_success', enrollment_id=enrollment_id))
 
-        # Update receipt
-        updated_enrollment, filename = EnrollmentService.update_receipt(
-            enrollment_id, receipt_file, receipt_number, payment_amount
-        )
+        except ValueError as e:
+            flash(str(e), 'error')
+        except RequestEntityTooLarge:
+            flash('File too large. Please upload a smaller receipt file.', 'error')
 
-        flash('Receipt updated successfully! Admin will verify the new payment.', 'success')
-        return redirect(url_for('enrollment.receipt_success', enrollment_id=enrollment_id))
-
-    except ValueError as e:
-        flash(str(e), 'error')
-        return render_template('enrollment/update_receipt.html',
-                               enrollment=enrollment,
-                               form_data=request.form,
-                               config=current_app.config)
-    except RequestEntityTooLarge:
-        flash('File too large. Please upload a smaller receipt file.', 'error')
-        return render_template('enrollment/update_receipt.html',
-                               enrollment=enrollment,
-                               form_data=request.form,
-                               config=current_app.config)
+    return render_template('enrollment/update_receipt.html',
+                           form=form,
+                           enrollment=enrollment,
+                           config=current_app.config)
 
 
 @enrollment_bp.route('/receipt/success/<enrollment_id>')
@@ -371,23 +351,28 @@ def application_status(enrollment_id):
 @enrollment_bp.route('/resend-verification/<enrollment_id>', methods=['POST'])
 def resend_verification(enrollment_id):
     """Resend email verification."""
-    try:
-        enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)
+    form = EmailVerificationForm()
+    form.enrollment_id.data = enrollment_id
 
-        if enrollment.email_verified:
-            flash('Email is already verified.', 'info')
-            return redirect(url_for('enrollment.application_status', enrollment_id=enrollment_id))
+    if form.validate_on_submit():
+        try:
+            enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)
 
-        # Send verification email
-        base_url = request.url_root.rstrip('/')
-        task_id, token = EnrollmentService.send_enrollment_confirmation_email(enrollment_id, base_url)
+            if enrollment.email_verified:
+                flash('Email is already verified.', 'info')
+                return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment_id))
 
-        flash('Verification email sent! Please check your inbox.', 'success')
-        return redirect(url_for('enrollment.application_status', enrollment_id=enrollment_id))
+            # Send verification email
+            base_url = request.url_root.rstrip('/')
+            task_id, token = EnrollmentService.send_enrollment_confirmation_email(enrollment_id, base_url)
 
-    except ValueError as e:
-        flash(str(e), 'error')
-        return redirect(url_for('enrollment.search_application'))
+            flash('Verification email sent! Please check your inbox.', 'success')
+            return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment_id))
+
+        except ValueError as e:
+            flash(str(e), 'error')
+
+    return redirect(url_for('enrollment.search_application'))
 
 
 @enrollment_bp.route('/application/<application_number>')
@@ -465,6 +450,43 @@ def application_summary(enrollment_id):
         return redirect(url_for('enrollment.search_application'))
 
 
+@enrollment_bp.route('/check-email', methods=['POST'])
+def check_email():
+    """AJAX endpoint to check if email exists."""
+    email = request.json.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'exists': False, 'message': 'Email is required'})
+
+    try:
+        # Check in enrollments
+        enrollment = EnrollmentService.get_enrollment_by_email(email)
+        if enrollment:
+            return jsonify({
+                'exists': True,
+                'type': 'enrollment',
+                'message': f'Email already has application #{enrollment.application_number}',
+                'application_number': enrollment.application_number,
+                'status': enrollment.enrollment_status
+            })
+
+        # Check in participants (assuming similar service exists)
+        from models.participant import Participant
+        participant = Participant.query.filter_by(email=email).first()
+        if participant:
+            return jsonify({
+                'exists': True,
+                'type': 'participant',
+                'message': f'Email is already enrolled as participant {participant.unique_id}'
+            })
+
+        return jsonify({'exists': False, 'message': 'Email is available'})
+
+    except Exception as e:
+        current_app.logger.error(f"Email check error: {str(e)}")
+        return jsonify({'exists': False, 'message': 'Could not check email availability'})
+
+
 # Helper functions
 def _get_status_message(enrollment):
     """Get user-friendly status message."""
@@ -530,43 +552,6 @@ def _get_status_message(enrollment):
             'type': 'secondary',
             'icon': 'question-circle'
         }
-
-
-@enrollment_bp.route('/check-email', methods=['POST'])
-def check_email():
-    """AJAX endpoint to check if email exists."""
-    email = request.json.get('email', '').strip().lower()
-
-    if not email:
-        return jsonify({'exists': False, 'message': 'Email is required'})
-
-    try:
-        # Check in enrollments
-        enrollment = EnrollmentService.get_enrollment_by_email(email)
-        if enrollment:
-            return jsonify({
-                'exists': True,
-                'type': 'enrollment',
-                'message': f'Email already has application #{enrollment.application_number}',
-                'application_number': enrollment.application_number,
-                'status': enrollment.enrollment_status
-            })
-
-        # Check in participants (assuming similar service exists)
-        from models.participant import Participant
-        participant = Participant.query.filter_by(email=email).first()
-        if participant:
-            return jsonify({
-                'exists': True,
-                'type': 'participant',
-                'message': f'Email is already enrolled as participant {participant.unique_id}'
-            })
-
-        return jsonify({'exists': False, 'message': 'Email is available'})
-
-    except Exception as e:
-        current_app.logger.error(f"Email check error: {str(e)}")
-        return jsonify({'exists': False, 'message': 'Could not check email availability'})
 
 
 # Error handlers specific to enrollment
