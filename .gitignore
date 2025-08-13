@@ -175,3 +175,4 @@ node_modules/
 /data/*
 /static/qrcodes
 /uploads
+/utils/data
