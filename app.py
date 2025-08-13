@@ -7,8 +7,8 @@ This module creates the Flask application instance and handles application start
 import os
 from datetime import datetime
 
-from . import create_app
-from .extensions import email_service
+from app import create_app
+from app.extensions import email_service
 
 
 def create_application():

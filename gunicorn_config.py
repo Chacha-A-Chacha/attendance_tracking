@@ -5,7 +5,7 @@ bind = "127.0.0.1:8000"  # Only accessible locally, NGINX will proxy requests
 
 # Worker Settings
 # workers = multiprocessing.cpu_count() * 2 + 1  # Efficient worker count
-workers = 5
+workers = 9
 threads = 2  # Each worker handles 2 threads for concurrency
 worker_class = "gthread"  # Threaded workers for better async handling
 
