@@ -349,6 +349,8 @@ def application_status(enrollment_id):
 @enrollment_bp.route('/resend-verification/<enrollment_id>', methods=['POST'])
 def resend_verification(enrollment_id):
     """Resend email verification."""
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     form = EmailVerificationForm()
     form.enrollment_id.data = enrollment_id
 
@@ -357,19 +359,29 @@ def resend_verification(enrollment_id):
             enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)
 
             if enrollment.email_verified:
-                flash('Email is already verified.', 'info')
+                message = 'Email is already verified.'
+                if is_ajax:
+                    return jsonify({'success': False, 'message': message})
+                flash(message, 'info')
                 return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment_id))
 
             # Send verification email
             base_url = request.url_root.rstrip('/')
-            task_id, token = EnrollmentService.send_enrollment_confirmation_email(enrollment_id, base_url)
+            task_id, token = EnrollmentService.send_email_verification(enrollment_id, base_url)
 
-            flash('Verification email sent! Please check your inbox.', 'success')
+            message = 'Verification email sent! Please check your inbox.'
+            if is_ajax:
+                return jsonify({'success': True, 'message': message})
+            flash(message, 'success')
             return redirect(url_for('enrollment.application_dashboard', enrollment_id=enrollment_id))
 
         except ValueError as e:
+            if is_ajax:
+                return jsonify({'success': False, 'message': str(e)})
             flash(str(e), 'error')
 
+    if is_ajax:
+        return jsonify({'success': False, 'message': 'Invalid request'})
     return redirect(url_for('enrollment.search_application'))
 
 

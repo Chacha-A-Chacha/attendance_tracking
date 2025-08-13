@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email Address</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc; line-height: 1.6;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+        <!-- Header -->
+        <div style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">📧 Verify Your Email</h1>
+            <p style="color: #dbeafe; margin: 10px 0 0 0; font-size: 16px;">{{ site_name }}</p>
+        </div>
+
+        <!-- Main Content -->
+        <div style="padding: 40px;">
+            <h2 style="color: #1e40af; margin: 0 0 20px 0; font-size: 24px; font-weight: 600; text-align: center;">Hello {{ enrollment.first_name }}!</h2>
+
+            <p style="color: #374151; margin: 0 0 20px 0; font-size: 16px;">
+                Thank you for applying to our Programming Course. To complete your application process, please verify your email address by clicking the button below.
+            </p>
+
+            <!-- Verification Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{ verification_url }}" style="background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-size: 18px; font-weight: 600; display: inline-block;">
+                    Verify Email Address
+                </a>
+            </div>
+
+            <!-- Alternative Link -->
+            <div style="background-color: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="color: #374151; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Can't click the button? Copy and paste this link:</p>
+                <p style="color: #2563eb; margin: 0; font-size: 14px; word-break: break-all;">{{ verification_url }}</p>
+            </div>
+
+            <!-- Expiration Notice -->
+            <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="color: #92400e; margin: 0; font-size: 14px;">
+                    ⏰ <strong>Important:</strong> This verification link will expire in {{ expires_hours }} hours for security reasons.
+                </p>
+            </div>
+
+            <p style="color: #374151; margin: 25px 0 0 0; font-size: 16px;">
+                Once your email is verified, you'll be able to track your application status and receive important updates about your enrollment.
+            </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f8fafc; padding: 30px 40px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; margin: 0 0 15px 0; font-size: 14px;">
+                <strong>Didn't apply for this course?</strong> You can safely ignore this email. If you continue to receive these emails, please contact us at
+                <a href="mailto:{{ support_email }}" style="color: #2563eb; text-decoration: none;">{{ support_email }}</a>
+            </p>
+
+            <div style="border-top: 1px solid #d1d5db; padding-top: 20px; margin-top: 20px;">
+                <p style="color: #9ca3af; margin: 0; font-size: 12px;">
+                    {{ site_name }}<br>
+                    123 Tech Street, Innovation District<br>
+                    Nairobi, Kenya
+                </p>
+                <p style="color: #9ca3af; margin: 10px 0 0 0; font-size: 12px;">
+                    This is a transactional email. If you received this in error, please contact us.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

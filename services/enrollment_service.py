@@ -403,35 +403,61 @@ class EnrollmentService:
             logging.getLogger('enrollment_service').error(f"Error checking edit permissions: {str(e)}")
             return False, f"Error checking permissions: {str(e)}"
 
-    # Email Integration Methods - FIXED VERSIONS
     @staticmethod
-    def send_enrollment_confirmation_email(enrollment_id, base_url=None):
+    def send_email_verification(enrollment_id, base_url=None):
         """
-        Send confirmation email after complete enrollment submission - FIXED VERSION
+        Send email verification request.
 
-        This method now properly handles Flask context and error isolation.
+        Args:
+            enrollment_id: ID of the enrollment
+            base_url: Base URL for verification links
+
+        Returns:
+            tuple: (task_id, token) if successful
         """
         logger = logging.getLogger('enrollment_service')
 
         try:
             enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
-
             if not enrollment:
                 raise ValueError("Enrollment not found")
 
             if enrollment.email_verified:
-                raise ValueError("Email already verified")
+                raise ValueError("Email is already verified")
 
-            # Use the enhanced email service which handles context properly
-            task_id, token = email_service.send_enrollment_confirmation(
-                enrollment.id, base_url
+            # Generate verification token
+            token = enrollment.generate_email_verification_token()
+
+            if base_url:
+                verification_url = f"{base_url}/enrollment/verify-email/{enrollment.id}/{token}"
+            else:
+                verification_url = url_for('enrollment.verify_email',
+                                           enrollment_id=enrollment.id,
+                                           token=token,
+                                           _external=True)
+
+            # Template context
+            template_context = {
+                'enrollment': enrollment,
+                'verification_url': verification_url,
+                'token': token,
+                'expires_hours': 24  # Token expires in 24 hours
+            }
+
+            # Send email using the email service
+            task_id = email_service.send_notification(
+                recipient=enrollment.email,
+                template='email_verification',
+                subject=f'Verify your email address - {current_app.config.get("SITE_NAME", "Programming Course")}',
+                template_context=template_context,
+                base_url=base_url
             )
 
-            logger.info(f"Enrollment confirmation email queued: {task_id}")
+            logger.info(f"Email verification sent for enrollment {enrollment.application_number}")
             return task_id, token
 
         except Exception as e:
-            logger.error(f"Failed to send enrollment confirmation email: {str(e)}")
+            logger.error(f"Failed to send email verification for enrollment {enrollment_id}: {str(e)}")
             raise
 
     @staticmethod

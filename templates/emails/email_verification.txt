@@ -1,0 +1,22 @@
+{{ site_name }} - Email Verification
+
+📧 VERIFY YOUR EMAIL ADDRESS
+
+Hello {{ enrollment.first_name }}!
+
+Thank you for applying to our Programming Course. To complete your application process, please verify your email address.
+
+VERIFY YOUR EMAIL:
+Click this link: {{ verification_url }}
+
+⏰ IMPORTANT: This verification link will expire in {{ expires_hours }} hours for security reasons.
+
+Once your email is verified, you'll be able to track your application status and receive important updates about your enrollment.
+
+Didn't apply for this course? You can safely ignore this email. If you continue to receive these emails, please contact us at {{ support_email }}
+
+{{ site_name }}
+123 Tech Street, Innovation District
+Nairobi, Kenya
+
+This is a transactional email. If you received this in error, please contact us.
