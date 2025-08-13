@@ -5,6 +5,8 @@ This module creates the Flask application instance and handles application start
 """
 
 import os
+from datetime import datetime
+
 from . import create_app
 from .extensions import email_service
 
@@ -76,7 +78,7 @@ def inject_global_vars():
     return {
         'app_name': app.config.get('SITE_NAME', 'Programming Course'),
         'contact_email': app.config.get('CONTACT_EMAIL', 'info@jaribu.org'),
-        'current_year': 2025
+        'current_year': datetime.now().year
     }
 
 

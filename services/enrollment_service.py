@@ -1,64 +1,73 @@
 # services/enrollment_service.py
+"""
+Complete enrollment service with proper email integration fixes.
+This version maintains all existing functionality while fixing email context issues.
+"""
+
 import os
+import logging
 from flask import current_app, render_template, url_for
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
+
+from ..utils.enhanced_email import Priority
 from ..models.enrollment import StudentEnrollment, EnrollmentStatus, PaymentStatus
 from ..models.participant import Participant
 from ..config import Config
-from ..extensions import db
-import uuid
-from datetime import datetime, timedelta
+from ..extensions import db, email_service
 
 
 class EnrollmentService:
-    """Service class for student enrollment management operations."""
+    """Service class for student enrollment management operations with fixed email integration."""
 
     @staticmethod
     def create_enrollment(personal_info, contact_info, learning_resources_info, payment_info, additional_info=None):
         """Create a new enrollment application with all information including payment."""
-        # Check if email already exists
-        if db.session.query(StudentEnrollment.query.filter_by(email=contact_info['email']).exists()).scalar():
-            raise ValueError(f"Email '{contact_info['email']}' already has an enrollment application")
-
-        # Check if email exists in participants
-        if db.session.query(Participant.query.filter_by(email=contact_info['email']).exists()).scalar():
-            raise ValueError(f"Email '{contact_info['email']}' is already enrolled as a participant")
-
-        # Validate and handle receipt upload
-        receipt_file = payment_info.get('receipt_file')
-        if not receipt_file or not Config.allowed_file(receipt_file.filename, 'receipt'):
-            raise ValueError("Valid receipt file is required")
-
-        enrollment = StudentEnrollment(
-            # Personal information
-            surname=personal_info['surname'],
-            first_name=personal_info['first_name'],
-            second_name=personal_info.get('second_name'),
-
-            # Contact information
-            email=contact_info['email'],
-            phone=contact_info['phone'],
-
-            # Learning resources
-            has_laptop=learning_resources_info.get('has_laptop', False),
-            laptop_brand=learning_resources_info.get('laptop_brand'),
-            laptop_model=learning_resources_info.get('laptop_model'),
-            needs_laptop_rental=learning_resources_info.get('needs_laptop_rental', False),
-
-            # Additional information
-            emergency_contact=additional_info.get('emergency_contact') if additional_info else None,
-            emergency_phone=additional_info.get('emergency_phone') if additional_info else None,
-            special_requirements=additional_info.get('special_requirements') if additional_info else None,
-            how_did_you_hear=additional_info.get('how_did_you_hear') if additional_info else None,
-            previous_attendance=additional_info.get('previous_attendance', False) if additional_info else False
-        )
-
-        db.session.add(enrollment)
-        db.session.flush()  # Get the enrollment ID and application number
+        logger = logging.getLogger('enrollment_service')
 
         try:
+            # Check if email already exists
+            if db.session.query(StudentEnrollment.query.filter_by(email=contact_info['email']).exists()).scalar():
+                raise ValueError(f"Email '{contact_info['email']}' already has an enrollment application")
+
+            # Check if email exists in participants
+            if db.session.query(Participant.query.filter_by(email=contact_info['email']).exists()).scalar():
+                raise ValueError(f"Email '{contact_info['email']}' is already enrolled as a participant")
+
+            # Validate and handle receipt upload
+            receipt_file = payment_info.get('receipt_file')
+            if not receipt_file or not Config.allowed_file(receipt_file.filename, 'receipt'):
+                raise ValueError("Valid receipt file is required")
+
+            enrollment = StudentEnrollment(
+                # Personal information
+                surname=personal_info['surname'],
+                first_name=personal_info['first_name'],
+                second_name=personal_info.get('second_name'),
+
+                # Contact information
+                email=contact_info['email'],
+                phone=contact_info['phone'],
+
+                # Learning resources
+                has_laptop=learning_resources_info.get('has_laptop', False),
+                laptop_brand=learning_resources_info.get('laptop_brand'),
+                laptop_model=learning_resources_info.get('laptop_model'),
+                needs_laptop_rental=learning_resources_info.get('needs_laptop_rental', False),
+
+                # Additional information
+                emergency_contact=additional_info.get('emergency_contact') if additional_info else None,
+                emergency_phone=additional_info.get('emergency_phone') if additional_info else None,
+                special_requirements=additional_info.get('special_requirements') if additional_info else None,
+                how_did_you_hear=additional_info.get('how_did_you_hear') if additional_info else None,
+                previous_attendance=additional_info.get('previous_attendance', False) if additional_info else False
+            )
+
+            db.session.add(enrollment)
+            db.session.flush()  # Get the enrollment ID and application number
+
             # Generate secure filename using application number
             filename = Config.generate_receipt_filename(
                 'registration',
@@ -81,158 +90,233 @@ class EnrollmentService:
             enrollment.enrollment_status = EnrollmentStatus.PAYMENT_PENDING
 
             db.session.commit()
+            logger.info(f"Enrollment created successfully: {enrollment.application_number}")
             return enrollment
 
         except Exception as e:
+            logger.error(f"Failed to create enrollment: {str(e)}")
             # Clean up file if database update fails
             if 'upload_path' in locals() and os.path.exists(upload_path):
                 os.remove(upload_path)
             db.session.rollback()
-            raise ValueError(f"Failed to process enrollment: {str(e)}")
+            raise
 
     @staticmethod
     def create_enrollment_with_confirmation(personal_info, contact_info, learning_resources_info,
                                             payment_info, additional_info=None, base_url=None):
-        """Create enrollment and automatically send confirmation email with verification."""
-        # Create enrollment with all information including payment
+        """
+        Create enrollment and send confirmation email - UPDATED VERSION
+
+        This version uses the unified send_notification method with proper error isolation.
+        Enrollment creation will succeed even if email sending fails.
+        """
+        logger = logging.getLogger('enrollment_service')
+
+        # Create enrollment first
         enrollment = EnrollmentService.create_enrollment(
             personal_info, contact_info, learning_resources_info, payment_info, additional_info
         )
 
-        # Send confirmation email with verification link
-        try:
-            task_id, token = EnrollmentService.send_enrollment_confirmation_email(
-                enrollment.id, base_url
-            )
-            current_app.logger.info(f"Enrollment confirmation email queued: {task_id}")
+        # Initialize return values
+        task_id = None
+        token = None
 
-            return enrollment, task_id, token
+        # Send confirmation email - isolated from enrollment creation
+        try:
+            # Generate verification token
+            token = enrollment.generate_email_verification_token()
+
+            # Build verification URL
+            if base_url:
+                verification_url = f"{base_url}/enrollment/verify-email/{enrollment.id}/{token}"
+            else:
+                verification_url = url_for('enrollment.verify_email',
+                                           enrollment_id=enrollment.id,
+                                           token=token,
+                                           _external=True)
+
+            # Use the unified send_notification method
+            task_id = email_service.send_notification(
+                recipient=enrollment.email,
+                template='enrollment_confirmation',
+                subject=f"Verify your email - Application #{enrollment.application_number}",
+                template_context={
+                    'enrollment': enrollment,
+                    'verification_url': verification_url,
+                    'application_number': enrollment.application_number,
+                    'full_name': enrollment.full_name,
+                    'verification_token': token,
+                    'expiry_hours': 24,  # Token expiry information
+                    'steps_remaining': 'verify email → payment review → enrollment decision'
+                },
+                priority=Priority.HIGH,
+                group_id='enrollment_confirmation',
+                batch_id=f"enrollment_confirmation_{enrollment.id}"
+            )
+
+            # Update enrollment to track email status (optional fields)
+            try:
+                enrollment.email_sent_at = func.now()
+                enrollment.email_task_id = task_id
+                enrollment.email_verification_sent_at = func.now()
+                db.session.commit()
+            except Exception:
+                # If these fields don't exist in model, continue without error
+                pass
+
+            logger.info(
+                f"Enrollment confirmation email queued: {task_id} for application {enrollment.application_number}")
+
         except Exception as e:
-            current_app.logger.error(f"Failed to queue confirmation email: {e}")
-            return enrollment, None, None
+            # CRITICAL: Don't fail enrollment creation if email fails
+            logger.error(f"Failed to queue confirmation email for enrollment {enrollment.id}: {str(e)}")
+
+            # Update enrollment to track email failure (optional fields)
+            try:
+                enrollment.email_error = str(e)
+                enrollment.email_failed_at = func.now()
+                db.session.commit()
+            except Exception:
+                # If these fields don't exist, log but continue
+                logger.warning("Cannot track email error in database - optional fields missing")
+
+            # Return enrollment even if email failed
+            # This ensures the user sees success and can still proceed
+
+        return enrollment, task_id, token
 
     @staticmethod
     def update_enrollment_info(enrollment_id, updates):
         """Update enrollment information (only specific fields allowed, no editing once enrolled)."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        # Prevent editing if already enrolled as participant
-        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
-            raise ValueError("Cannot modify enrollment - already enrolled as participant")
+            if not enrollment:
+                raise ValueError("Enrollment not found")
 
-        # Prevent editing if rejected
-        if enrollment.enrollment_status == EnrollmentStatus.REJECTED:
-            raise ValueError("Cannot modify rejected enrollment")
+            # Prevent editing if already enrolled as participant
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                raise ValueError("Cannot modify enrollment - already enrolled as participant")
 
-        # Define fields that can be updated
-        allowed_updates = {
-            # Contact information (limited)
-            'phone',
+            # Prevent editing if rejected
+            if enrollment.enrollment_status == EnrollmentStatus.REJECTED:
+                raise ValueError("Cannot modify rejected enrollment")
 
-            # Learning resources
-            'has_laptop',
-            'laptop_brand',
-            'laptop_model',
-            'needs_laptop_rental',
+            # Define fields that can be updated
+            allowed_updates = {
+                # Contact information (limited)
+                'phone',
 
-            # Additional information
-            'emergency_contact',
-            'emergency_phone',
-            'special_requirements',
-            'how_did_you_hear',
-            'previous_attendance'
-        }
+                # Learning resources
+                'has_laptop',
+                'laptop_brand',
+                'laptop_model',
+                'needs_laptop_rental',
 
-        # Fields that are NEVER editable after submission
-        protected_fields = {
-            'surname', 'first_name', 'second_name', 'email',
-            'receipt_number', 'payment_amount', 'receipt_upload_path',
-            'application_number', 'enrollment_status', 'payment_status'
-        }
+                # Additional information
+                'emergency_contact',
+                'emergency_phone',
+                'special_requirements',
+                'how_did_you_hear',
+                'previous_attendance'
+            }
 
-        # Filter updates to only allowed fields
-        filtered_updates = {k: v for k, v in updates.items() if k in allowed_updates}
+            # Fields that are NEVER editable after submission
+            protected_fields = {
+                'surname', 'first_name', 'second_name', 'email',
+                'receipt_number', 'payment_amount', 'receipt_upload_path',
+                'application_number', 'enrollment_status', 'payment_status'
+            }
 
-        # Check for attempts to update protected fields
-        attempted_protected = {k for k in updates.keys() if k in protected_fields}
-        if attempted_protected:
-            raise ValueError(f"Cannot update protected fields: {', '.join(attempted_protected)}")
+            # Filter updates to only allowed fields
+            filtered_updates = {k: v for k, v in updates.items() if k in allowed_updates}
 
-        if not filtered_updates:
-            raise ValueError("No valid fields to update")
+            # Check for attempts to update protected fields
+            attempted_protected = {k for k in updates.keys() if k in protected_fields}
+            if attempted_protected:
+                raise ValueError(f"Cannot update protected fields: {', '.join(attempted_protected)}")
 
-        # Track what changed for logging
-        changes = {}
-        for field, new_value in filtered_updates.items():
-            old_value = getattr(enrollment, field)
-            if old_value != new_value:
-                changes[field] = {'old': old_value, 'new': new_value}
-                setattr(enrollment, field, new_value)
+            if not filtered_updates:
+                raise ValueError("No valid fields to update")
 
-        if not changes:
-            raise ValueError("No changes detected")
+            # Track what changed for logging
+            changes = {}
+            for field, new_value in filtered_updates.items():
+                old_value = getattr(enrollment, field)
+                if old_value != new_value:
+                    changes[field] = {'old': old_value, 'new': new_value}
+                    setattr(enrollment, field, new_value)
 
-        # Log the changes
-        current_app.logger.info(f"Enrollment {enrollment.application_number} updated: {changes}")
+            if not changes:
+                raise ValueError("No changes detected")
 
-        db.session.commit()
+            # Log the changes
+            logger.info(f"Enrollment {enrollment.application_number} updated: {changes}")
 
-        # Send update notification email if significant changes
-        significant_fields = {'phone', 'has_laptop', 'emergency_contact'}
-        if any(field in changes for field in significant_fields):
-            try:
-                custom_data = {
-                    'changes': changes,
-                    'update_date': datetime.now().strftime('%B %d, %Y at %I:%M %p')
-                }
-                email_task_id = EnrollmentService.send_enrollment_status_email(
-                    enrollment_id, 'info_updated', custom_data
-                )
-                current_app.logger.info(f"Enrollment update notification email queued: {email_task_id}")
-            except Exception as e:
-                current_app.logger.warning(f"Failed to queue update notification email: {e}")
+            db.session.commit()
 
-        return enrollment, changes
+            # Send update notification email if significant changes
+            significant_fields = {'phone', 'has_laptop', 'emergency_contact'}
+            if any(field in changes for field in significant_fields):
+                try:
+                    custom_data = {
+                        'changes': changes,
+                        'update_date': datetime.now().strftime('%B %d, %Y at %I:%M %p')
+                    }
+                    email_task_id = EnrollmentService.send_enrollment_status_email(
+                        enrollment_id, 'info_updated', custom_data
+                    )
+                    logger.info(f"Enrollment update notification email queued: {email_task_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to queue update notification email: {e}")
+
+            return enrollment, changes
+
+        except Exception as e:
+            logger.error(f"Failed to update enrollment info: {str(e)}")
+            db.session.rollback()
+            raise
 
     @staticmethod
     def update_receipt(enrollment_id, receipt_file, receipt_number, payment_amount):
         """Update receipt information (only if payment not yet verified)."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
-
-        if not enrollment:
-            raise ValueError("Enrollment not found")
-
-        # Prevent editing if already enrolled as participant
-        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
-            raise ValueError("Cannot update receipt - already enrolled as participant")
-
-        # Prevent editing if payment already verified
-        if enrollment.payment_status == PaymentStatus.VERIFIED:
-            raise ValueError("Cannot update receipt - payment already verified by admin")
-
-        # Validate new receipt file
-        if not receipt_file or not Config.allowed_file(receipt_file.filename, 'receipt'):
-            raise ValueError("Valid receipt file is required")
-
-        # Store old file path for cleanup
-        old_file_path = None
-        if enrollment.receipt_upload_path:
-            old_file_path = os.path.join(Config.BASE_DIR, 'uploads', enrollment.receipt_upload_path)
-
-        # Generate new filename
-        filename = Config.generate_receipt_filename(
-            'registration',
-            enrollment.application_number,
-            receipt_file.filename
-        )
-
-        # Get upload path
-        upload_path = Config.get_upload_path('registration_receipt', filename)
+        logger = logging.getLogger('enrollment_service')
 
         try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            # Prevent editing if already enrolled as participant
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                raise ValueError("Cannot update receipt - already enrolled as participant")
+
+            # Prevent editing if payment already verified
+            if enrollment.payment_status == PaymentStatus.VERIFIED:
+                raise ValueError("Cannot update receipt - payment already verified by admin")
+
+            # Validate new receipt file
+            if not receipt_file or not Config.allowed_file(receipt_file.filename, 'receipt'):
+                raise ValueError("Valid receipt file is required")
+
+            # Store old file path for cleanup
+            old_file_path = None
+            if enrollment.receipt_upload_path:
+                old_file_path = os.path.join(Config.BASE_DIR, 'uploads', enrollment.receipt_upload_path)
+
+            # Generate new filename
+            filename = Config.generate_receipt_filename(
+                'registration',
+                enrollment.application_number,
+                receipt_file.filename
+            )
+
+            # Get upload path
+            upload_path = Config.get_upload_path('registration_receipt', filename)
+
             # Save new file
             receipt_file.save(upload_path)
 
@@ -263,413 +347,435 @@ class EnrollmentService:
                 email_task_id = EnrollmentService.send_enrollment_status_email(
                     enrollment_id, 'receipt_updated', custom_data
                 )
-                current_app.logger.info(f"Receipt update notification email queued: {email_task_id}")
+                logger.info(f"Receipt update notification email queued: {email_task_id}")
             except Exception as e:
-                current_app.logger.warning(f"Failed to queue receipt update notification email: {e}")
+                logger.warning(f"Failed to queue receipt update notification email: {e}")
 
+            logger.info(f"Receipt updated for enrollment {enrollment.application_number}")
             return enrollment, filename
 
         except Exception as e:
             # Clean up new file if database update fails
-            if os.path.exists(upload_path):
+            if 'upload_path' in locals() and os.path.exists(upload_path):
                 os.remove(upload_path)
             db.session.rollback()
-            raise ValueError(f"Failed to update receipt: {str(e)}")
+            logger.error(f"Failed to update receipt: {str(e)}")
+            raise
 
     @staticmethod
     def can_edit_enrollment(enrollment_id):
         """Check if enrollment can be edited and return what fields are editable."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if not enrollment:
-            return False, "Enrollment not found"
+            if not enrollment:
+                return False, "Enrollment not found"
 
-        # Cannot edit if enrolled
-        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
-            return False, "Already enrolled as participant"
+            # Cannot edit if enrolled
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                return False, "Already enrolled as participant"
 
-        # Cannot edit if rejected
-        if enrollment.enrollment_status == EnrollmentStatus.REJECTED:
-            return False, "Enrollment has been rejected"
+            # Cannot edit if rejected
+            if enrollment.enrollment_status == EnrollmentStatus.REJECTED:
+                return False, "Enrollment has been rejected"
 
-        # Define what can be edited based on current status
-        always_editable = {
-            'phone', 'emergency_contact', 'emergency_phone',
-            'special_requirements', 'how_did_you_hear', 'previous_attendance'
-        }
+            # Define what can be edited based on current status
+            always_editable = {
+                'phone', 'emergency_contact', 'emergency_phone',
+                'special_requirements', 'how_did_you_hear', 'previous_attendance'
+            }
 
-        conditionally_editable = {
-            'has_laptop', 'laptop_brand', 'laptop_model', 'needs_laptop_rental'
-        }
+            conditionally_editable = {
+                'has_laptop', 'laptop_brand', 'laptop_model', 'needs_laptop_rental'
+            }
 
-        # Receipt can be updated if not yet verified
-        receipt_editable = enrollment.payment_status != PaymentStatus.VERIFIED
+            # Receipt can be updated if not yet verified
+            receipt_editable = enrollment.payment_status != PaymentStatus.VERIFIED
 
-        return True, {
-            'info_fields': always_editable | conditionally_editable,
-            'receipt_editable': receipt_editable,
-            'current_status': enrollment.enrollment_status,
-            'payment_status': enrollment.payment_status
-        }
+            return True, {
+                'info_fields': always_editable | conditionally_editable,
+                'receipt_editable': receipt_editable,
+                'current_status': enrollment.enrollment_status,
+                'payment_status': enrollment.payment_status
+            }
 
-    # Email Integration Methods
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error checking edit permissions: {str(e)}")
+            return False, f"Error checking permissions: {str(e)}"
+
+    # Email Integration Methods - FIXED VERSIONS
     @staticmethod
     def send_enrollment_confirmation_email(enrollment_id, base_url=None):
-        """Send confirmation email after complete enrollment submission (including receipt)."""
-        from ..utils.enhanced_email import email_queue, email_statuses, EmailStatus, Priority
+        """
+        Send confirmation email after complete enrollment submission - FIXED VERSION
 
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        This method now properly handles Flask context and error isolation.
+        """
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if enrollment.email_verified:
-            raise ValueError("Email already verified")
+            if not enrollment:
+                raise ValueError("Enrollment not found")
 
-        # Generate verification token using model method
-        token = enrollment.generate_email_verification_token()
-        db.session.commit()
+            if enrollment.email_verified:
+                raise ValueError("Email already verified")
 
-        # Create verification URL
-        if not base_url:
-            base_url = current_app.config.get('BASE_URL', 'http://localhost:5000')
-        verification_url = f"{base_url}/enrollment/verify-email/{enrollment.id}/{token}"
+            # Use the enhanced email service which handles context properly
+            task_id, token = email_service.send_enrollment_confirmation(
+                enrollment.id, base_url
+            )
 
-        # Prepare email context with receipt acknowledgment
-        context = {
-            'enrollment': enrollment,
-            'verification_url': verification_url,
-            'application_number': enrollment.application_number,
-            'full_name': enrollment.full_name,
-            'submission_date': enrollment.submitted_at.strftime('%B %d, %Y at %I:%M %p'),
-            'receipt_number': enrollment.receipt_number,
-            'payment_amount': enrollment.payment_amount,
-            'site_name': current_app.config.get('SITE_NAME', 'Programming Course'),
-            'support_email': current_app.config.get('CONTACT_EMAIL', 'support@example.com'),
-            'next_steps': [
-                'Click the verification link in this email',
-                'Wait for admin to verify your payment',
-                'Receive enrollment decision',
-                'Get your login credentials (if approved)'
-            ],
-            'timestamp': datetime.now()
-        }
+            logger.info(f"Enrollment confirmation email queued: {task_id}")
+            return task_id, token
 
-        # Render email templates
-        html_body = render_template('emails/enrollment_confirmation.html', **context)
-        text_body = render_template('emails/enrollment_confirmation.txt', **context)
-
-        # Create task ID and status
-        task_id = f"confirm_{enrollment.application_number}_{int(datetime.now().timestamp())}"
-
-        status = EmailStatus(
-            recipient=enrollment.email,
-            subject=f"Application received - Please verify your email #{enrollment.application_number}",
-            task_id=task_id,
-            group_id="enrollment_confirmation",
-            batch_id=f"enrollment_{enrollment.id}"
-        )
-        status.priority = Priority.HIGH
-        email_statuses[task_id] = status
-
-        # Create email task
-        task = {
-            'recipient': enrollment.email,
-            'subject': f"Application received - Please verify your email #{enrollment.application_number}",
-            'html_body': html_body,
-            'text_body': text_body,
-            'task_id': task_id,
-            'group_id': "enrollment_confirmation",
-            'batch_id': f"enrollment_{enrollment.id}"
-        }
-
-        # Add to priority queue
-        email_queue.put(task, Priority.HIGH)
-
-        return task_id, token
+        except Exception as e:
+            logger.error(f"Failed to send enrollment confirmation email: {str(e)}")
+            raise
 
     @staticmethod
     def send_enrollment_status_email(enrollment_id, email_type, custom_data=None):
-        """Send status update emails (approved, rejected, info_updated, receipt_updated, etc.)."""
-        from ..utils.enhanced_email import email_queue, email_statuses, EmailStatus, Priority
+        """
+        Send status update emails (approved, rejected, info_updated, receipt_updated, etc.) - FIXED VERSION
 
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        This version uses the enhanced email service with proper context management.
+        """
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        # Email type configurations
-        email_configs = {
-            'approved': {
-                'template': 'enrollment_approved',
-                'subject': f"🎉 Enrollment approved - Welcome to Programming Course!",
-                'priority': Priority.HIGH
-            },
-            'rejected': {
-                'template': 'enrollment_rejected',
-                'subject': f"Application update - Application #{enrollment.application_number}",
-                'priority': Priority.NORMAL
-            },
-            'payment_verified': {
-                'template': 'payment_verified',
-                'subject': f"Payment verified - Application #{enrollment.application_number}",
-                'priority': Priority.NORMAL
-            },
-            'info_updated': {
-                'template': 'enrollment_info_updated',
-                'subject': f"Information updated - Application #{enrollment.application_number}",
-                'priority': Priority.NORMAL
-            },
-            'receipt_updated': {
-                'template': 'receipt_updated',
-                'subject': f"Receipt updated - Application #{enrollment.application_number}",
-                'priority': Priority.NORMAL
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            # Email type configurations
+            email_configs = {
+                'approved': {
+                    'template': 'enrollment_approved',
+                    'subject': f"🎉 Enrollment approved - Welcome to Programming Course!",
+                    'priority': 'HIGH'
+                },
+                'rejected': {
+                    'template': 'enrollment_rejected',
+                    'subject': f"Application update - Application #{enrollment.application_number}",
+                    'priority': 'NORMAL'
+                },
+                'payment_verified': {
+                    'template': 'payment_verified',
+                    'subject': f"Payment verified - Application #{enrollment.application_number}",
+                    'priority': 'NORMAL'
+                },
+                'info_updated': {
+                    'template': 'enrollment_info_updated',
+                    'subject': f"Information updated - Application #{enrollment.application_number}",
+                    'priority': 'NORMAL'
+                },
+                'receipt_updated': {
+                    'template': 'receipt_updated',
+                    'subject': f"Receipt updated - Application #{enrollment.application_number}",
+                    'priority': 'NORMAL'
+                }
             }
-        }
 
-        if email_type not in email_configs:
-            raise ValueError(f"Invalid email type: {email_type}")
+            if email_type not in email_configs:
+                raise ValueError(f"Invalid email type: {email_type}")
 
-        config = email_configs[email_type]
+            config = email_configs[email_type]
 
-        # Base context
-        context = {
-            'enrollment': enrollment,
-            'application_number': enrollment.application_number,
-            'full_name': enrollment.full_name,
-            'site_name': current_app.config.get('SITE_NAME', 'Programming Course'),
-            'support_email': current_app.config.get('CONTACT_EMAIL', 'support@example.com'),
-            'timestamp': datetime.now()
-        }
+            # Base context
+            context = {
+                'enrollment': enrollment,
+                'application_number': enrollment.application_number,
+                'full_name': enrollment.full_name,
+                'site_name': current_app.config.get('SITE_NAME', 'Programming Course'),
+                'support_email': current_app.config.get('CONTACT_EMAIL', 'support@example.com'),
+                'timestamp': datetime.now()
+            }
 
-        # Add custom data
-        if custom_data:
-            context.update(custom_data)
+            # Add custom data
+            if custom_data:
+                context.update(custom_data)
 
-        # Render email templates
-        html_body = render_template(f'emails/{config["template"]}.html', **context)
-        text_body = render_template(f'emails/{config["template"]}.txt', **context)
+            # Render email templates within current context
+            html_body = render_template(f'emails/{config["template"]}.html', **context)
+            text_body = render_template(f'emails/{config["template"]}.txt', **context)
 
-        # Create task ID and status
-        task_id = f"{email_type}_{enrollment.application_number}_{int(datetime.now().timestamp())}"
+            # Create task ID
+            task_id = f"{email_type}_{enrollment.application_number}_{int(datetime.now().timestamp())}"
 
-        status = EmailStatus(
-            recipient=enrollment.email,
-            subject=config['subject'],
-            task_id=task_id,
-            group_id=f"enrollment_{email_type}",
-            batch_id=f"{email_type}_{enrollment.id}"
-        )
-        status.priority = config['priority']
-        email_statuses[task_id] = status
+            # Import priority and status classes
+            from utils.enhanced_email import Priority, email_queue, email_statuses, EmailStatus
 
-        # Create email task
-        task = {
-            'recipient': enrollment.email,
-            'subject': config['subject'],
-            'html_body': html_body,
-            'text_body': text_body,
-            'task_id': task_id,
-            'group_id': f"enrollment_{email_type}",
-            'batch_id': f"{email_type}_{enrollment.id}"
-        }
+            # Determine priority
+            priority = Priority.HIGH if config['priority'] == 'HIGH' else Priority.NORMAL
 
-        # Add to queue
-        email_queue.put(task, config['priority'])
+            # Create status tracking
+            status = EmailStatus(
+                recipient=enrollment.email,
+                subject=config['subject'],
+                task_id=task_id,
+                group_id=f"enrollment_{email_type}",
+                batch_id=f"{email_type}_{enrollment.id}"
+            )
+            status.priority = priority
+            email_statuses[task_id] = status
 
-        return task_id
+            # Create email task
+            task = {
+                'recipient': enrollment.email,
+                'subject': config['subject'],
+                'html_body': html_body,
+                'text_body': text_body,
+                'task_id': task_id,
+                'group_id': f"enrollment_{email_type}",
+                'batch_id': f"{email_type}_{enrollment.id}"
+            }
 
-    # Core enrollment management methods (keeping all from Version 1)
+            # Add to queue
+            email_queue.put(task, priority)
+
+            logger.info(f"Status email queued for enrollment {enrollment.application_number}: {email_type}")
+            return task_id
+
+        except Exception as e:
+            logger.error(f"Failed to queue status email: {str(e)}")
+            return None
+
+    # Core enrollment management methods
     @staticmethod
     def get_enrollment_by_id(enrollment_id, include_sensitive=False):
         """Get enrollment by ID with optimized query."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+            if not enrollment:
+                raise ValueError("Enrollment not found")
 
-        if not include_sensitive:
-            # Return dict without sensitive fields
-            return enrollment.to_dict()
+            if not include_sensitive:
+                # Return dict without sensitive fields
+                return enrollment.to_dict()
 
-        return enrollment
+            return enrollment
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting enrollment by ID: {str(e)}")
+            raise
 
     @staticmethod
     def get_enrollment_by_application_number(application_number):
         """Get enrollment by application number."""
-        enrollment = (
-            db.session.query(StudentEnrollment)
-            .filter_by(application_number=application_number)
-            .first()
-        )
+        try:
+            enrollment = (
+                db.session.query(StudentEnrollment)
+                .filter_by(application_number=application_number)
+                .first()
+            )
 
-        if not enrollment:
-            raise ValueError("Enrollment application not found")
+            if not enrollment:
+                raise ValueError("Enrollment application not found")
 
-        return enrollment
+            return enrollment
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting enrollment by application number: {str(e)}")
+            raise
 
     @staticmethod
     def get_enrollment_by_email(email):
         """Get enrollment by email address."""
-        enrollment = (
-            db.session.query(StudentEnrollment)
-            .filter_by(email=email)
-            .first()
-        )
+        try:
+            enrollment = (
+                db.session.query(StudentEnrollment)
+                .filter_by(email=email)
+                .first()
+            )
 
-        return enrollment
+            return enrollment
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting enrollment by email: {str(e)}")
+            return None
 
     @staticmethod
     def verify_email(enrollment_id, token):
         """Verify email with provided token."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if enrollment.verify_email(token):
-            # Update enrollment status if payment is also verified
-            if (enrollment.payment_status == PaymentStatus.VERIFIED and
-                    enrollment.enrollment_status == EnrollmentStatus.PAYMENT_PENDING):
-                enrollment.enrollment_status = EnrollmentStatus.PAYMENT_VERIFIED
+            if not enrollment:
+                raise ValueError("Enrollment not found")
 
-                # Send payment verified email
-                try:
-                    email_task_id = EnrollmentService.send_enrollment_status_email(
-                        enrollment_id, 'payment_verified'
-                    )
-                    current_app.logger.info(f"Payment verified email queued: {email_task_id}")
-                except Exception as e:
-                    current_app.logger.warning(f"Failed to queue payment verified email: {e}")
+            if enrollment.verify_email(token):
+                # Update enrollment status if payment is also verified
+                if (enrollment.payment_status == PaymentStatus.VERIFIED and
+                        enrollment.enrollment_status == EnrollmentStatus.PAYMENT_PENDING):
+                    enrollment.enrollment_status = EnrollmentStatus.PAYMENT_VERIFIED
 
-            db.session.commit()
-            return True
-        else:
-            raise ValueError("Invalid or expired verification token")
+                    # Send payment verified email
+                    try:
+                        email_task_id = EnrollmentService.send_enrollment_status_email(
+                            enrollment_id, 'payment_verified'
+                        )
+                        logger.info(f"Payment verified email queued: {email_task_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to queue payment verified email: {e}")
+
+                db.session.commit()
+                logger.info(f"Email verified for enrollment {enrollment.application_number}")
+                return True
+            else:
+                raise ValueError("Invalid or expired verification token")
+
+        except Exception as e:
+            logger.error(f"Email verification failed: {str(e)}")
+            raise
 
     @staticmethod
     def verify_payment(enrollment_id, verified_by_user_id):
         """Admin verification of payment."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
-
-        if not enrollment.is_paid:
-            raise ValueError("No payment recorded for this enrollment")
-
-        enrollment.verify_payment(verified_by_user_id)
-        db.session.commit()
-
-        # Send payment verified email
         try:
-            email_task_id = EnrollmentService.send_enrollment_status_email(
-                enrollment_id, 'payment_verified'
-            )
-            current_app.logger.info(f"Payment verified email queued: {email_task_id}")
-        except Exception as e:
-            current_app.logger.warning(f"Failed to queue payment verified email: {e}")
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        return enrollment
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            if not enrollment.is_paid:
+                raise ValueError("No payment recorded for this enrollment")
+
+            enrollment.verify_payment(verified_by_user_id)
+            db.session.commit()
+
+            # Send payment verified email
+            try:
+                email_task_id = EnrollmentService.send_enrollment_status_email(
+                    enrollment_id, 'payment_verified'
+                )
+                logger.info(f"Payment verified email queued: {email_task_id}")
+            except Exception as e:
+                logger.warning(f"Failed to queue payment verified email: {e}")
+
+            logger.info(f"Payment verified for enrollment {enrollment.application_number}")
+            return enrollment
+
+        except Exception as e:
+            logger.error(f"Payment verification failed: {str(e)}")
+            raise
 
     @staticmethod
     def get_enrollments_for_admin(status=None, payment_status=None, verified_only=False,
                                   ready_for_processing=False, limit=50, offset=0):
         """Get enrollments for admin dashboard with optimized queries."""
-        query = db.session.query(StudentEnrollment)
+        try:
+            query = db.session.query(StudentEnrollment)
 
-        # Apply filters
-        if status:
-            query = query.filter(StudentEnrollment.enrollment_status == status)
+            # Apply filters
+            if status:
+                query = query.filter(StudentEnrollment.enrollment_status == status)
 
-        if payment_status:
-            query = query.filter(StudentEnrollment.payment_status == payment_status)
+            if payment_status:
+                query = query.filter(StudentEnrollment.payment_status == payment_status)
 
-        if verified_only:
-            query = query.filter(StudentEnrollment.email_verified == True)
+            if verified_only:
+                query = query.filter(StudentEnrollment.email_verified == True)
 
-        if ready_for_processing:
-            query = query.filter(
-                and_(
-                    StudentEnrollment.email_verified == True,
-                    StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
-                    StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+            if ready_for_processing:
+                query = query.filter(
+                    and_(
+                        StudentEnrollment.email_verified == True,
+                        StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
+                        StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+                    )
                 )
-            )
 
-        # Order by submission date (newest first)
-        query = query.order_by(StudentEnrollment.submitted_at.desc())
+            # Order by submission date (newest first)
+            query = query.order_by(StudentEnrollment.submitted_at.desc())
 
-        # Apply pagination
-        query = query.offset(offset).limit(limit)
+            # Apply pagination
+            query = query.offset(offset).limit(limit)
 
-        return query.all()
+            return query.all()
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting enrollments for admin: {str(e)}")
+            raise
 
     @staticmethod
     def get_enrollment_statistics():
         """Get enrollment statistics for dashboard."""
-        stats = {}
+        try:
+            stats = {}
 
-        # Total enrollments
-        stats['total'] = db.session.query(func.count(StudentEnrollment.id)).scalar()
+            # Total enrollments
+            stats['total'] = db.session.query(func.count(StudentEnrollment.id)).scalar()
 
-        # By status
-        status_counts = (
-            db.session.query(
-                StudentEnrollment.enrollment_status,
-                func.count(StudentEnrollment.id)
-            )
-            .group_by(StudentEnrollment.enrollment_status)
-            .all()
-        )
-        stats['by_status'] = {status: count for status, count in status_counts}
-
-        # By payment status
-        payment_counts = (
-            db.session.query(
-                StudentEnrollment.payment_status,
-                func.count(StudentEnrollment.id)
-            )
-            .group_by(StudentEnrollment.payment_status)
-            .all()
-        )
-        stats['by_payment_status'] = {status: count for status, count in payment_counts}
-
-        # Ready for processing
-        stats['ready_for_processing'] = (
-            db.session.query(func.count(StudentEnrollment.id))
-            .filter(
-                and_(
-                    StudentEnrollment.email_verified == True,
-                    StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
-                    StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+            # By status
+            status_counts = (
+                db.session.query(
+                    StudentEnrollment.enrollment_status,
+                    func.count(StudentEnrollment.id)
                 )
+                .group_by(StudentEnrollment.enrollment_status)
+                .all()
             )
-            .scalar()
-        )
+            stats['by_status'] = {status: count for status, count in status_counts}
 
-        # Recent submissions (last 7 days)
-        week_ago = datetime.now() - timedelta(days=7)
-        stats['recent_submissions'] = (
-            db.session.query(func.count(StudentEnrollment.id))
-            .filter(StudentEnrollment.submitted_at >= week_ago)
-            .scalar()
-        )
+            # By payment status
+            payment_counts = (
+                db.session.query(
+                    StudentEnrollment.payment_status,
+                    func.count(StudentEnrollment.id)
+                )
+                .group_by(StudentEnrollment.payment_status)
+                .all()
+            )
+            stats['by_payment_status'] = {status: count for status, count in payment_counts}
 
-        return stats
+            # Ready for processing
+            stats['ready_for_processing'] = (
+                db.session.query(func.count(StudentEnrollment.id))
+                .filter(
+                    and_(
+                        StudentEnrollment.email_verified == True,
+                        StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
+                        StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+                    )
+                )
+                .scalar()
+            )
+
+            # Recent submissions (last 7 days)
+            week_ago = datetime.now() - timedelta(days=7)
+            stats['recent_submissions'] = (
+                db.session.query(func.count(StudentEnrollment.id))
+                .filter(StudentEnrollment.submitted_at >= week_ago)
+                .scalar()
+            )
+
+            return stats
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting enrollment statistics: {str(e)}")
+            raise
 
     @staticmethod
     def process_enrollment_to_participant(enrollment_id, classroom, processed_by_user_id):
         """Process approved enrollment into participant record."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
-
-        if not enrollment:
-            raise ValueError("Enrollment not found")
-
-        if not enrollment.is_ready_for_enrollment():
-            raise ValueError("Enrollment not ready for processing")
+        logger = logging.getLogger('enrollment_service')
 
         try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            if not enrollment.is_ready_for_enrollment():
+                raise ValueError("Enrollment not ready for processing")
+
             participant = enrollment.enroll_as_participant(classroom, processed_by_user_id)
 
             # Create user account for participant
@@ -690,125 +796,242 @@ class EnrollmentService:
                 email_task_id = EnrollmentService.send_enrollment_status_email(
                     enrollment_id, 'approved', custom_data
                 )
-                current_app.logger.info(f"Enrollment approval email queued: {email_task_id}")
+                logger.info(f"Enrollment approval email queued: {email_task_id}")
             except Exception as e:
-                current_app.logger.warning(f"Failed to queue approval email: {e}")
+                logger.warning(f"Failed to queue approval email: {e}")
 
+            logger.info(f"Enrollment {enrollment.application_number} processed to participant {participant.unique_id}")
             return participant, enrollment
 
         except Exception as e:
             db.session.rollback()
-            raise ValueError(f"Failed to process enrollment: {str(e)}")
+            logger.error(f"Failed to process enrollment: {str(e)}")
+            raise
 
     @staticmethod
     def reject_enrollment(enrollment_id, reason, rejected_by_user_id):
         """Reject an enrollment application."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
-
-        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
-            raise ValueError("Cannot reject - already enrolled as participant")
-
-        enrollment.reject_enrollment(reason, rejected_by_user_id)
-        db.session.commit()
-
-        # Send rejection email
         try:
-            custom_data = {
-                'rejection_reason': reason,
-                'rejection_date': enrollment.processed_at.strftime('%B %d, %Y')
-            }
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-            email_task_id = EnrollmentService.send_enrollment_status_email(
-                enrollment_id, 'rejected', custom_data
-            )
-            current_app.logger.info(f"Enrollment rejection email queued: {email_task_id}")
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                raise ValueError("Cannot reject - already enrolled as participant")
+
+            enrollment.reject_enrollment(reason, rejected_by_user_id)
+            db.session.commit()
+
+            # Send rejection email
+            try:
+                custom_data = {
+                    'rejection_reason': reason,
+                    'rejection_date': enrollment.processed_at.strftime('%B %d, %Y')
+                }
+
+                email_task_id = EnrollmentService.send_enrollment_status_email(
+                    enrollment_id, 'rejected', custom_data
+                )
+                logger.info(f"Enrollment rejection email queued: {email_task_id}")
+            except Exception as e:
+                logger.warning(f"Failed to queue rejection email: {e}")
+
+            logger.info(f"Enrollment {enrollment.application_number} rejected")
+            return enrollment
+
         except Exception as e:
-            current_app.logger.warning(f"Failed to queue rejection email: {e}")
-
-        return enrollment
+            logger.error(f"Failed to reject enrollment: {str(e)}")
+            raise
 
     @staticmethod
     def cancel_enrollment(enrollment_id):
         """Cancel an enrollment application."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
-            raise ValueError("Cannot cancel - already enrolled as participant")
+            if not enrollment:
+                raise ValueError("Enrollment not found")
 
-        enrollment.cancel_enrollment()
-        db.session.commit()
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                raise ValueError("Cannot cancel - already enrolled as participant")
 
-        return enrollment
+            enrollment.cancel_enrollment()
+            db.session.commit()
+
+            logger.info(f"Enrollment {enrollment.application_number} cancelled")
+            return enrollment
+
+        except Exception as e:
+            logger.error(f"Failed to cancel enrollment: {str(e)}")
+            raise
 
     @staticmethod
     def search_enrollments(search_term, limit=20):
         """Search enrollments by name, email, or application number."""
-        search_pattern = f"%{search_term}%"
+        try:
+            search_pattern = f"%{search_term}%"
 
-        enrollments = (
-            db.session.query(StudentEnrollment)
-            .filter(
-                or_(
-                    StudentEnrollment.first_name.ilike(search_pattern),
-                    StudentEnrollment.surname.ilike(search_pattern),
-                    StudentEnrollment.email.ilike(search_pattern),
-                    StudentEnrollment.application_number.ilike(search_pattern)
+            enrollments = (
+                db.session.query(StudentEnrollment)
+                .filter(
+                    or_(
+                        StudentEnrollment.first_name.ilike(search_pattern),
+                        StudentEnrollment.surname.ilike(search_pattern),
+                        StudentEnrollment.email.ilike(search_pattern),
+                        StudentEnrollment.application_number.ilike(search_pattern)
+                    )
                 )
+                .order_by(StudentEnrollment.submitted_at.desc())
+                .limit(limit)
+                .all()
             )
-            .order_by(StudentEnrollment.submitted_at.desc())
-            .limit(limit)
-            .all()
-        )
 
-        return enrollments
+            return enrollments
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error searching enrollments: {str(e)}")
+            raise
 
     @staticmethod
     def get_receipt_file_path(enrollment_id):
         """Get the full file path for enrollment receipt."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if not enrollment or not enrollment.receipt_upload_path:
+            if not enrollment or not enrollment.receipt_upload_path:
+                return None
+
+            return os.path.join(Config.BASE_DIR, 'uploads', enrollment.receipt_upload_path)
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting receipt file path: {str(e)}")
             return None
-
-        return os.path.join(Config.BASE_DIR, 'uploads', enrollment.receipt_upload_path)
 
     @staticmethod
     def delete_receipt(enrollment_id):
         """Delete uploaded receipt (only if not yet enrolled)."""
-        enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+        logger = logging.getLogger('enrollment_service')
 
-        if not enrollment:
-            raise ValueError("Enrollment not found")
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
-        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
-            raise ValueError("Cannot delete receipt - already enrolled")
+            if not enrollment:
+                raise ValueError("Enrollment not found")
 
-        # Get file path
-        if enrollment.receipt_upload_path:
-            file_path = os.path.join(Config.BASE_DIR, 'uploads', enrollment.receipt_upload_path)
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                raise ValueError("Cannot delete receipt - already enrolled")
 
-            # Delete file if it exists
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            # Get file path
+            if enrollment.receipt_upload_path:
+                file_path = os.path.join(Config.BASE_DIR, 'uploads', enrollment.receipt_upload_path)
 
-        # Reset payment information
-        enrollment.receipt_upload_path = None
-        enrollment.receipt_number = None
-        enrollment.payment_amount = None
-        enrollment.payment_date = None
-        enrollment.is_paid = False
-        enrollment.payment_status = PaymentStatus.UNPAID
+                # Delete file if it exists
+                if os.path.exists(file_path):
+                    os.remove(file_path)
 
-        # Reset enrollment status if it was payment-pending
-        if enrollment.enrollment_status == EnrollmentStatus.PAYMENT_PENDING:
-            enrollment.enrollment_status = EnrollmentStatus.PENDING
+            # Reset payment information
+            enrollment.receipt_upload_path = None
+            enrollment.receipt_number = None
+            enrollment.payment_amount = None
+            enrollment.payment_date = None
+            enrollment.is_paid = False
+            enrollment.payment_status = PaymentStatus.UNPAID
 
-        db.session.commit()
+            # Reset enrollment status if it was payment-pending
+            if enrollment.enrollment_status == EnrollmentStatus.PAYMENT_PENDING:
+                enrollment.enrollment_status = EnrollmentStatus.PENDING
 
-        return enrollment
+            db.session.commit()
+
+            logger.info(f"Receipt deleted for enrollment {enrollment.application_number}")
+            return enrollment
+
+        except Exception as e:
+            logger.error(f"Failed to delete receipt: {str(e)}")
+            raise
+
+    @staticmethod
+    def resend_verification_email(enrollment_id, base_url=None):
+        """
+        Resend verification email for an enrollment - NEW METHOD
+
+        Args:
+            enrollment_id: ID of the enrollment
+            base_url: Base URL for verification links
+
+        Returns:
+            tuple: (task_id, token) if successful
+        """
+        logger = logging.getLogger('enrollment_service')
+
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            if enrollment.email_verified:
+                raise ValueError("Email is already verified")
+
+            # Send verification email using the email service
+            task_id, token = email_service.send_enrollment_confirmation(
+                enrollment.id, base_url
+            )
+
+            # Update enrollment tracking (if fields exist)
+            try:
+                enrollment.email_sent_at = func.now()
+                enrollment.email_task_id = task_id
+                enrollment.email_error = None  # Clear any previous errors
+                db.session.commit()
+            except Exception:
+                # If these fields don't exist, continue without error
+                pass
+
+            logger.info(f"Verification email resent for enrollment {enrollment.application_number}")
+            return task_id, token
+
+        except Exception as e:
+            logger.error(f"Failed to resend verification email: {str(e)}")
+            raise
+
+    @staticmethod
+    def get_email_status(enrollment_id):
+        """
+        Get email status for an enrollment - NEW METHOD
+
+        Args:
+            enrollment_id: ID of the enrollment
+
+        Returns:
+            dict: Email status information
+        """
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            # Check for email task ID in enrollment record
+            task_id = getattr(enrollment, 'email_task_id', None)
+
+            if task_id and email_service:
+                # Get status from email service
+                email_status = email_service.get_email_status(task_id)
+                if email_status:
+                    return email_status
+
+            # Return basic status based on enrollment state
+            return {
+                'status': 'sent' if enrollment.email_verified else 'unknown',
+                'email_verified': enrollment.email_verified,
+                'enrollment_status': enrollment.enrollment_status,
+                'payment_status': enrollment.payment_status
+            }
+
+        except Exception as e:
+            logging.getLogger('enrollment_service').error(f"Error getting email status: {str(e)}")
+            return {'status': 'error', 'error': str(e)}

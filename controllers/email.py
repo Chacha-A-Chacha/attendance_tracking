@@ -719,3 +719,184 @@ def get_email_service_stats():
             'status': 'error',
             'message': str(e)
         }), 500
+
+
+@email_bp.route('/email-test')
+def test_email():
+    """
+    Test endpoint for email configuration and template rendering using the EnhancedEmailService.
+    Usage:
+    - GET /test-email - Shows current config
+    - GET /test-email?send=true&to=your@email.com - Sends test email via service
+    - GET /test-email?direct=true&to=your@email.com - Tests direct SMTP
+    """
+
+    # Get parameters
+    send_test = request.args.get('send', '').lower() == 'true'
+    direct_test = request.args.get('direct', '').lower() == 'true'
+    recipient = request.args.get('to', '')
+
+    # Optional parameters for enhanced testing
+    template = request.args.get('template', 'email_test')  # Default to email_test
+    subject = request.args.get('subject', None)
+    message = request.args.get('message', None)
+    priority_str = request.args.get('priority', 'high')
+
+    # Get email service status
+    try:
+        service_running = email_service.running if email_service else False
+        worker_alive = email_service.worker_thread.is_alive() if service_running and email_service.worker_thread else False
+        queue_stats = email_service.get_queue_stats() if service_running else {}
+        queue_size = queue_stats.get('queue_size', 0)
+    except Exception as e:
+        service_running = False
+        worker_alive = False
+        queue_size = 0
+        queue_stats = {}
+
+    # Show current configuration
+    config_info = {
+        'email_service_running': service_running,
+        'worker_thread_alive': worker_alive,
+        'queue_size': queue_size,
+        'queue_stats': queue_stats,
+        'config': {
+            'MAIL_SERVER': current_app.config.get('MAIL_SERVER'),
+            'MAIL_PORT': current_app.config.get('MAIL_PORT'),
+            'MAIL_USE_TLS': current_app.config.get('MAIL_USE_TLS'),
+            'MAIL_USE_SSL': current_app.config.get('MAIL_USE_SSL'),
+            'MAIL_USERNAME': current_app.config.get('MAIL_USERNAME'),
+            'MAIL_DEFAULT_SENDER': current_app.config.get('MAIL_DEFAULT_SENDER'),
+            'MAIL_PASSWORD_SET': bool(current_app.config.get('MAIL_PASSWORD'))
+        }
+    }
+
+    # If not sending test, just return config
+    if not send_test and not direct_test:
+        return jsonify({
+            'status': 'success',
+            'message': 'Email configuration display',
+            'config': config_info,
+            'usage': {
+                'send_via_service': '/test-email?send=true&to=your@email.com',
+                'send_direct_smtp': '/test-email?direct=true&to=your@email.com',
+                'custom_template': '/test-email?send=true&to=your@email.com&template=custom_test',
+                'custom_subject': '/test-email?send=true&to=your@email.com&subject=My Test&message=Custom message'
+            }
+        })
+
+    # Validate recipient email
+    if not recipient:
+        return jsonify({
+            'status': 'error',
+            'message': 'Recipient email required. Add ?to=your@email.com'
+        }), 400
+
+    if '@' not in recipient:
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid email format'
+        }), 400
+
+    try:
+        if direct_test:
+            # Test direct SMTP connection (keep existing logic)
+            result = test_direct_smtp_with_template(recipient)
+            return jsonify({
+                'status': 'success' if result['success'] else 'error',
+                'message': result['message'],
+                'method': 'direct_smtp',
+                'config': config_info
+            })
+
+        else:
+            # Test via enhanced email service using new method
+            result = test_via_enhanced_email_service(recipient, template, subject, message, priority_str)
+            return jsonify({
+                'status': 'success' if result['success'] else 'error',
+                'message': result['message'],
+                'task_id': result.get('task_id'),
+                'batch_id': result.get('batch_id'),
+                'template': result.get('template'),
+                'method': 'enhanced_email_service',
+                'config': config_info
+            })
+
+    except Exception as e:
+        current_app.logger.error(f"Email test failed: {str(e)}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'message': f'Email test failed: {str(e)}',
+            'config': config_info
+        }), 500
+
+
+def test_via_enhanced_email_service(recipient, template, subject, message, priority_str):
+    """Test email using the enhanced send_test_email method."""
+    try:
+        # Check if service is available
+        if not email_service:
+            return {
+                'success': False,
+                'message': 'Email service not initialized'
+            }
+
+        if not email_service.running:
+            return {
+                'success': False,
+                'message': 'Email service is not running. Check if email_service.start_worker() was called.'
+            }
+
+        # Convert priority string to Priority enum
+        if priority_str == 'high':
+            priority = Priority.HIGH
+        elif priority_str == 'low':
+            priority = Priority.LOW
+        else:
+            priority = Priority.NORMAL
+
+        # Prepare template context
+        template_context = {
+            'test_type': 'api_endpoint_test',
+            'endpoint': '/test-email',
+            'method': 'enhanced_email_service',
+            'service_stats': email_service.get_queue_stats(),
+        }
+
+        # Use the new send_test_email method
+        result = email_service.send_test_email(
+            recipient=recipient,
+            template=template,
+            subject=subject,
+            message=message,
+            priority=priority,
+            base_url=request.url_root.rstrip('/'),
+            template_context=template_context
+        )
+
+        if result['success']:
+            return {
+                'success': True,
+                'message': f'Test email queued successfully for {recipient}',
+                'task_id': result['task_id'],
+                'batch_id': result['batch_id'],
+                'template': result['template'],
+                'template_success': result.get('template_success', True),
+                'priority': result['priority'],
+                'subject': result['subject']
+            }
+        else:
+            return {
+                'success': False,
+                'message': result['message'],
+                'error': result.get('error'),
+                'task_id': result.get('task_id')
+            }
+
+    except Exception as e:
+        current_app.logger.error(f"Enhanced email service test error: {str(e)}", exc_info=True)
+        return {
+            'success': False,
+            'message': f'Enhanced email service test failed: {str(e)}'
+        }
+

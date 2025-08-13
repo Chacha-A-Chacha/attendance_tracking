@@ -1,1 +1,32 @@
-{}
+{
+  "test_email_test_1755071426": {
+    "task_id": "test_email_test_1755071426",
+    "recipient": "calex2607@gmail.com",
+    "subject": "[TEST] Email Service Test",
+    "group_id": "test",
+    "batch_id": "test_batch_1755071426",
+    "status": "sent",
+    "attempts": 1,
+    "max_attempts": 3,
+    "timestamp": "2025-08-13T10:50:26.012320",
+    "last_attempt": "2025-08-13T10:50:26.030120",
+    "sent_time": "2025-08-13T10:50:30.977726",
+    "error": null,
+    "priority": 0
+  },
+  "enrollment_confirmation_1755080980_chachaalex.c": {
+    "task_id": "enrollment_confirmation_1755080980_chachaalex.c",
+    "recipient": "chachaalex.c@gmail.com",
+    "subject": "Verify your email - Application #APP202500001",
+    "group_id": "enrollment_confirmation",
+    "batch_id": "enrollment_confirmation_4e1d02ae-1a2b-4d99-baea-eb815d582fda",
+    "status": "sent",
+    "attempts": 1,
+    "max_attempts": 3,
+    "timestamp": "2025-08-13T13:29:40.741145",
+    "last_attempt": "2025-08-13T13:29:40.741257",
+    "sent_time": "2025-08-13T13:29:45.190300",
+    "error": null,
+    "priority": 0
+  }
+}

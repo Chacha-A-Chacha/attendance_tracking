@@ -315,7 +315,7 @@ def create_app(config_name=None):
     register_cli_commands(app)
 
     # Initialize default data
-    initialize_default_data(app)
+    # initialize_default_data(app)
 
     app.logger.info("Application factory completed successfully")
 
