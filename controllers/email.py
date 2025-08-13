@@ -1,9 +1,9 @@
 # controllers/email_admin.py
 
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
-from utils.enhanced_email import EnhancedEmailService, Priority, EmailStatus
-from app import db, email_service
-from models import Participant, Session
+from ..utils.enhanced_email import EnhancedEmailService, Priority, EmailStatus
+from ..extensions import db, email_service
+from ..models import Participant, Session
 from sqlalchemy import or_
 
 import uuid

@@ -2,8 +2,8 @@
 from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
-from models import Participant, Session, Attendance
-from app import db
+from ..models import Participant, Session, Attendance
+from ..extensions import db
 from datetime import datetime
 import calendar
 

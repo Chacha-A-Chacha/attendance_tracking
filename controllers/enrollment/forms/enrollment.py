@@ -10,9 +10,8 @@ from wtforms.validators import (
     DataRequired, Email, Optional, NumberRange, Length,
     ValidationError, Regexp
 )
-from models.enrollment import StudentEnrollment
-from models.participant import Participant
-from config import Config
+from ....models.enrollment import StudentEnrollment
+from ....models.participant import Participant
 
 
 class BaseEnrollmentForm(FlaskForm):

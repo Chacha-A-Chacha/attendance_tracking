@@ -2,10 +2,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
-from services.enrollment_service import EnrollmentService
-from models.enrollment import EnrollmentStatus, PaymentStatus
+from ...services.enrollment_service import EnrollmentService
+from ...models.enrollment import EnrollmentStatus, PaymentStatus
 from .forms import EnrollmentForm, EditEnrollmentForm, ReceiptUpdateForm, SearchApplicationForm, EmailVerificationForm
-from config import Config
 import os
 from datetime import datetime
 

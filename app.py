@@ -5,8 +5,8 @@ This module creates the Flask application instance and handles application start
 """
 
 import os
-from __init__ import create_app
-from extensions import email_service
+from . import create_app
+from .extensions import email_service
 
 
 def create_application():

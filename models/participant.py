@@ -1,5 +1,5 @@
 # models/participant.py
-from . import db
+from ..extensions import db
 import random
 import string
 from sqlalchemy import Index

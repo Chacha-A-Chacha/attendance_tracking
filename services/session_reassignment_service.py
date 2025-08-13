@@ -1,9 +1,9 @@
 # services/session_reassignment_service.py
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
-from app import db
-from models import Participant, Session, SessionReassignmentRequest, ReassignmentStatus
-from utils.session_mapper import get_session_count, get_session_capacity
+from ..extensions import db
+from ..models import Participant, Session, SessionReassignmentRequest, ReassignmentStatus
+from ..utils.session_mapper import get_session_count, get_session_capacity
 from datetime import datetime
 
 

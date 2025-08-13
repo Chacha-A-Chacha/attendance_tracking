@@ -2,8 +2,8 @@ import os
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
 from flask import current_app
-from app import db
-from models.participant import Participant
+from ..extensions import db
+from ..models.participant import Participant
 
 
 class QRCodeGenerator:

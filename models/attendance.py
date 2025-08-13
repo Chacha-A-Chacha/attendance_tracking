@@ -1,5 +1,5 @@
 # models/attendance.py
-from . import db
+from ..extensions import db
 from sqlalchemy import Index
 from .base import BaseModel
 

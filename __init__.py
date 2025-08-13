@@ -13,8 +13,8 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 
-from config import config_by_name
-from extensions import init_extensions, validate_email_config, db, email_service
+from .config import config_by_name
+from .extensions import init_extensions, validate_email_config, db, email_service
 
 
 def setup_logging(app):
@@ -70,17 +70,17 @@ def register_blueprints(app):
     """
     try:
         # Import blueprints here to avoid circular imports
-        from controllers.admin import admin_bp
-        from controllers.check_in import check_in_bp
-        from controllers.registration import registration_bp
-        from controllers.participant import participant_bp
-        from controllers.api import api_bp
-        from controllers.email import email_bp
+        from .controllers.admin import admin_bp
+        from .controllers.check_in import check_in_bp
+        from .controllers.enrollment import enrollment_bp
+        from .controllers.participant import participant_bp
+        from .controllers.api import api_bp
+        from .controllers.email import email_bp
 
         # Register blueprints with their URL prefixes
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(check_in_bp, url_prefix='/check-in')
-        app.register_blueprint(registration_bp, url_prefix='/registration')
+        app.register_blueprint(enrollment_bp, url_prefix='/enrollment')
         app.register_blueprint(participant_bp)
         app.register_blueprint(api_bp)
         app.register_blueprint(email_bp, url_prefix='/email')
@@ -166,14 +166,14 @@ def initialize_default_data(app):
             db.create_all()
 
             # Initialize default sessions if none exist
-            from models import Session
+            from .models import Session
             if Session.query.count() == 0:
-                from services.importer import init_sessions
+                from .services.importer import init_sessions
                 init_sessions()
                 app.logger.info("Default sessions initialized")
 
             # Initialize default roles if none exist
-            from models import Role
+            from .models import Role
             if Role.query.count() == 0:
                 Role.create_default_roles()
                 app.logger.info("Default roles initialized")
@@ -182,7 +182,7 @@ def initialize_default_data(app):
             data_path = os.path.join(app.root_path, 'data', 'sessions_data.xlsx')
             if os.path.exists(data_path):
                 app.logger.info(f"Importing default data from {data_path}")
-                from services.importer import import_spreadsheet
+                from .services.importer import import_spreadsheet
                 import_spreadsheet(data_path)
             else:
                 app.logger.info("No default data file found")
@@ -311,7 +311,7 @@ def create_app(config_name=None):
     register_health_checks(app)
 
     # Register CLI commands
-    from cli import register_cli_commands
+    from .cli import register_cli_commands
     register_cli_commands(app)
 
     # Initialize default data

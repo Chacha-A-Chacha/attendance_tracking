@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import Index, func
 import json
 
-from app import db
+from ..extensions import db
 from .base import BaseModel
 
 # Association table for many-to-many relationship between users and roles

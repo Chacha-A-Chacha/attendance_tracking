@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, current_app, session as flask_session, redirect, url_for
-from services.verification import AttendanceVerifier
-from models import Session
+from ..services.verification import AttendanceVerifier
+from ..models import Session
 from datetime import datetime
 import calendar
 

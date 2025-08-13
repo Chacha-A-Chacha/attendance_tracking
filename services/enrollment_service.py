@@ -4,10 +4,10 @@ from flask import current_app, render_template, url_for
 from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
-from models.enrollment import StudentEnrollment, EnrollmentStatus, PaymentStatus
-from models.participant import Participant
-from config import Config
-from app import db
+from ..models.enrollment import StudentEnrollment, EnrollmentStatus, PaymentStatus
+from ..models.participant import Participant
+from ..config import Config
+from ..extensions import db
 import uuid
 from datetime import datetime, timedelta
 

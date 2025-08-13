@@ -1,14 +1,14 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
-from services.importer import import_spreadsheet
-from services.verification import AttendanceVerifier
-from services.session_reassignment_service import SessionReassignmentService
+from ..services.importer import import_spreadsheet
+from ..services.verification import AttendanceVerifier
+from ..services.session_reassignment_service import SessionReassignmentService
 import os
 from datetime import datetime
 from sqlalchemy import func
-from app import db
-from models import Participant, Session, Attendance
-from utils.export_data import export_participants_to_excel
-from utils.session_mapper import get_session_capacity, get_session_count
+from ..extensions import db
+from ..models import Participant, Session, Attendance
+from ..utils.export_data import export_participants_to_excel
+from ..utils.session_mapper import get_session_capacity, get_session_count
 
 reassignment_service = SessionReassignmentService()
 

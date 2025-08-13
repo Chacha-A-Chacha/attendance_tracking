@@ -1,5 +1,5 @@
 # models/enrollment.py
-from . import db
+from ..extensions import db
 from sqlalchemy import Index, func
 from .base import BaseModel
 import secrets

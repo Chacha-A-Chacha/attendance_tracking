@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, session as flask_session
-from services.verification import AttendanceVerifier
-from models import Session
+from ..services.verification import AttendanceVerifier
+from ..models import Session
 from datetime import datetime
 import calendar
 

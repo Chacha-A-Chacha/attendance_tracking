@@ -2,7 +2,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import uuid
-from . import db
+from ..extensions import db
 
 
 class BaseModel(db.Model):

@@ -3,11 +3,11 @@
 import pandas as pd
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
-from app import db
-from models import Participant, Session
-from services.qrcode_generator import QRCodeGenerator
-from utils.data_processing import clean_phone_number, clean_email, normalize_name, clean_text_field
-from utils.session_mapper import normalize_session_time, get_session_by_time, find_available_session, get_default_session
+from ..extensions import db
+from ..models import Participant, Session
+from ..services.qrcode_generator import QRCodeGenerator
+from ..utils.data_processing import clean_phone_number, clean_email, normalize_name, clean_text_field
+from ..utils.session_mapper import normalize_session_time, get_session_by_time, find_available_session, get_default_session
 
 
 def init_sessions():

@@ -2,13 +2,13 @@ import os
 from datetime import datetime
 from flask import render_template, request, jsonify, flash, url_for, redirect, session as flask_session, current_app
 
-from app import db, email_service
-from models import Participant, Session
+from ...extensions import db, email_service
+from ...models import Participant, Session
 
-from services.qrcode_generator import QRCodeGenerator
-from services.session_reassignment_service import SessionReassignmentService
+from ...services.qrcode_generator import QRCodeGenerator
+from ...services.session_reassignment_service import SessionReassignmentService
 
-from utils.enhanced_email import Priority
+from ...utils.enhanced_email import Priority
 
 from . import participant_bp
 
