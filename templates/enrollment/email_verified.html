@@ -1,0 +1,83 @@
+{% extends "enrollment_base.html" %}
+
+{% block title %}Email Verified - Programming Course{% endblock %}
+
+{% block content %}
+<div class="space-y-12">
+    <!-- Success Header -->
+    <div class="text-center">
+        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6 text-green-600">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+        </div>
+        <h1 class="mt-6 text-3xl/9 font-bold tracking-tight text-gray-900">Email Verified Successfully!</h1>
+        <p class="mt-2 text-base/7 text-gray-600">Your email address has been confirmed. You can now track your registration status and receive important updates.</p>
+    </div>
+
+    <!-- Verification Details -->
+    <div class="border-b border-gray-900/10 pb-12">
+        <h2 class="text-base/7 font-semibold text-gray-900">Verification Confirmed</h2>
+        <p class="mt-1 text-sm/6 text-gray-600">Your email verification is complete and your registration can now proceed.</p>
+
+        <div class="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Application Number</dt>
+                <dd class="mt-2 text-base/7 font-mono text-blue-600">{{ enrollment.application_number }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Applicant Name</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">{{ enrollment.full_name }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Verified Email</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">{{ enrollment.email }}</dd>
+            </div>
+
+            <div>
+                <dt class="text-sm/6 font-medium text-gray-900">Verification Date</dt>
+                <dd class="mt-2 text-base/7 text-gray-900">{{ moment().format('MMMM D, YYYY [at] h:mm A') }}</dd>
+            </div>
+        </div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="border-b border-gray-900/10 pb-12">
+        <h2 class="text-base/7 font-semibold text-gray-900">What's Next?</h2>
+        <p class="mt-1 text-sm/6 text-gray-600">Here are the next steps in your registration process.</p>
+
+        <div class="mt-10">
+            <div class="rounded-md bg-blue-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-blue-400">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm/6 font-medium text-blue-800">Registration Processing</h3>
+                        <div class="mt-2 text-sm/6 text-blue-700">
+                            <p>Your registration will now be processed for final approval. We'll notify you of any updates via email at {{ enrollment.email }}.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="{{ url_for('enrollment.application_dashboard', enrollment_id=enrollment.id) }}"
+           class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 text-center">
+            View Application Dashboard
+        </a>
+
+        <a href="{{ url_for('enrollment.search_application') }}"
+           class="text-sm/6 font-semibold text-gray-900 py-2 text-center">
+            Search Another Application
+        </a>
+    </div>
+</div>
+{% endblock %}
