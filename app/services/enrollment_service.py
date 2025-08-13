@@ -531,7 +531,7 @@ class EnrollmentService:
             task_id = f"{email_type}_{enrollment.application_number}_{int(datetime.now().timestamp())}"
 
             # Import priority and status classes
-            from utils.enhanced_email import Priority, email_queue, email_statuses, EmailStatus
+            from app.utils.enhanced_email import Priority, email_queue, email_statuses, EmailStatus
 
             # Determine priority
             priority = Priority.HIGH if config['priority'] == 'HIGH' else Priority.NORMAL
