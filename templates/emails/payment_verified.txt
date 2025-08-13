@@ -23,7 +23,7 @@ Thank you for your patience during this process. We're excited about the possibi
 Questions? Contact our admissions team at {{ support_email }}
 
 {{ site_name }}
-123 Tech Street, Innovation District
+Powered by Chacha Technologies - https://chach-a.com
 Nairobi, Kenya
 
 This is a transactional email. If you received this in error, please contact us.

@@ -33,7 +33,7 @@ If you have any questions or need assistance getting started, our support team i
 Need help getting started? Contact our support team at {{ support_email }}
 
 {{ site_name }}
-123 Tech Street, Innovation District
+Powered by Chacha Technologies - https://chach-a.com
 Nairobi, Kenya
 
 This is a transactional email. If you received this in error, please contact us.

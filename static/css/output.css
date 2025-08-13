@@ -339,6 +339,9 @@
       max-width: 96rem;
     }
   }
+  .m-1 {
+    margin: calc(var(--spacing) * 1);
+  }
   .-mx-1\.5 {
     margin-inline: calc(var(--spacing) * -1.5);
   }
@@ -353,6 +356,9 @@
   }
   .-my-2 {
     margin-block: calc(var(--spacing) * -2);
+  }
+  .my-2 {
+    margin-block: calc(var(--spacing) * 2);
   }
   .my-auto {
     margin-block: auto;
@@ -2471,6 +2477,11 @@
   .md\:px-8 {
     @media (width >= 48rem) {
       padding-inline: calc(var(--spacing) * 8);
+    }
+  }
+  .md\:text-left {
+    @media (width >= 48rem) {
+      text-align: left;
     }
   }
   .md\:text-4xl {

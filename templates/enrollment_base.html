@@ -182,9 +182,14 @@
         <footer class="bg-white border-t border-gray-200 mt-12">
             <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                 <div class="flex flex-col md:flex-row justify-between items-center">
-                    <p class="text-sm text-gray-500 mb-4 md:mb-0">
-                        © 2025 Programming Course. All rights reserved.
-                    </p>
+                    <div class="text-center md:text-left mb-4 md:mb-0">
+                        <p class="text-sm text-gray-500">
+                            © 2025 {{ site_name or 'Programming Course' }}. All rights reserved.
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            Powered by <a href="https://chach-a.com" class="text-blue-600 hover:text-blue-500 transition-colors" target="_blank">Chacha Technologies</a>
+                        </p>
+                    </div>
                     <div class="flex space-x-6 text-sm text-gray-500">
                         <a href="mailto:{{ config.CONTACT_EMAIL or 'info@jaribu.org' }}"
                            class="hover:text-blue-600 transition-colors">

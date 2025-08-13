@@ -6,10 +6,10 @@
 <div class="space-y-12">
     <!-- Summary Header -->
     <div class="border-b border-gray-900/10 pb-6">
-        <div class="flex items-center justify-between">
+        <div class="sm.flex items-center justify-between">
             <div>
                 <h1 class="text-3xl/9 font-bold tracking-tight text-gray-900">Application Summary</h1>
-                <p class="mt-2 text-base/7 text-gray-600">Complete details of your Programming Course application.</p>
+                <p class="my-2 text-base/7 text-gray-600">Complete details of your Programming Course application.</p>
             </div>
             <div class="flex items-center gap-x-3">
                 <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
@@ -218,7 +218,7 @@
         {% endif %}
 
         <a href="{{ url_for('enrollment.search_application') }}"
-           class="text-sm/6 font-semibold text-gray-900 py-2 text-center">
+           class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
             Search Another Application
         </a>
     </div>
