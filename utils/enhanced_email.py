@@ -1,3 +1,9 @@
+# utils/enhanced_email.py
+"""
+Enhanced Email Service with proper Flask context management.
+This version fixes the application context issues identified in the audit.
+"""
+
 import itertools
 import mimetypes
 import os
@@ -36,8 +42,8 @@ class EmailStatus:
         self.recipient = recipient
         self.subject = subject
         self.task_id = task_id or f"email_{int(datetime.now().timestamp())}_{recipient}"
-        self.group_id = group_id  # For classroom, session, etc.
-        self.batch_id = batch_id  # For identifying a group of emails sent together
+        self.group_id = group_id
+        self.batch_id = batch_id
         self.status = self.QUEUED
         self.attempts = 0
         self.max_attempts = 3
@@ -69,18 +75,15 @@ class EmailStatus:
 class PriorityEmailQueue:
     def __init__(self):
         self.queue = queue.PriorityQueue()
-        self.task_map = {}  # Maps task_id to task position for cancellation/updates
-        self.counter = itertools.count()  # Unique counter for tie-breaking
+        self.task_map = {}
+        self.counter = itertools.count()
 
     def put(self, task, priority=Priority.NORMAL):
         """Add a task to the queue with a priority level"""
         task['priority'] = priority
-
-        # Add to queue with priority, timestamp, and a unique counter value
         entry = (priority, next(self.counter), task)
         self.queue.put(entry)
 
-        # Store reference
         task_id = task.get('task_id')
         if task_id:
             self.task_map[task_id] = task
@@ -98,11 +101,9 @@ class PriorityEmailQueue:
                     return None
             return None
 
-        # Get the highest priority task
         priority, _, task = self.queue.get(block=False)
         task_id = task.get('task_id')
 
-        # Remove from task map
         if task_id and task_id in self.task_map:
             del self.task_map[task_id]
 
@@ -126,41 +127,63 @@ class PriorityEmailQueue:
         return task_id in self.task_map
 
 
-# Create email queue
+# Global email queue and status tracking
 email_queue = PriorityEmailQueue()
-
-# For tracking email statuses - persist to file for recovery
 email_statuses = {}
 
 
 def get_status_file_path():
     """Get the path to the status file"""
-    app_root = current_app.root_path if current_app else os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(app_root, 'data', 'email_statuses.json')
+    # Use app root path when available, fallback to current directory
+    try:
+        from flask import current_app
+        app_root = current_app.root_path
+    except RuntimeError:
+        app_root = os.path.dirname(os.path.abspath(__file__))
+
+    data_dir = os.path.join(app_root, 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, 'email_statuses.json')
 
 
 class EnhancedEmailService:
     def __init__(self, app=None):
         self.app = app
+        self._app_ref = None  # Store app reference for background threads
         self.worker_thread = None
         self.running = False
-        self.status_save_interval = 60  # Save statuses every 60 seconds
-        self.logger = logging.getLogger(__name__)
+        self.status_save_interval = 60
+        self.logger = logging.getLogger('email_service')
+        self._shutdown_event = threading.Event()
 
         if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
-        """Initialize with Flask app"""
+        """Initialize with Flask app - FIXED VERSION"""
         self.app = app
-        self.logger.info("Flask app initialized for EnhancedEmailService.")
+        # Store app reference for background threads
+        self._app_ref = app._get_current_object()
+
+        self.logger.info("Flask app initialized for EnhancedEmailService")
+
+        # Validate configuration on startup
+        with app.app_context():
+            self._validate_email_config()
+
+        # Load existing statuses
         self._load_statuses()
 
+        # Start worker thread
         if not self.running:
             self.start_worker()
 
+        # Register shutdown handler
+        import atexit
+        atexit.register(self.stop_worker)
+
     def _validate_email_config(self):
-        """Validate email configuration against config.py settings"""
+        """Validate email configuration against config.py settings - IMPROVED VERSION"""
         required_config = {
             'MAIL_SERVER': 'SMTP server address',
             'MAIL_PORT': 'SMTP server port',
@@ -182,43 +205,62 @@ class EnhancedEmailService:
         # Validate SSL/TLS configuration
         use_ssl = self.app.config.get('MAIL_USE_SSL', False)
         use_tls = self.app.config.get('MAIL_USE_TLS', False)
+        mail_port = self.app.config.get('MAIL_PORT')
 
         if use_ssl and use_tls:
             self.logger.warning("Both MAIL_USE_SSL and MAIL_USE_TLS are enabled. SSL will take precedence.")
 
-        if not use_ssl and not use_tls:
-            self.logger.warning("Neither MAIL_USE_SSL nor MAIL_USE_TLS is enabled. Using SSL by default.")
+        # Check port/security alignment
+        if mail_port == 465 and use_tls and not use_ssl:
+            self.logger.warning("Port 465 typically uses SSL, not TLS. Consider using port 587 for TLS")
+        elif mail_port == 587 and use_ssl and not use_tls:
+            self.logger.warning("Port 587 typically uses TLS, not SSL. Consider using port 465 for SSL")
+
+        # Gmail specific checks
+        if 'gmail.com' in self.app.config.get('MAIL_SERVER', ''):
+            password = self.app.config.get('MAIL_PASSWORD', '')
+            if password and len(password) < 16:
+                self.logger.warning("Gmail requires App Password (16 characters) since May 2022")
 
         self.logger.info(
-            f"Email config validated: {self.app.config.get('MAIL_SERVER')}:{self.app.config.get('MAIL_PORT')} (SSL: {use_ssl}, TLS: {use_tls})")
+            f"Email config validated: {self.app.config.get('MAIL_SERVER')}:{self.app.config.get('MAIL_PORT')} "
+            f"(SSL: {use_ssl}, TLS: {use_tls})"
+        )
 
     def start_worker(self):
-        """Start the email worker thread"""
+        """Start the email worker thread - IMPROVED VERSION"""
         if self.worker_thread is None or not self.worker_thread.is_alive():
             self.running = True
-            self.worker_thread = threading.Thread(target=self._process_queue)
-            self.worker_thread.daemon = True
+            self._shutdown_event.clear()
+            self.worker_thread = threading.Thread(
+                target=self._process_queue,
+                daemon=True,
+                name="EmailWorker"
+            )
             self.worker_thread.start()
-            self.logger.info("Email worker thread started.")
+            self.logger.info("Email worker thread started")
 
     def stop_worker(self):
-        """Stop the email worker thread"""
+        """Stop the email worker thread - IMPROVED VERSION"""
+        self.logger.info("Shutting down email service")
         self.running = False
-        if self.worker_thread:
-            self.worker_thread.join(timeout=1.0)
-            self.logger.info("Email worker thread stopped.")
+        self._shutdown_event.set()
+
+        if self.worker_thread and self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=5)
+            if self.worker_thread.is_alive():
+                self.logger.warning("Email worker thread did not shut down gracefully")
+            else:
+                self.logger.info("Email worker thread stopped")
 
     def _save_statuses(self):
         """Save email statuses to a file for persistence"""
         try:
             status_file = get_status_file_path()
-            os.makedirs(os.path.dirname(status_file), exist_ok=True)
-
             statuses = {k: v.to_dict() for k, v in email_statuses.items()}
 
             with open(status_file, 'w') as f:
                 json.dump(statuses, f, indent=2)
-            # self.logger.debug("Email statuses saved to file.")
         except Exception as e:
             self.logger.error(f"Failed to save email statuses: {str(e)}", exc_info=True)
 
@@ -253,67 +295,76 @@ class EnhancedEmailService:
 
                     email_statuses[task_id] = status
 
-                self.logger.info(f"Loaded {len(email_statuses)} email status entries.")
+                self.logger.info(f"Loaded {len(email_statuses)} email status entries")
         except Exception as e:
             self.logger.error(f"Failed to load email statuses: {str(e)}", exc_info=True)
 
     def _process_queue(self):
-        """Process emails from the queue"""
+        """Process emails from the queue - FIXED VERSION WITH PROPER CONTEXT"""
         last_save_time = time.time()
 
-        with self.app.app_context():
-            while self.running:
-                try:
-                    task = email_queue.get(timeout=1.0)
+        # CRITICAL: Use stored app reference with proper context
+        while self.running and not self._shutdown_event.is_set():
+            try:
+                task = email_queue.get(timeout=1.0)
 
-                    if task:
-                        task_id = task.get('task_id')
-                        if task.get('cancelled', False):
-                            self.logger.info(f"Task {task_id} was cancelled. Skipping.")
-                            continue
+                if task:
+                    task_id = task.get('task_id')
+                    if task.get('cancelled', False):
+                        self.logger.info(f"Task {task_id} was cancelled. Skipping.")
+                        continue
+
+                    # Update status
+                    if task_id in email_statuses:
+                        email_statuses[task_id].status = EmailStatus.SENDING
+                        email_statuses[task_id].attempts += 1
+                        email_statuses[task_id].last_attempt = datetime.now()
+
+                    try:
+                        # CRITICAL FIX: Use app reference with proper context
+                        with self._app_ref.app_context():
+                            self._send_email(task)
 
                         if task_id in email_statuses:
-                            email_statuses[task_id].status = EmailStatus.SENDING
-                            email_statuses[task_id].attempts += 1
-                            email_statuses[task_id].last_attempt = datetime.now()
+                            email_statuses[task_id].status = EmailStatus.SENT
+                            email_statuses[task_id].sent_time = datetime.now()
+                            self.logger.info(f"Email sent successfully to {task['recipient']}")
 
-                        try:
-                            self._send_email(task)
-                            if task_id in email_statuses:
-                                email_statuses[task_id].status = EmailStatus.SENT
-                                email_statuses[task_id].sent_time = datetime.now()
-                                self.logger.info(f"Email sent successfully to {task['recipient']}.")
-                        except Exception as e:
-                            self.logger.error(f"Email sending failed: {str(e)}", exc_info=True)
+                    except Exception as e:
+                        self.logger.error(f"Email sending failed: {str(e)}", exc_info=True)
 
-                            if task_id in email_statuses:
-                                status = email_statuses[task_id]
-                                status.status = EmailStatus.FAILED
-                                status.error = str(e)
+                        if task_id in email_statuses:
+                            status = email_statuses[task_id]
+                            status.status = EmailStatus.FAILED
+                            status.error = str(e)
 
-                                if status.attempts < status.max_attempts:
-                                    delay = 2 ** status.attempts
-                                    self.logger.info(f"Retrying task {task_id} in {delay} seconds.")
-                                    time.sleep(delay)
-                                    email_queue.put(task, priority=task.get('priority', Priority.NORMAL))
+                            # Retry logic
+                            if status.attempts < status.max_attempts:
+                                delay = min(2 ** status.attempts, 60)  # Max 60 second delay
+                                self.logger.info(f"Retrying task {task_id} in {delay} seconds")
+                                time.sleep(delay)
+                                email_queue.put(task, priority=task.get('priority', Priority.NORMAL))
 
-                    current_time = time.time()
-                    if current_time - last_save_time > self.status_save_interval:
-                        self._save_statuses()
-                        last_save_time = current_time
+                # Periodic status saving
+                current_time = time.time()
+                if current_time - last_save_time > self.status_save_interval:
+                    self._save_statuses()
+                    last_save_time = current_time
 
-                except queue.Empty:
-                    pass
-                except Exception as e:
-                    self.logger.error(f"Email worker error: {str(e)}", exc_info=True)
-                    time.sleep(5)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                self.logger.error(f"Email worker error: {str(e)}", exc_info=True)
+                time.sleep(5)
+
+        self.logger.info("Email worker thread exited")
 
     def _send_email(self, task):
-        """Send an individual email"""
+        """Send an individual email - IMPROVED VERSION"""
         recipient = task['recipient']
         subject = task['subject']
-        html_body = task['html_body']
-        text_body = task['text_body']
+        html_body = task.get('html_body')
+        text_body = task.get('text_body')
         attachments = task.get('attachments', [])
 
         msg = MIMEMultipart('alternative')
@@ -329,52 +380,66 @@ class EnhancedEmailService:
         for attachment in attachments:
             self._add_attachment(msg, attachment)
 
+        # Improved retry logic with exponential backoff
         max_retries = 3
-        retry_count = 0
+        base_delay = 1
 
-        while retry_count < max_retries:
+        for attempt in range(max_retries):
             try:
-                # Use proper SSL/TLS configuration from config.py
                 server = self._create_smtp_connection()
-                server.login(self.app.config['MAIL_USERNAME'], self.app.config['MAIL_PASSWORD'])
+                server.login(current_app.config['MAIL_USERNAME'], current_app.config['MAIL_PASSWORD'])
                 server.send_message(msg)
                 server.quit()
                 return
 
             except smtplib.SMTPServerDisconnected as e:
-                retry_count += 1
-                if retry_count >= max_retries:
+                if attempt == max_retries - 1:
                     self.logger.error(f"SMTP server disconnected after {max_retries} attempts: {str(e)}")
                     raise
 
-                wait_time = (2 ** retry_count) + random.uniform(0, 1)
-                self.logger.warning(f"SMTP connection closed, retrying in {wait_time:.2f} seconds")
+                wait_time = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                self.logger.warning(
+                    f"SMTP connection closed, retrying in {wait_time:.2f} seconds (attempt {attempt + 1})")
                 time.sleep(wait_time)
-            except Exception as e:
-                self.logger.error(f"SMTP error: {str(e)}", exc_info=True)
+
+            except smtplib.SMTPAuthenticationError as e:
+                self.logger.error(f"SMTP authentication failed: {str(e)}")
+                self.logger.error(
+                    "Check MAIL_USERNAME and MAIL_PASSWORD. For Gmail, ensure you're using an App Password.")
                 raise
 
+            except smtplib.SMTPRecipientsRefused as e:
+                self.logger.error(f"SMTP recipients refused: {str(e)}")
+                raise
+
+            except Exception as e:
+                self.logger.error(f"SMTP error on attempt {attempt + 1}: {str(e)}", exc_info=True)
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(base_delay * (2 ** attempt))
+
     def _create_smtp_connection(self):
-        """Create SMTP connection using config.py settings"""
-        mail_server = self.app.config['MAIL_SERVER']
-        mail_port = self.app.config['MAIL_PORT']
-        use_ssl = self.app.config.get('MAIL_USE_SSL', False)
-        use_tls = self.app.config.get('MAIL_USE_TLS', False)
+        """Create SMTP connection using config.py settings - IMPROVED VERSION"""
+        mail_server = current_app.config['MAIL_SERVER']
+        mail_port = current_app.config['MAIL_PORT']
+        use_ssl = current_app.config.get('MAIL_USE_SSL', False)
+        use_tls = current_app.config.get('MAIL_USE_TLS', False)
 
         try:
             if use_ssl:
-                # Use SSL (port 465 typically)
                 self.logger.debug(f"Creating SMTP_SSL connection to {mail_server}:{mail_port}")
-                server = smtplib.SMTP_SSL(mail_server, mail_port)
+                server = smtplib.SMTP_SSL(mail_server, mail_port, timeout=30)
             else:
-                # Use regular SMTP
                 self.logger.debug(f"Creating SMTP connection to {mail_server}:{mail_port}")
-                server = smtplib.SMTP(mail_server, mail_port)
+                server = smtplib.SMTP(mail_server, mail_port, timeout=30)
 
                 if use_tls:
-                    # Upgrade to TLS (port 587 typically)
                     self.logger.debug("Upgrading connection to TLS")
                     server.starttls()
+
+            # Enable debug output in development
+            if current_app.debug:
+                server.set_debuglevel(1)
 
             return server
 
@@ -392,22 +457,18 @@ class EnhancedEmailService:
                 self.logger.warning(f"Attachment file not found: {filepath}")
                 return
 
-            # Guess MIME type
             mime_type, _ = mimetypes.guess_type(filepath)
 
             with open(filepath, 'rb') as f:
                 file_data = f.read()
 
             if mime_type and mime_type.startswith('image/'):
-                # Handle images
                 attachment_part = MIMEImage(file_data)
             elif mime_type == 'application/pdf':
-                # Handle PDFs
                 attachment_part = MIMEBase('application', 'pdf')
                 attachment_part.set_payload(file_data)
                 encoders.encode_base64(attachment_part)
             else:
-                # Handle other file types
                 main_type, sub_type = (mime_type or 'application/octet-stream').split('/', 1)
                 attachment_part = MIMEBase(main_type, sub_type)
                 attachment_part.set_payload(file_data)
@@ -425,343 +486,148 @@ class EnhancedEmailService:
         except Exception as e:
             self.logger.error(f"Failed to add attachment {attachment.get('filename', 'unknown')}: {str(e)}")
 
-    def send_qr_code(self, recipient, participant, priority=Priority.NORMAL, batch_id=None):
-        """Send QR code to a participant"""
+    def send_enrollment_confirmation(self, enrollment_id, base_url=None):
+        """
+        Send enrollment confirmation email - FIXED VERSION
 
-        # Create a task ID
-        task_id = f"qrcode_{participant.unique_id}_{int(datetime.now().timestamp())}"
+        Args:
+            enrollment_id: ID of the enrollment
+            base_url: Base URL for verification links
 
-        # Determine group ID (classroom)
-        group_id = f"class_{participant.classroom}"
+        Returns:
+            tuple: (task_id, verification_token)
+        """
+        # Import here to avoid circular imports
+        from models import StudentEnrollment
+        from models.enrollment import EnrollmentStatus
 
-        # Create task status
+        try:
+            enrollment = StudentEnrollment.query.get(enrollment_id)
+            if not enrollment:
+                raise ValueError("Enrollment not found")
+
+            if enrollment.email_verified:
+                raise ValueError("Email already verified")
+
+            # Generate verification token
+            token = enrollment.generate_email_verification_token()
+
+            # Create verification URL
+            if not base_url:
+                base_url = current_app.config.get('BASE_URL', 'http://localhost:5000')
+            verification_url = f"{base_url}/enrollment/verify-email/{enrollment.id}/{token}"
+
+            # Prepare email context
+            context = {
+                'enrollment': enrollment,
+                'verification_url': verification_url,
+                'application_number': enrollment.application_number,
+                'full_name': enrollment.full_name,
+                'submission_date': enrollment.submitted_at.strftime('%B %d, %Y at %I:%M %p'),
+                'receipt_number': enrollment.receipt_number,
+                'payment_amount': enrollment.payment_amount,
+                'site_name': current_app.config.get('SITE_NAME', 'Programming Course'),
+                'support_email': current_app.config.get('CONTACT_EMAIL', 'support@example.com'),
+                'timestamp': datetime.now()
+            }
+
+            # Render email templates in current context
+            html_body = render_template('emails/enrollment_confirmation.html', **context)
+            text_body = render_template('emails/enrollment_confirmation.txt', **context)
+
+            # Create task ID and status
+            task_id = f"confirm_{enrollment.application_number}_{int(datetime.now().timestamp())}"
+
+            status = EmailStatus(
+                recipient=enrollment.email,
+                subject=f"Application received - Please verify your email #{enrollment.application_number}",
+                task_id=task_id,
+                group_id="enrollment_confirmation",
+                batch_id=f"enrollment_{enrollment.id}"
+            )
+            status.priority = Priority.HIGH
+            email_statuses[task_id] = status
+
+            # Create email task
+            task = {
+                'recipient': enrollment.email,
+                'subject': f"Application received - Please verify your email #{enrollment.application_number}",
+                'html_body': html_body,
+                'text_body': text_body,
+                'task_id': task_id,
+                'group_id': "enrollment_confirmation",
+                'batch_id': f"enrollment_{enrollment.id}"
+            }
+
+            # Add to priority queue
+            email_queue.put(task, Priority.HIGH)
+
+            self.logger.info(f"Enrollment confirmation email queued for {enrollment.email}")
+            return task_id, token
+
+        except Exception as e:
+            self.logger.error(f"Failed to queue enrollment confirmation email: {str(e)}")
+            raise
+
+    def send_simple_test_email(self, recipient, subject, message, priority=Priority.HIGH):
+        """Simple method to send a test email - IMPROVED VERSION"""
+        task_id = f"simple_test_{int(datetime.now().timestamp())}"
+
         status = EmailStatus(
             recipient=recipient,
-            subject="Your QR Code for the Programming Course",
+            subject=subject,
             task_id=task_id,
-            group_id=group_id,
-            batch_id=batch_id
+            group_id='test'
         )
         status.priority = priority
         email_statuses[task_id] = status
 
-        # Get QR code path
-        qr_path = participant.qrcode_path
+        # Create simple email content
+        html_body = f"""
+        <html>
+        <body>
+            <h2>Test Email</h2>
+            <p>{message}</p>
+            <p><strong>Task ID:</strong> {task_id}</p>
+            <p><strong>Timestamp:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><strong>Configuration:</strong></p>
+            <ul>
+                <li>MAIL_SERVER: {current_app.config.get('MAIL_SERVER')}</li>
+                <li>MAIL_PORT: {current_app.config.get('MAIL_PORT')}</li>
+                <li>MAIL_USE_TLS: {current_app.config.get('MAIL_USE_TLS')}</li>
+                <li>MAIL_USE_SSL: {current_app.config.get('MAIL_USE_SSL')}</li>
+            </ul>
+        </body>
+        </html>
+        """
 
-        if not qr_path or not os.path.exists(qr_path):
-            raise FileNotFoundError("QR code not found. Please generate it first.")
+        text_body = f"""
+Test Email
 
-        # Generate email body from template
-        with self.app.app_context():
-            html_body = render_template('emails/qrcode.html',
-                                        participant=participant,
-                                        timestamp=datetime.now())
-            text_body = render_template('emails/qrcode.txt',
-                                        participant=participant,
-                                        timestamp=datetime.now())
+{message}
 
-        # Create email task
+Task ID: {task_id}
+Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+Configuration:
+- MAIL_SERVER: {current_app.config.get('MAIL_SERVER')}
+- MAIL_PORT: {current_app.config.get('MAIL_PORT')}
+- MAIL_USE_TLS: {current_app.config.get('MAIL_USE_TLS')}
+- MAIL_USE_SSL: {current_app.config.get('MAIL_USE_SSL')}
+        """
+
         task = {
             'recipient': recipient,
-            'subject': "Your QR Code for the Programming Course",
+            'subject': subject,
             'html_body': html_body,
             'text_body': text_body,
-            'attachments': [{
-                'path': qr_path,
-                'filename': f"qrcode-{participant.unique_id}.png"
-            }],
             'task_id': task_id,
-            'group_id': group_id,
-            'batch_id': batch_id
+            'group_id': 'test'
         }
 
-        # Add to queue with priority
         email_queue.put(task, priority)
-
+        self.logger.info(f"Test email queued for {recipient}")
         return task_id
-
-    def send_class_notification(self, classroom, subject, template, template_context=None,
-                                priority=Priority.NORMAL, batch_id=None):
-        """Send notification to all participants in a classroom"""
-        from models import Participant
-
-        # Generate batch ID if not provided
-        if not batch_id:
-            batch_id = f"batch_{int(datetime.now().timestamp())}"
-
-        # Find all participants in the classroom
-        with self.app.app_context():
-            participants = Participant.query.filter_by(classroom=classroom).all()
-
-            task_ids = []
-            for participant in participants:
-                # Create email context with participant data
-                context = template_context.copy() if template_context else {}
-                context['participant'] = participant
-                context['timestamp'] = datetime.now()
-
-                # Render templates
-                html_body = render_template(f'emails/{template}.html', **context)
-                text_body = render_template(f'emails/{template}.txt', **context)
-
-                # Create task ID
-                task_id = f"notify_{participant.unique_id}_{int(datetime.now().timestamp())}"
-
-                # Determine group ID
-                group_id = f"class_{participant.classroom}"
-
-                # Create task status
-                status = EmailStatus(
-                    recipient=participant.email,
-                    subject=subject,
-                    task_id=task_id,
-                    group_id=group_id,
-                    batch_id=batch_id
-                )
-                status.priority = priority
-                email_statuses[task_id] = status
-
-                # Create email task
-                task = {
-                    'recipient': participant.email,
-                    'subject': subject,
-                    'html_body': html_body,
-                    'text_body': text_body,
-                    'task_id': task_id,
-                    'group_id': group_id,
-                    'batch_id': batch_id
-                }
-
-                # Add attachments if participant has QR code
-                if participant.qrcode_path and os.path.exists(participant.qrcode_path):
-                    task['attachments'] = [{
-                        'path': participant.qrcode_path,
-                        'filename': f"qrcode-{participant.unique_id}.png"
-                    }]
-
-                # Add to queue
-                email_queue.put(task, priority)
-                task_ids.append(task_id)
-
-            return {
-                'batch_id': batch_id,
-                'task_ids': task_ids,
-                'participant_count': len(participants)
-            }
-
-    def send_session_notification(self, day, time_slot, subject, template, template_context=None,
-                                  priority=Priority.NORMAL, batch_id=None):
-        """Send notification to all participants in a specific session"""
-        from models import Participant, Session
-
-        # Generate batch ID if not provided
-        if not batch_id:
-            batch_id = f"batch_{int(datetime.now().timestamp())}"
-
-        # Find the session
-        with self.app.app_context():
-            session = Session.query.filter_by(day=day, time_slot=time_slot).first()
-
-            if not session:
-                raise ValueError(f"No session found for {day} at {time_slot}")
-
-            # Find all participants in this session
-            if day.lower() == 'saturday':
-                participants = Participant.query.filter_by(saturday_session_id=session.id).all()
-            else:
-                participants = Participant.query.filter_by(sunday_session_id=session.id).all()
-
-            task_ids = []
-            for participant in participants:
-                # Create email context with participant data
-                context = template_context.copy() if template_context else {}
-                context['participant'] = participant
-                context['session'] = session
-                context['timestamp'] = datetime.now()
-
-                # Render templates
-                html_body = render_template(f'emails/{template}.html', **context)
-                text_body = render_template(f'emails/{template}.txt', **context)
-
-                # Create task ID and group ID
-                task_id = f"notify_{participant.unique_id}_{int(datetime.now().timestamp())}"
-                group_id = f"session_{day}_{time_slot.replace(' ', '_')}"
-
-                # Create task status
-                status = EmailStatus(
-                    recipient=participant.email,
-                    subject=subject,
-                    task_id=task_id,
-                    group_id=group_id,
-                    batch_id=batch_id
-                )
-                status.priority = priority
-                email_statuses[task_id] = status
-
-                # Create email task
-                task = {
-                    'recipient': participant.email,
-                    'subject': subject,
-                    'html_body': html_body,
-                    'text_body': text_body,
-                    'task_id': task_id,
-                    'group_id': group_id,
-                    'batch_id': batch_id
-                }
-
-                # Add attachments if participant has QR code
-                if participant.qrcode_path and os.path.exists(participant.qrcode_path):
-                    task['attachments'] = [{
-                        'path': participant.qrcode_path,
-                        'filename': f"qrcode-{participant.unique_id}.png"
-                    }]
-
-                # Add to queue
-                email_queue.put(task, priority)
-                task_ids.append(task_id)
-
-            return {
-                'batch_id': batch_id,
-                'task_ids': task_ids,
-                'participant_count': len(participants)
-            }
-
-    def send_custom_group_email(self, participant_ids, subject, template, template_context=None,
-                                priority=Priority.NORMAL, batch_id=None):
-        """Send emails to a custom group of participants by ID"""
-        from models import Participant
-
-        # Generate batch ID if not provided
-        if not batch_id:
-            batch_id = f"batch_{int(datetime.now().timestamp())}"
-
-        with self.app.app_context():
-            # Find all specified participants
-            participants = Participant.query.filter(Participant.id.in_(participant_ids)).all()
-
-            task_ids = []
-            for participant in participants:
-                # Create email context with participant data
-                context = template_context.copy() if template_context else {}
-                context['participant'] = participant
-                context['timestamp'] = datetime.now()
-
-                # Render templates
-                html_body = render_template(f'emails/{template}.html', **context)
-                text_body = render_template(f'emails/{template}.txt', **context)
-
-                # Create task ID
-                task_id = f"custom_{participant.unique_id}_{int(datetime.now().timestamp())}"
-                group_id = f"custom_group"
-
-                # Create task status
-                status = EmailStatus(
-                    recipient=participant.email,
-                    subject=subject,
-                    task_id=task_id,
-                    group_id=group_id,
-                    batch_id=batch_id
-                )
-                status.priority = priority
-                email_statuses[task_id] = status
-
-                # Create email task
-                task = {
-                    'recipient': participant.email,
-                    'subject': subject,
-                    'html_body': html_body,
-                    'text_body': text_body,
-                    'task_id': task_id,
-                    'group_id': group_id,
-                    'batch_id': batch_id
-                }
-
-                # Add attachments if participant has QR code
-                if participant.qrcode_path and os.path.exists(participant.qrcode_path):
-                    task['attachments'] = [{
-                        'path': participant.qrcode_path,
-                        'filename': f"qrcode-{participant.unique_id}.png"
-                    }]
-
-                # Add to queue
-                email_queue.put(task, priority)
-                task_ids.append(task_id)
-
-            return {
-                'batch_id': batch_id,
-                'task_ids': task_ids,
-                'participant_count': len(participants)
-            }
-
-    def cancel_email(self, task_id):
-        """Cancel an email if it's still in the queue"""
-        # Try to cancel in queue
-        if email_queue.cancel(task_id):
-            # Update status
-            if task_id in email_statuses:
-                email_statuses[task_id].status = EmailStatus.CANCELLED
-            return True
-
-        # If not in queue, check if it exists in status
-        if task_id in email_statuses:
-            # Only cancel if still queued
-            if email_statuses[task_id].status == EmailStatus.QUEUED:
-                email_statuses[task_id].status = EmailStatus.CANCELLED
-                return True
-
-        return False
-
-    def retry_failed_email(self, task_id):
-        """Retry a failed email"""
-        if task_id in email_statuses and email_statuses[task_id].status == EmailStatus.FAILED:
-            # Reset status
-            email_statuses[task_id].status = EmailStatus.QUEUED
-            email_statuses[task_id].attempts = 0
-            email_statuses[task_id].error = None
-
-            # Need to recreate the task - this would need task data access
-            # For now, return success to indicate status was updated
-            return True
-
-        return False
-
-    def get_email_status(self, task_id):
-        """Get status of an email task"""
-        if task_id in email_statuses:
-            return email_statuses[task_id].to_dict()
-        return None
-
-    def get_batch_status(self, batch_id):
-        """Get status of all emails in a batch"""
-        if not batch_id:
-            return None
-
-        batch_tasks = {}
-        for task_id, status in email_statuses.items():
-            if status.batch_id == batch_id:
-                batch_tasks[task_id] = status.to_dict()
-
-        return {
-            'batch_id': batch_id,
-            'total': len(batch_tasks),
-            'tasks': batch_tasks
-        }
-
-    def get_group_status(self, group_id):
-        """Get status of all emails for a group"""
-        if not group_id:
-            return None
-
-        group_tasks = {}
-        for task_id, status in email_statuses.items():
-            if status.group_id == group_id:
-                group_tasks[task_id] = status.to_dict()
-
-        return {
-            'group_id': group_id,
-            'total': len(group_tasks),
-            'tasks': group_tasks
-        }
 
     def get_queue_stats(self):
         """Get statistics about the email queue"""
@@ -779,56 +645,13 @@ class EnhancedEmailService:
             if status.status in stats:
                 stats[status.status] += 1
 
-        # Count by group
-        group_stats = {}
-        for status in email_statuses.values():
-            if status.group_id:
-                if status.group_id not in group_stats:
-                    group_stats[status.group_id] = {
-                        'total': 0,
-                        'queued': 0,
-                        'sending': 0,
-                        'sent': 0,
-                        'failed': 0,
-                        'cancelled': 0
-                    }
-                group_stats[status.group_id]['total'] += 1
-                group_stats[status.group_id][status.status] += 1
-
-        # Count by batch
-        batch_stats = {}
-        for status in email_statuses.values():
-            if status.batch_id:
-                if status.batch_id not in batch_stats:
-                    batch_stats[status.batch_id] = {
-                        'total': 0,
-                        'queued': 0,
-                        'sending': 0,
-                        'sent': 0,
-                        'failed': 0,
-                        'cancelled': 0
-                    }
-                batch_stats[status.batch_id]['total'] += 1
-                batch_stats[status.batch_id][status.status] += 1
-
         stats['queue_size'] = email_queue.size()
-        stats['groups'] = group_stats
-        stats['batches'] = batch_stats
+        stats['worker_alive'] = self.worker_thread and self.worker_thread.is_alive()
 
         return stats
 
-    def clean_old_statuses(self, days=30):
-        """Remove old email statuses to prevent unlimited growth"""
-        cutoff_date = datetime.now() - timedelta(days=days)
-        removed = 0
-
-        for task_id in list(email_statuses.keys()):
-            status = email_statuses[task_id]
-            if status.timestamp < cutoff_date and status.status in [EmailStatus.SENT, EmailStatus.CANCELLED]:
-                del email_statuses[task_id]
-                removed += 1
-
-        # Save updated statuses
-        self._save_statuses()
-
-        return {'removed': removed}
+    def get_email_status(self, task_id):
+        """Get status of an email task"""
+        if task_id in email_statuses:
+            return email_statuses[task_id].to_dict()
+        return None
