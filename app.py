@@ -6,6 +6,9 @@ This module creates the Flask application instance and handles application start
 
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from app import create_app
 from app.extensions import email_service
