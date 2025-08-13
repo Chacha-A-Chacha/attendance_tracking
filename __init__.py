@@ -80,8 +80,8 @@ def register_blueprints(app):
         # Register blueprints with their URL prefixes
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(check_in_bp, url_prefix='/check-in')
-        app.register_blueprint(enrollment_bp, url_prefix='/enrollment')
-        app.register_blueprint(participant_bp)
+        app.register_blueprint(enrollment_bp)
+        app.register_blueprint(participant_bp, url_prefix='/portal/user')
         app.register_blueprint(api_bp)
         app.register_blueprint(email_bp, url_prefix='/email')
 
