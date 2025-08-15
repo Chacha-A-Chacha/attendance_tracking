@@ -772,49 +772,85 @@ class EnrollmentService:
             raise
 
     @staticmethod
-    def process_enrollment_to_participant(enrollment_id, classroom, processed_by_user_id):
-        """Process approved enrollment into participant record."""
+    def process_enrollment_to_participant(enrollment_id, classroom=None, processed_by_user_id=None):
+        """
+        Process approved enrollment into participant record.
+
+        Args:
+            enrollment_id: ID of enrollment to process
+            classroom: Admin-selected classroom (may be overridden by auto-assignment)
+            processed_by_user_id: ID of user processing the enrollment
+
+        Returns:
+            tuple: (participant, enrollment) objects
+        """
         logger = logging.getLogger('enrollment_service')
 
         try:
+            # Get enrollment
             enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
 
             if not enrollment:
                 raise ValueError("Enrollment not found")
 
-            if not enrollment.is_ready_for_enrollment():
-                raise ValueError("Enrollment not ready for processing")
+            logger.info(f"Processing enrollment {enrollment.application_number} to participant")
 
-            participant = enrollment.enroll_as_participant(classroom, processed_by_user_id)
+            # Create participant using model method (handles classroom assignment and sessions)
+            participant = enrollment.enroll_as_participant(
+                classroom=classroom,
+                processed_by_user_id=processed_by_user_id
+            )
 
             # Create user account for participant
             user, password = participant.create_user_account()
 
+            # Commit all changes
             db.session.commit()
 
-            # Send approval email with login credentials
+            # Send approval email with login credentials and session info
             try:
                 custom_data = {
                     'participant_id': participant.unique_id,
                     'username': user.username,
                     'temporary_password': password,
-                    'login_url': f"{current_app.config.get('BASE_URL', '')}/login",
-                    'approval_date': enrollment.processed_at.strftime('%B %d, %Y')
+                    'login_url': f"{current_app.config.get('BASE_URL', '')}/auth/login",
+                    'approval_date': enrollment.processed_at.strftime('%B %d, %Y'),
+                    'session_info': {
+                        'saturday_session': participant.saturday_session.time_slot if participant.saturday_session else 'Not assigned',
+                        'sunday_session': participant.sunday_session.time_slot if participant.sunday_session else 'Not assigned',
+                        'classroom': participant.classroom,
+                        'classroom_name': (
+                            'Computer Lab (Laptop Required)' if participant.classroom == current_app.config[
+                                'LAPTOP_CLASSROOM']
+                            else 'Regular Classroom (No Laptop Required)'
+                        )
+                    }
                 }
 
                 email_task_id = EnrollmentService.send_enrollment_status_email(
                     enrollment_id, 'approved', custom_data
                 )
-                logger.info(f"Enrollment approval email queued: {email_task_id}")
+
+                logger.info(
+                    f"Approval email queued: {email_task_id}" if email_task_id else "Approval email failed to queue")
+
             except Exception as e:
+                # Don't fail the enrollment process if email fails
                 logger.warning(f"Failed to queue approval email: {e}")
 
-            logger.info(f"Enrollment {enrollment.application_number} processed to participant {participant.unique_id}")
+            logger.info(
+                f"Successfully processed enrollment {enrollment.application_number} "
+                f"to participant {participant.unique_id} in classroom {participant.classroom}"
+            )
+
             return participant, enrollment
 
+        except ValueError as e:
+            logger.error(f"Validation error processing enrollment {enrollment_id}: {str(e)}")
+            raise
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Failed to process enrollment: {str(e)}")
+            logger.error(f"Failed to process enrollment {enrollment_id}: {str(e)}", exc_info=True)
             raise
 
     @staticmethod

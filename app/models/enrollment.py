@@ -4,7 +4,6 @@ from flask import current_app
 from app.extensions import db
 from sqlalchemy import Index, func, and_, or_
 
-from . import Participant, Session
 from .base import BaseModel
 import secrets
 from datetime import datetime, timedelta
@@ -248,6 +247,8 @@ class StudentEnrollment(BaseModel):
         if not self.is_ready_for_enrollment():
             raise ValueError("Enrollment not ready for processing")
 
+        from app.models import Participant
+
         try:
             # 1. Determine classroom assignment
             if current_app.config.get('AUTO_ASSIGN_BY_LAPTOP', True):
@@ -314,6 +315,7 @@ class StudentEnrollment(BaseModel):
         Returns:
             Session: Available session object or None
         """
+        from app.models import Participant, Session
 
         # Determine which classroom this participant will be assigned to
         target_classroom = (
