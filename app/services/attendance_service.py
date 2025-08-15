@@ -1242,4 +1242,3 @@ class AttendanceService:
 
         except Exception as e:
             logging.getLogger('attendance_service').warning(f"Failed to send wrong session notification: {e}")
-            
