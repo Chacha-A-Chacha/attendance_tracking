@@ -1,0 +1,545 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Application History - {{ site_name or 'Programming Course' }}{% endblock %}
+
+{% block mobile_title %}Application History{% endblock %}
+
+{% block content %}
+<div x-data="applicationHistory()">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Application History</h1>
+            <p class="mt-1 text-sm text-gray-500">Complete audit trail of all enrollment applications</p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex gap-3">
+            <button @click="showFilters = !showFilters"
+                    class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"></path>
+                </svg>
+                Filters
+            </button>
+            <button @click="exportData()"
+                    class="inline-flex items-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="mb-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Historical Overview</h3>
+        <dl class="grid grid-cols-1 divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm md:grid-cols-5 md:divide-x md:divide-y-0">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Total Applications</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-gray-900">
+                        {{ stats.total or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-gray-100 px-2.5 py-0.5 text-sm font-medium text-gray-600 md:mt-2 lg:mt-0">
+                        All Time
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Enrolled</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-green-600">
+                        {{ stats.by_status.enrolled or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-green-100 px-2.5 py-0.5 text-sm font-medium text-green-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-green-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        Success
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Rejected</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-red-600">
+                        {{ stats.by_status.rejected or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-medium text-red-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-red-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                        Declined
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Pending</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-yellow-600">
+                        {{ (stats.by_status.pending or 0) + (stats.by_status.payment_pending or 0) + (stats.by_status.payment_verified or 0) }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-yellow-100 px-2.5 py-0.5 text-sm font-medium text-yellow-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-yellow-500">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.22 9.22a.75.75 0 011.06 0L10 9.94l.72-.72a.75.75 0 111.06 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06z" clip-rule="evenodd"></path>
+                        </svg>
+                        In Progress
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">This Week</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-blue-600">
+                        {{ stats.recent_submissions or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-blue-500">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"></path>
+                        </svg>
+                        Recent
+                    </div>
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Advanced Filters Panel -->
+    <div x-show="showFilters"
+         x-collapse
+         class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <form method="GET" action="{{ url_for('admin.application_history') }}" class="space-y-4">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <!-- Search -->
+                <div>
+                    <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search Applications</label>
+                    <input type="text"
+                           id="search"
+                           name="search"
+                           value="{{ search }}"
+                           placeholder="Name, email, or application #"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    <label for="status_filter" class="block text-sm font-medium text-gray-700 mb-1">Application Status</label>
+                    <select id="status_filter" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="payment_pending" {% if status_filter == 'payment_pending' %}selected{% endif %}>Payment Pending</option>
+                        <option value="payment_verified" {% if status_filter == 'payment_verified' %}selected{% endif %}>Payment Verified</option>
+                        <option value="enrolled" {% if status_filter == 'enrolled' %}selected{% endif %}>Enrolled</option>
+                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+
+                <!-- Payment Status -->
+                <div>
+                    <label for="payment_filter" class="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                    <select id="payment_filter" name="payment" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <option value="">All Payments</option>
+                        <option value="unpaid" {% if payment_filter == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                        <option value="paid" {% if payment_filter == 'paid' %}selected{% endif %}>Paid</option>
+                        <option value="verified" {% if payment_filter == 'verified' %}selected{% endif %}>Verified</option>
+                    </select>
+                </div>
+
+                <!-- Classroom Filter -->
+                <div>
+                    <label for="classroom_filter" class="block text-sm font-medium text-gray-700 mb-1">Assigned Classroom</label>
+                    <select id="classroom_filter" name="classroom" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                        <option value="">All Classrooms</option>
+                        <option value="203" {% if request.args.get('classroom') == '203' %}selected{% endif %}>Room 203 (No Laptop)</option>
+                        <option value="205" {% if request.args.get('classroom') == '205' %}selected{% endif %}>Room 205 (Laptop)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Date Range -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                    <input type="date"
+                           id="date_from"
+                           name="date_from"
+                           value="{{ date_from }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                </div>
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                    <input type="date"
+                           id="date_to"
+                           name="date_to"
+                           value="{{ date_to }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Filter Buttons -->
+            <div class="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
+                <span class="text-sm font-medium text-gray-700">Quick Filters:</span>
+                <button type="button" @click="applyQuickFilter('today')"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Today
+                </button>
+                <button type="button" @click="applyQuickFilter('week')"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    This Week
+                </button>
+                <button type="button" @click="applyQuickFilter('month')"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    This Month
+                </button>
+                <button type="button" @click="clearFilters()"
+                        class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-red-600 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Clear All
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Application History List -->
+    <div>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Application Records</h3>
+            <div class="flex items-center space-x-4 text-sm text-gray-500">
+                <span>{{ enrollments|length }} applications</span>
+                <div class="flex items-center space-x-2">
+                    <span>Sort by:</span>
+                    <select @change="updateSort($event)" class="border-0 bg-transparent text-sm text-gray-700 focus:ring-0">
+                        <option value="date_desc">Newest First</option>
+                        <option value="date_asc">Oldest First</option>
+                        <option value="status">Status</option>
+                        <option value="name">Name</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {% if enrollments %}
+        <ul role="list" class="divide-y divide-gray-100 overflow-hidden bg-white shadow-sm border border-gray-200 sm:rounded-lg">
+            {% for enrollment in enrollments %}
+            <li class="relative flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 sm:px-6">
+                <div class="flex min-w-0 gap-x-4">
+                    <!-- Status-based Avatar -->
+                    <div class="flex-none w-12 h-12 rounded-full flex items-center justify-center
+                        {% if enrollment.enrollment_status == 'enrolled' %}bg-green-100{% endif %}
+                        {% if enrollment.enrollment_status == 'rejected' %}bg-red-100{% endif %}
+                        {% if enrollment.enrollment_status in ['pending', 'payment_pending', 'payment_verified'] %}bg-yellow-100{% endif %}
+                        {% if enrollment.enrollment_status == 'cancelled' %}bg-gray-100{% endif %}">
+
+                        {% if enrollment.enrollment_status == 'enrolled' %}
+                            <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                        {% elif enrollment.enrollment_status == 'rejected' %}
+                            <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                        {% elif enrollment.enrollment_status == 'cancelled' %}
+                            <svg class="w-6 h-6 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                        {% else %}
+                            <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.22 9.22a.75.75 0 011.06 0L10 9.94l.72-.72a.75.75 0 111.06 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06z" clip-rule="evenodd"></path>
+                            </svg>
+                        {% endif %}
+                    </div>
+
+                    <div class="min-w-0 flex-auto">
+                        <p class="text-sm font-semibold text-gray-900">
+                            <a href="{{ url_for('admin.application_detail', enrollment_id=enrollment.id) }}">
+                                <span class="absolute inset-x-0 -top-px bottom-0"></span>
+                                {{ enrollment.full_name }}
+                            </a>
+                        </p>
+                        <p class="mt-1 flex text-xs text-gray-500">
+                            <a href="mailto:{{ enrollment.email }}" class="relative truncate hover:underline">{{ enrollment.email }}</a>
+                            <span class="mx-2">•</span>
+                            <span class="text-blue-600">#{{ enrollment.application_number }}</span>
+                        </p>
+
+                        <!-- Application Timeline -->
+                        <div class="mt-2 flex items-center gap-x-2 text-xs text-gray-500">
+                            <span>Submitted {{ enrollment.submitted_at.strftime('%b %d, %Y') }}</span>
+                            {% if enrollment.processed_at %}
+                                <span class="mx-1">→</span>
+                                <span>Processed {{ enrollment.processed_at.strftime('%b %d, %Y') }}</span>
+                            {% endif %}
+                            {% if enrollment.payment_date %}
+                                <span class="mx-1">•</span>
+                                <span>Paid {{ enrollment.payment_date.strftime('%b %d') }}</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Status Badges -->
+                        <div class="mt-2 flex items-center gap-x-2">
+                            <!-- Main Status Badge -->
+                            {% if enrollment.enrollment_status == 'enrolled' %}
+                                <span class="inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Enrolled
+                                </span>
+                            {% elif enrollment.enrollment_status == 'rejected' %}
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Rejected
+                                </span>
+                            {% elif enrollment.enrollment_status == 'cancelled' %}
+                                <span class="inline-flex items-center rounded-full bg-gray-50 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Cancelled
+                                </span>
+                            {% elif enrollment.enrollment_status == 'payment_verified' %}
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
+                                    </svg>
+                                    Ready for Approval
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-50 px-1.5 py-0.5 text-xs font-medium text-yellow-700">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.22 9.22a.75.75 0 011.06 0L10 9.94l.72-.72a.75.75 0 111.06 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    {{ enrollment.enrollment_status.replace('_', ' ').title() }}
+                                </span>
+                            {% endif %}
+
+                            <!-- Payment Status -->
+                            {% if enrollment.payment_status == 'verified' %}
+                                <span class="inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                                    Payment Verified
+                                </span>
+                            {% elif enrollment.payment_status == 'paid' %}
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+                                    Payment Uploaded
+                                </span>
+                            {% endif %}
+
+                            <!-- Email Status -->
+                            {% if not enrollment.email_verified %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-50 px-1.5 py-0.5 text-xs font-medium text-yellow-700">
+                                    Email Unverified
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex shrink-0 items-center gap-x-4">
+                    <div class="hidden sm:flex sm:flex-col sm:items-end">
+                        {% if enrollment.payment_amount %}
+                            <p class="text-sm text-gray-900">KSh {{ "{:,.0f}".format(enrollment.payment_amount) }}</p>
+                        {% else %}
+                            <p class="text-sm text-gray-500">No payment</p>
+                        {% endif %}
+
+                        {% if enrollment.enrollment_status == 'enrolled' and enrollment.participant_created_id %}
+                            <div class="mt-1 flex items-center gap-x-1.5">
+                                <div class="flex-none rounded-full bg-emerald-500/20 p-1">
+                                    <div class="size-1.5 rounded-full bg-emerald-500"></div>
+                                </div>
+                                <p class="text-xs text-gray-500">Active Student</p>
+                            </div>
+                        {% elif enrollment.processed_at %}
+                            <p class="mt-1 text-xs text-gray-500">
+                                Processed {{ enrollment.processed_at.strftime('%b %d') }}
+                            </p>
+                        {% else %}
+                            <p class="mt-1 text-xs text-gray-500">
+                                Awaiting Review
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Action Menu -->
+                    <div class="flex gap-x-1">
+                        <button @click="viewTimeline('{{ enrollment.id }}')"
+                                class="rounded-md bg-gray-100 px-2.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                title="View timeline">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="size-5 flex-none text-gray-400">
+                            <path d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" fill-rule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Pagination -->
+        {% if enrollments %}
+        <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6 rounded-b-lg">
+            <div class="flex flex-1 justify-between sm:hidden">
+                <a href="#" class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+                <a href="#" class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+            </div>
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing <span class="font-medium">1</span> to <span class="font-medium">{{ enrollments|length }}</span> of <span class="font-medium">{{ enrollments|length }}</span> results
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                        <a href="#" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                            <span class="sr-only">Previous</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                            </svg>
+                        </a>
+                        <a href="#" aria-current="page" class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">1</a>
+                        <a href="#" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                            <span class="sr-only">Next</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                            </svg>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No applications found</h3>
+            <p class="mt-1 text-sm text-gray-500">No applications match your current filters.</p>
+            <div class="mt-6">
+                <button @click="clearFilters()"
+                       class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applicationHistory() {
+    return {
+        showFilters: false,
+
+        applyQuickFilter(period) {
+            const today = new Date();
+            let fromDate;
+
+            switch(period) {
+                case 'today':
+                    fromDate = today.toISOString().split('T')[0];
+                    document.getElementById('date_from').value = fromDate;
+                    document.getElementById('date_to').value = fromDate;
+                    break;
+                case 'week':
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(today.getDate() - 7);
+                    document.getElementById('date_from').value = weekAgo.toISOString().split('T')[0];
+                    document.getElementById('date_to').value = today.toISOString().split('T')[0];
+                    break;
+                case 'month':
+                    const monthAgo = new Date(today);
+                    monthAgo.setMonth(today.getMonth() - 1);
+                    document.getElementById('date_from').value = monthAgo.toISOString().split('T')[0];
+                    document.getElementById('date_to').value = today.toISOString().split('T')[0];
+                    break;
+            }
+
+            // Submit form
+            document.querySelector('form').submit();
+        },
+
+        clearFilters() {
+            // Clear all form fields
+            document.getElementById('search').value = '';
+            document.getElementById('status_filter').value = '';
+            document.getElementById('payment_filter').value = '';
+            document.getElementById('classroom_filter').value = '';
+            document.getElementById('date_from').value = '';
+            document.getElementById('date_to').value = '';
+
+            // Submit form
+            document.querySelector('form').submit();
+        },
+
+        updateSort(event) {
+            const sortValue = event.target.value;
+            const url = new URL(window.location);
+            url.searchParams.set('sort', sortValue);
+            window.location.href = url.toString();
+        },
+
+        async exportData() {
+            try {
+                const response = await this.fetchWithCSRF('/admin/enrollment/export', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        filters: this.getCurrentFilters(),
+                        format: 'excel'
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `application_history_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+
+                    this.showAlert('success', 'Export completed successfully');
+                } else {
+                    this.showAlert('error', 'Export failed');
+                }
+            } catch (error) {
+                this.showAlert('error', 'Export failed: Network error');
+            }
+        },
+
+        getCurrentFilters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                search: urlParams.get('search') || '',
+                status: urlParams.get('status') || '',
+                payment: urlParams.get('payment') || '',
+                classroom: urlParams.get('classroom') || '',
+                date_from: urlParams.get('date_from') || '',
+                date_to: urlParams.get('date_to') || ''
+            };
+        },
+
+        viewTimeline(enrollmentId) {
+            // Redirect to application detail page with timeline focus
+            window.location.href = `/admin/enrollment/${enrollmentId}#timeline`;
+        }
+    }
+}
+</script>
+{% endblock %}

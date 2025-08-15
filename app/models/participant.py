@@ -36,9 +36,17 @@ class Participant(BaseModel):
     graduation_verified_at = db.Column(db.DateTime, nullable=True)
     consecutive_missed_sessions = db.Column(db.Integer, default=0, nullable=False)
 
+    # Emergency contact information (from enrollment)
+    emergency_contact = db.Column(db.String(100), nullable=True)
+    emergency_phone = db.Column(db.String(20), nullable=True)
+
+    # Special requirements (from enrollment)
+    special_requirements = db.Column(db.Text, nullable=True)
+
     # Foreign keys with proper indexing
     saturday_session_id = db.Column(db.String(36), db.ForeignKey('session.id'), index=True)
     sunday_session_id = db.Column(db.String(36), db.ForeignKey('session.id'), index=True)
+    session_assignment_notes = db.Column(db.Text, nullable=True)
 
     # Relationships
     saturday_session = db.relationship('Session', foreign_keys=[saturday_session_id])

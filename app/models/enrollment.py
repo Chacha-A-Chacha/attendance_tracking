@@ -1,6 +1,10 @@
 # models/enrollment.py
+from flask import current_app
+
 from app.extensions import db
-from sqlalchemy import Index, func
+from sqlalchemy import Index, func, and_, or_
+
+from . import Participant, Session
 from .base import BaseModel
 import secrets
 from datetime import datetime, timedelta
@@ -43,7 +47,7 @@ class StudentEnrollment(BaseModel):
     # Payment Information
     payment_status = db.Column(db.String(20), default=PaymentStatus.UNPAID, nullable=False)
     is_paid = db.Column(db.Boolean, default=False, nullable=False)
-    receipt_number = db.Column(db.String(100), nullable=True)
+    receipt_number = db.Column(db.String(100), unique=True, nullable=True)
     receipt_upload_path = db.Column(db.String(255), nullable=True)
     payment_amount = db.Column(db.Numeric(10, 2), nullable=True)
     payment_date = db.Column(db.DateTime, nullable=True)
@@ -230,33 +234,130 @@ class StudentEnrollment(BaseModel):
                 self.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
         )
 
-    def enroll_as_participant(self, classroom, processed_by_user_id=None):
-        """Convert enrollment to participant record."""
+    def enroll_as_participant(self, classroom=None, processed_by_user_id=None):
+        """
+        Convert enrollment to participant record with proper classroom and session assignment.
+
+        Args:
+            classroom: Admin-selected classroom (can be overridden by auto-assignment)
+            processed_by_user_id: ID of user processing the enrollment
+
+        Returns:
+            Participant: Created participant object
+        """
         if not self.is_ready_for_enrollment():
             raise ValueError("Enrollment not ready for processing")
 
-        from .participant import Participant
+        try:
+            # 1. Determine classroom assignment
+            if current_app.config.get('AUTO_ASSIGN_BY_LAPTOP', True):
+                # Auto-assign based on laptop status (override admin selection)
+                assigned_classroom = (
+                    current_app.config['LAPTOP_CLASSROOM'] if self.has_laptop
+                    else current_app.config['NO_LAPTOP_CLASSROOM']
+                )
+            else:
+                # Use admin-selected classroom
+                assigned_classroom = classroom or (
+                    current_app.config['LAPTOP_CLASSROOM'] if self.has_laptop
+                    else current_app.config['NO_LAPTOP_CLASSROOM']
+                )
 
-        # Create participant record
-        participant = Participant(
-            unique_id=Participant.generate_unique_id(),
-            email=self.email,
-            name=self.full_name,
-            phone=self.phone,
-            has_laptop=self.has_laptop,
-            classroom=classroom
+            # 2. Find available sessions for this participant's classroom needs
+            saturday_session = self._find_available_session('Saturday')
+            sunday_session = self._find_available_session('Sunday')
+
+            if not saturday_session:
+                raise ValueError("No available Saturday sessions for classroom assignment")
+            if not sunday_session:
+                raise ValueError("No available Sunday sessions for classroom assignment")
+
+            # 3. Create participant record with proper field mapping
+            participant = Participant(
+                unique_id=self.receipt_number,  # unique_id=Participant.generate_unique_id(),
+                surname=self.surname,
+                first_name=self.first_name,
+                second_name=self.second_name,
+                email=self.email,
+                phone=self.phone,
+                has_laptop=self.has_laptop,
+                classroom=assigned_classroom,
+                saturday_session_id=saturday_session.id,
+                sunday_session_id=sunday_session.id,
+                emergency_contact=self.emergency_contact,
+                emergency_phone=self.emergency_phone,
+                special_requirements=self.special_requirements
+            )
+
+            db.session.add(participant)
+            db.session.flush()  # Get the participant ID
+
+            # 4. Update enrollment record
+            self.enrollment_status = EnrollmentStatus.ENROLLED
+            self.processed_at = datetime.now()
+            self.processed_by = processed_by_user_id
+            self.participant_created_id = participant.id
+
+            return participant
+
+        except Exception as e:
+            db.session.rollback()
+            raise ValueError(f"Failed to create participant: {str(e)}")
+
+    def _find_available_session(self, day):
+        """
+        Find an available session for the given day based on participant's classroom needs.
+
+        Args:
+            day: 'Saturday' or 'Sunday'
+
+        Returns:
+            Session: Available session object or None
+        """
+
+        # Determine which classroom this participant will be assigned to
+        target_classroom = (
+            current_app.config['LAPTOP_CLASSROOM'] if self.has_laptop
+            else current_app.config['NO_LAPTOP_CLASSROOM']
         )
 
-        db.session.add(participant)
-        db.session.flush()  # Get the participant ID
+        # Get classroom capacity
+        capacity = current_app.config.get('SESSION_CAPACITY', {}).get(target_classroom, 30)
 
-        # Update enrollment record
-        self.enrollment_status = EnrollmentStatus.ENROLLED
-        self.processed_at = datetime.now()  # Use Python datetime
-        self.processed_by = processed_by_user_id
-        self.participant_created_id = participant.id
+        # Get all sessions for this day, ordered by time
+        sessions = (
+            db.session.query(Session)
+            .filter_by(day=day, is_active=True)
+            .order_by(Session.time_slot)
+            .all()
+        )
 
-        return participant
+        # Find session with most available capacity
+        best_session = None
+        most_available = -1
+
+        for session in sessions:
+            # Count current participants in this session for target classroom
+            current_count = (
+                db.session.query(Participant)
+                .filter_by(classroom=target_classroom)
+                .filter(
+                    or_(
+                        and_(day == 'Saturday', Participant.saturday_session_id == session.id),
+                        and_(day == 'Sunday', Participant.sunday_session_id == session.id)
+                    )
+                )
+                .count()
+            )
+
+            available_spots = capacity - current_count
+
+            if available_spots > most_available:
+                most_available = available_spots
+                best_session = session
+
+        # Return session only if it has available capacity
+        return best_session if most_available > 0 else None
 
     def reject_enrollment(self, reason, rejected_by_user_id=None):
         """Reject the enrollment application."""
