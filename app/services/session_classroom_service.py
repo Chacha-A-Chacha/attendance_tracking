@@ -1046,4 +1046,3 @@ class SessionClassroomService:
         except Exception as e:
             logging.getLogger('session_classroom_service').error(f"Error getting capacity warnings: {str(e)}")
             raise
-        
