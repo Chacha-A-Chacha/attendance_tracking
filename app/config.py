@@ -15,9 +15,9 @@ class Config:
 
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///attendance.db'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_RECORD_QUERIES = True
-    SQLALCHEMY_ECHO = False
+    # SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # SQLALCHEMY_RECORD_QUERIES = True
+    # SQLALCHEMY_ECHO = False
 
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
@@ -148,7 +148,7 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
-    SQLALCHEMY_ECHO = True  # Log SQL queries in development
+    SQLALCHEMY_ECHO = os.environ.get('SQL_DEBUG', 'false').lower() == 'true'
 
 
 class ProductionConfig(Config):

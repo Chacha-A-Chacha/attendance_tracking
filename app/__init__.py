@@ -53,12 +53,17 @@ def setup_logging(app):
     app.logger.addHandler(console_handler)
 
     # Configure specific loggers
-    logging.getLogger('email_service').setLevel(logging.DEBUG)
+    # logging.getLogger('email_service').setLevel(logging.DEBUG)
     logging.getLogger('enrollment_service').setLevel(logging.DEBUG)
 
     # Suppress excessive SQLAlchemy logging in production
     if not app.debug:
         logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+
+    # Forcefully suppress SQLAlchemy logs
+    sa_logger = logging.getLogger('sqlalchemy.engine')
+    sa_logger.setLevel(logging.WARNING)
+    sa_logger.propagate = False
 
 
 def register_blueprints(app):
@@ -292,7 +297,7 @@ def create_app(config_name=None):
     app.config.from_object(config_by_name[config_name])
 
     # Setup logging first
-    setup_logging(app)
+    # setup_logging(app)
     app.logger.info(f"Starting application with config: {config_name}")
 
     # Initialize extensions

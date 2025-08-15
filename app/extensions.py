@@ -42,7 +42,7 @@ def init_extensions(app):
     @login_manager.user_loader
     def load_user(user_id):
         # Import here to avoid circular imports
-        from models import User
+        from app.models import User
         return User.query.get(user_id)
 
 

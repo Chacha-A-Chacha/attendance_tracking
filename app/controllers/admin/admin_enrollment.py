@@ -48,7 +48,7 @@ def pending_applications():
 
         # Get enrollments that are pending or payment-related
         enrollments = EnrollmentService.get_enrollments_for_admin(
-            status=EnrollmentStatus.PAYMENT_PENDING,
+            status=EnrollmentStatus.PENDING,
             limit=per_page,
             offset=(page - 1) * per_page
         )

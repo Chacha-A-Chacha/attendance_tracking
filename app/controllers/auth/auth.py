@@ -28,7 +28,10 @@ def login():
     """User login route."""
     # Redirect if already authenticated
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_staff:
+            return redirect(url_for('admin.dashboard'))
+        else:
+            return redirect(url_for('participant.dashboard'))
 
     form = LoginForm()
 
@@ -52,7 +55,7 @@ def login():
             flash('Login successful!', 'success')
 
             # Handle redirect after login
-            next_page = form.next_page.data
+            next_page = form.next_url.data
             if next_page and is_safe_url(next_page):
                 return redirect(next_page)
 
