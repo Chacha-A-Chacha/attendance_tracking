@@ -104,12 +104,7 @@ class EnrollmentService:
     @staticmethod
     def create_enrollment_with_confirmation(personal_info, contact_info, learning_resources_info,
                                             payment_info, additional_info=None, base_url=None):
-        """
-        Create enrollment and send confirmation email - UPDATED VERSION
-
-        This version uses the unified send_notification method with proper error isolation.
-        Enrollment creation will succeed even if email sending fails.
-        """
+        """Create enrollment and send confirmation email - FIXED VERSION."""
         logger = logging.getLogger('enrollment_service')
 
         # Create enrollment first
@@ -123,8 +118,11 @@ class EnrollmentService:
 
         # Send confirmation email - isolated from enrollment creation
         try:
-            # Generate verification token
+            # Generate verification token - FIXED
             token = enrollment.generate_email_verification_token()
+
+            # IMPORTANT: Refresh the enrollment to ensure token is in database
+            db.session.refresh(enrollment)
 
             # Build verification URL
             if base_url:
@@ -134,6 +132,8 @@ class EnrollmentService:
                                            enrollment_id=enrollment.id,
                                            token=token,
                                            _external=True)
+
+            logger.info(f"Generated verification URL: {verification_url}")
 
             # Use the unified send_notification method
             task_id = email_service.send_notification(
@@ -146,7 +146,7 @@ class EnrollmentService:
                     'application_number': enrollment.application_number,
                     'full_name': enrollment.full_name,
                     'verification_token': token,
-                    'expiry_hours': 24,  # Token expiry information
+                    'expiry_hours': 24,
                     'steps_remaining': 'verify email → payment review → enrollment decision'
                 },
                 priority=Priority.HIGH,
@@ -154,34 +154,12 @@ class EnrollmentService:
                 batch_id=f"enrollment_confirmation_{enrollment.id}"
             )
 
-            # Update enrollment to track email status (optional fields)
-            try:
-                enrollment.email_sent_at = func.now()
-                enrollment.email_task_id = task_id
-                enrollment.email_verification_sent_at = func.now()
-                db.session.commit()
-            except Exception:
-                # If these fields don't exist in model, continue without error
-                pass
-
             logger.info(
                 f"Enrollment confirmation email queued: {task_id} for application {enrollment.application_number}")
 
         except Exception as e:
             # CRITICAL: Don't fail enrollment creation if email fails
             logger.error(f"Failed to queue confirmation email for enrollment {enrollment.id}: {str(e)}")
-
-            # Update enrollment to track email failure (optional fields)
-            try:
-                enrollment.email_error = str(e)
-                enrollment.email_failed_at = func.now()
-                db.session.commit()
-            except Exception:
-                # If these fields don't exist, log but continue
-                logger.warning("Cannot track email error in database - optional fields missing")
-
-            # Return enrollment even if email failed
-            # This ensures the user sees success and can still proceed
 
         return enrollment, task_id, token
 
@@ -324,7 +302,7 @@ class EnrollmentService:
             enrollment.receipt_upload_path = f"registration_receipts/{filename}"
             enrollment.receipt_number = receipt_number
             enrollment.payment_amount = payment_amount
-            enrollment.payment_date = func.now()
+            enrollment.payment_date = datetime.now()  # Use Python datetime
 
             # Reset payment verification status (admin needs to verify again)
             enrollment.payment_status = PaymentStatus.PAID
@@ -405,16 +383,7 @@ class EnrollmentService:
 
     @staticmethod
     def send_email_verification(enrollment_id, base_url=None):
-        """
-        Send email verification request.
-
-        Args:
-            enrollment_id: ID of the enrollment
-            base_url: Base URL for verification links
-
-        Returns:
-            tuple: (task_id, token) if successful
-        """
+        """Send email verification request - FIXED VERSION."""
         logger = logging.getLogger('enrollment_service')
 
         try:
@@ -425,8 +394,11 @@ class EnrollmentService:
             if enrollment.email_verified:
                 raise ValueError("Email is already verified")
 
-            # Generate verification token
+            # Generate NEW verification token
             token = enrollment.generate_email_verification_token()
+
+            # IMPORTANT: Refresh to ensure token is saved
+            db.session.refresh(enrollment)
 
             if base_url:
                 verification_url = f"{base_url}/enrollment/verify-email/{enrollment.id}/{token}"
@@ -436,12 +408,14 @@ class EnrollmentService:
                                            token=token,
                                            _external=True)
 
+            logger.info(f"Generated resend verification URL: {verification_url}")
+
             # Template context
             template_context = {
                 'enrollment': enrollment,
                 'verification_url': verification_url,
                 'token': token,
-                'expires_hours': 24  # Token expires in 24 hours
+                'expires_hours': 24
             }
 
             # Send email using the email service
@@ -449,11 +423,10 @@ class EnrollmentService:
                 recipient=enrollment.email,
                 template='email_verification',
                 subject=f'Verify your email address - {current_app.config.get("SITE_NAME", "Programming Course")}',
-                template_context=template_context,
-                base_url=base_url
+                template_context=template_context
             )
 
-            logger.info(f"Email verification sent for enrollment {enrollment.application_number}")
+            logger.info(f"Email verification resent for enrollment {enrollment.application_number}")
             return task_id, token
 
         except Exception as e:
@@ -462,11 +435,7 @@ class EnrollmentService:
 
     @staticmethod
     def send_enrollment_status_email(enrollment_id, email_type, custom_data=None):
-        """
-        Send status update emails (approved, rejected, info_updated, receipt_updated, etc.) - FIXED VERSION
-
-        This version uses the enhanced email service with proper context management.
-        """
+        """Send status update emails (approved, rejected, info_updated, receipt_updated, etc.) - FIXED VERSION."""
         logger = logging.getLogger('enrollment_service')
 
         try:
@@ -568,6 +537,56 @@ class EnrollmentService:
             logger.error(f"Failed to queue status email: {str(e)}")
             return None
 
+    @staticmethod
+    def verify_email(enrollment_id, token):
+        """Verify email with provided token - IMPROVED VERSION."""
+        logger = logging.getLogger('enrollment_service')
+
+        try:
+            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
+
+            if not enrollment:
+                logger.error(f"Enrollment not found for ID: {enrollment_id}")
+                raise ValueError("Enrollment not found")
+
+            logger.info(f"Verifying email for enrollment {enrollment.application_number}")
+            logger.info(f"Provided token: {token}")
+            logger.info(f"Stored token: {enrollment.email_verification_token}")
+            logger.info(f"Email already verified: {enrollment.email_verified}")
+
+            if enrollment.email_verified:
+                logger.warning(f"Email already verified for enrollment {enrollment.application_number}")
+                return True  # Already verified is considered success
+
+            # Verify the token
+            if enrollment.verify_email(token):
+                # Update enrollment status if payment is also verified
+                if (enrollment.payment_status == PaymentStatus.VERIFIED and
+                        enrollment.enrollment_status == EnrollmentStatus.PAYMENT_PENDING):
+                    enrollment.enrollment_status = EnrollmentStatus.PAYMENT_VERIFIED
+
+                    # Send payment verified email
+                    try:
+                        email_task_id = EnrollmentService.send_enrollment_status_email(
+                            enrollment_id, 'payment_verified'
+                        )
+                        logger.info(f"Payment verified email queued: {email_task_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to queue payment verified email: {e}")
+
+                # Ensure the database is updated
+                db.session.commit()
+                logger.info(f"Email verified successfully for enrollment {enrollment.application_number}")
+                return True
+            else:
+                logger.error(f"Token verification failed for enrollment {enrollment.application_number}")
+                raise ValueError("Invalid or expired verification token")
+
+        except Exception as e:
+            logger.error(f"Email verification failed: {str(e)}")
+            db.session.rollback()
+            raise
+
     # Core enrollment management methods
     @staticmethod
     def get_enrollment_by_id(enrollment_id, include_sensitive=False):
@@ -622,42 +641,6 @@ class EnrollmentService:
         except Exception as e:
             logging.getLogger('enrollment_service').error(f"Error getting enrollment by email: {str(e)}")
             return None
-
-    @staticmethod
-    def verify_email(enrollment_id, token):
-        """Verify email with provided token."""
-        logger = logging.getLogger('enrollment_service')
-
-        try:
-            enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
-
-            if not enrollment:
-                raise ValueError("Enrollment not found")
-
-            if enrollment.verify_email(token):
-                # Update enrollment status if payment is also verified
-                if (enrollment.payment_status == PaymentStatus.VERIFIED and
-                        enrollment.enrollment_status == EnrollmentStatus.PAYMENT_PENDING):
-                    enrollment.enrollment_status = EnrollmentStatus.PAYMENT_VERIFIED
-
-                    # Send payment verified email
-                    try:
-                        email_task_id = EnrollmentService.send_enrollment_status_email(
-                            enrollment_id, 'payment_verified'
-                        )
-                        logger.info(f"Payment verified email queued: {email_task_id}")
-                    except Exception as e:
-                        logger.warning(f"Failed to queue payment verified email: {e}")
-
-                db.session.commit()
-                logger.info(f"Email verified for enrollment {enrollment.application_number}")
-                return True
-            else:
-                raise ValueError("Invalid or expired verification token")
-
-        except Exception as e:
-            logger.error(f"Email verification failed: {str(e)}")
-            raise
 
     @staticmethod
     def verify_payment(enrollment_id, verified_by_user_id):
@@ -983,16 +966,7 @@ class EnrollmentService:
 
     @staticmethod
     def resend_verification_email(enrollment_id, base_url=None):
-        """
-        Resend verification email for an enrollment - NEW METHOD
-
-        Args:
-            enrollment_id: ID of the enrollment
-            base_url: Base URL for verification links
-
-        Returns:
-            tuple: (task_id, token) if successful
-        """
+        """Resend verification email for an enrollment."""
         logger = logging.getLogger('enrollment_service')
 
         try:
@@ -1003,20 +977,8 @@ class EnrollmentService:
             if enrollment.email_verified:
                 raise ValueError("Email is already verified")
 
-            # Send verification email using the email service
-            task_id, token = email_service.send_enrollment_confirmation(
-                enrollment.id, base_url
-            )
-
-            # Update enrollment tracking (if fields exist)
-            try:
-                enrollment.email_sent_at = func.now()
-                enrollment.email_task_id = task_id
-                enrollment.email_error = None  # Clear any previous errors
-                db.session.commit()
-            except Exception:
-                # If these fields don't exist, continue without error
-                pass
+            # Send verification email using existing method
+            task_id, token = EnrollmentService.send_email_verification(enrollment_id, base_url)
 
             logger.info(f"Verification email resent for enrollment {enrollment.application_number}")
             return task_id, token
@@ -1027,15 +989,7 @@ class EnrollmentService:
 
     @staticmethod
     def get_email_status(enrollment_id):
-        """
-        Get email status for an enrollment - NEW METHOD
-
-        Args:
-            enrollment_id: ID of the enrollment
-
-        Returns:
-            dict: Email status information
-        """
+        """Get email status for an enrollment."""
         try:
             enrollment = db.session.query(StudentEnrollment).filter_by(id=enrollment_id).first()
             if not enrollment:

@@ -3,6 +3,7 @@ from app.extensions import db
 from sqlalchemy import Index, func
 from .base import BaseModel
 import secrets
+from datetime import datetime, timedelta
 
 
 class EnrollmentStatus:
@@ -144,18 +145,53 @@ class StudentEnrollment(BaseModel):
         return f"{self.first_name} {self.surname}"
 
     def generate_email_verification_token(self):
-        """Generate email verification token."""
+        """Generate email verification token - FIXED VERSION."""
         self.email_verification_token = secrets.token_urlsafe(32)
-        self.email_verification_sent_at = func.now()
+        self.email_verification_sent_at = datetime.now()
+
+        # Important: Commit this to database immediately
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
         return self.email_verification_token
 
     def verify_email(self, token):
-        """Verify email with token."""
+        """Verify email with token - IMPROVED VERSION."""
+        # Check if token exists and matches
+        if not self.email_verification_token or not token:
+            return False
+
         if self.email_verification_token == token:
+            # Check token expiry (24 hours)
+            if self.email_verification_sent_at:
+                expiry_time = self.email_verification_sent_at + timedelta(hours=24)
+                if datetime.now() > expiry_time:
+                    return False  # Token expired
+
+            # Token is valid - verify email
             self.email_verified = True
-            self.email_verification_token = None
-            return True
+            self.email_verification_token = None  # Clear token after use
+            self.email_verification_sent_at = None  # Clear timestamp
+
+            try:
+                db.session.commit()
+                return True
+            except Exception as e:
+                db.session.rollback()
+                raise e
+
         return False
+
+    def is_token_expired(self):
+        """Check if verification token is expired."""
+        if not self.email_verification_sent_at:
+            return True
+
+        expiry_time = self.email_verification_sent_at + timedelta(hours=24)
+        return datetime.now() > expiry_time
 
     def mark_payment_received(self, receipt_number, amount, verified_by_user_id=None):
         """Mark payment as received."""
@@ -163,11 +199,11 @@ class StudentEnrollment(BaseModel):
         self.payment_status = PaymentStatus.PAID
         self.receipt_number = receipt_number
         self.payment_amount = amount
-        self.payment_date = func.now()
+        self.payment_date = datetime.now()  # Use Python datetime
 
         if verified_by_user_id:
             self.payment_verified_by = verified_by_user_id
-            self.payment_verified_at = func.now()
+            self.payment_verified_at = datetime.now()  # Use Python datetime
             self.payment_status = PaymentStatus.VERIFIED
 
         # Update enrollment status
@@ -180,7 +216,7 @@ class StudentEnrollment(BaseModel):
         if self.is_paid:
             self.payment_status = PaymentStatus.VERIFIED
             self.payment_verified_by = verified_by_user_id
-            self.payment_verified_at = func.now()
+            self.payment_verified_at = datetime.now()  # Use Python datetime
 
             # Update enrollment status if email is also verified
             if self.email_verified and self.enrollment_status != EnrollmentStatus.ENROLLED:
@@ -216,7 +252,7 @@ class StudentEnrollment(BaseModel):
 
         # Update enrollment record
         self.enrollment_status = EnrollmentStatus.ENROLLED
-        self.processed_at = func.now()
+        self.processed_at = datetime.now()  # Use Python datetime
         self.processed_by = processed_by_user_id
         self.participant_created_id = participant.id
 
@@ -226,13 +262,13 @@ class StudentEnrollment(BaseModel):
         """Reject the enrollment application."""
         self.enrollment_status = EnrollmentStatus.REJECTED
         self.rejection_reason = reason
-        self.processed_at = func.now()
+        self.processed_at = datetime.now()  # Use Python datetime
         self.processed_by = rejected_by_user_id
 
     def cancel_enrollment(self):
         """Cancel the enrollment application."""
         self.enrollment_status = EnrollmentStatus.CANCELLED
-        self.processed_at = func.now()
+        self.processed_at = datetime.now()  # Use Python datetime
 
     def get_enrollment_progress(self):
         """Get enrollment progress as percentage."""

@@ -70,6 +70,7 @@ def register_blueprints(app):
     """
     try:
         # Import blueprints here to avoid circular imports
+        from .controllers.auth import auth_bp
         from .controllers.admin import admin_bp
         from .controllers.check_in import check_in_bp
         from .controllers.enrollment import enrollment_bp
@@ -78,6 +79,7 @@ def register_blueprints(app):
         from .controllers.email import email_bp
 
         # Register blueprints with their URL prefixes
+        app.register_blueprint(auth_bp, url_prefix='/auth')
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(check_in_bp, url_prefix='/check-in')
         app.register_blueprint(enrollment_bp)

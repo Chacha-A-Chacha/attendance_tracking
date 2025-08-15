@@ -1,0 +1,223 @@
+{% extends "enrollment_base.html" %}
+
+{% block title %}Sign In - {{ site_name or 'Programming Course' }}{% endblock %}
+
+{% block content %}
+<div class="flex min-h-full">
+  <!-- Left side - Login Form -->
+  <div class="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
+    <div class="mx-auto w-full max-w-sm lg:w-96">
+      <div>
+        <!-- Logo/Brand -->
+        <div class="flex items-center justify-center mb-8">
+          <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+        </div>
+
+        <h2 class="text-2xl font-bold tracking-tight text-gray-900 text-center">
+          Sign in to your account
+        </h2>
+        <p class="mt-2 text-sm text-gray-500 text-center">
+          Welcome back to {{ site_name or 'Programming Course' }}
+        </p>
+      </div>
+
+      <div class="mt-10">
+        <!-- Login Form -->
+        <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6" x-data="loginForm()" @submit="handleSubmit">
+          {{ form.hidden_tag() }}
+
+          <!-- Store next URL for redirect after login -->
+          {% if request.args.get('next') %}
+            <input type="hidden" name="next_url" value="{{ request.args.get('next') }}">
+          {% endif %}
+
+          <!-- Username/Email Field -->
+          <div>
+            <label for="identifier" class="block text-sm font-medium text-gray-900">
+              Username or Email
+            </label>
+            <div class="mt-2">
+              {{ form.identifier(
+                class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm",
+                placeholder="Enter your username or email"
+              ) }}
+              {% if form.identifier.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                  {% for error in form.identifier.errors %}
+                    <p>{{ error }}</p>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-900">
+              Password
+            </label>
+            <div class="mt-2">
+              {{ form.password(
+                class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-blue-600 sm:text-sm",
+                placeholder="Enter your password"
+              ) }}
+              {% if form.password.errors %}
+                <div class="mt-1 text-sm text-red-600">
+                  {% for error in form.password.errors %}
+                    <p>{{ error }}</p>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Remember Me and Forgot Password -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="flex h-6 shrink-0 items-center">
+                <div class="group grid size-4 grid-cols-1">
+                  {{ form.remember_me(
+                    class="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-blue-600 checked:bg-blue-600 indeterminate:border-blue-600 indeterminate:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
+                  ) }}
+                  <svg viewBox="0 0 14 14" fill="none" class="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25">
+                    <path d="M3 8L6 11L11 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-0 group-has-checked:opacity-100" />
+                  </svg>
+                </div>
+              </div>
+              <label for="remember_me" class="ml-3 block text-sm text-gray-900">
+                Remember me
+              </label>
+            </div>
+
+            <div class="text-sm">
+              <a href="{{ url_for('auth.password_reset_request') }}"
+                 class="font-semibold text-blue-600 hover:text-blue-500 transition-colors">
+                Forgot password?
+              </a>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div>
+            <button type="submit"
+                    class="flex w-full justify-center rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 transition-colors"
+                    :disabled="submitting">
+              <span x-show="!submitting">Sign in</span>
+              <span x-show="submitting" class="flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in...
+              </span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Help Section -->
+        <div class="mt-10">
+          <div class="relative">
+            <div aria-hidden="true" class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-200"></div>
+            </div>
+            <div class="relative flex justify-center text-sm font-medium">
+              <span class="bg-white px-6 text-gray-500">Need help?</span>
+            </div>
+          </div>
+
+          <div class="mt-6 grid grid-cols-1 gap-4">
+            <div class="text-center">
+              <p class="text-sm text-gray-500">
+                If you're having trouble accessing your account, please contact support at
+                <a href="mailto:{{ contact_email or 'support@example.com' }}"
+                   class="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+                  {{ contact_email or 'support@example.com' }}
+                </a>
+              </p>
+            </div>
+
+            <!-- Enrollment Link for New Students -->
+            <div class="text-center">
+              <p class="text-sm text-gray-500">
+                New to the program?
+                <a href="{{ url_for('enrollment.create_enrollment') }}"
+                   class="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+                  Apply for enrollment
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right side - Hero Image -->
+  <div class="relative hidden w-0 flex-1 lg:block">
+    <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80"
+         alt="Programming course students learning together"
+         class="absolute inset-0 size-full object-cover" />
+
+    <!-- Overlay with branding -->
+    <div class="absolute inset-0 bg-blue-600 bg-opacity-20"></div>
+    <div class="absolute bottom-0 left-0 right-0 p-8">
+      <div class="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+          Transform Your Future with Programming
+        </h3>
+        <p class="text-sm text-gray-600">
+          Join our comprehensive programming course and build the skills you need for a successful career in technology.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loginForm() {
+    return {
+        submitting: false,
+
+        handleSubmit(event) {
+            this.submitting = true;
+            // Form will submit normally, this just handles UI state
+            // If there's an error, the page will reload and submitting will reset
+        },
+
+        init() {
+            // Focus on first input if no autofocus is set
+            if (!document.querySelector('input[autofocus]')) {
+                const firstInput = document.querySelector('input[type="text"], input[type="email"]');
+                if (firstInput) {
+                    firstInput.focus();
+                }
+            }
+        }
+    }
+}
+
+// Auto-clear flash messages after some time
+document.addEventListener('DOMContentLoaded', function() {
+    const flashMessages = document.querySelectorAll('[data-flash-message]');
+    flashMessages.forEach(function(message) {
+        setTimeout(function() {
+            if (message.parentNode) {
+                message.style.transition = 'opacity 0.5s ease-out';
+                message.style.opacity = '0';
+                setTimeout(function() {
+                    if (message.parentNode) {
+                        message.parentNode.removeChild(message);
+                    }
+                }, 500);
+            }
+        }, 5000); // Remove after 5 seconds
+    });
+});
+</script>
+{% endblock %}

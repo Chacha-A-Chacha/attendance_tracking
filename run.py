@@ -81,7 +81,8 @@ def inject_global_vars():
     return {
         'app_name': app.config.get('SITE_NAME', 'Programming Course'),
         'contact_email': app.config.get('CONTACT_EMAIL', 'info@jaribu.org'),
-        'current_year': datetime.now().year
+        'current_year': datetime.now().year,
+        'current_time': datetime.now()
     }
 
 

@@ -9,10 +9,8 @@ from app.extensions import db
 from app.models import Participant, Session, Attendance
 from app.utils.export_data import export_participants_to_excel
 from app.utils.session_mapper import get_session_capacity, get_session_count
-
+from . import admin_bp
 reassignment_service = SessionReassignmentService()
-
-admin_bp = Blueprint('admin', __name__)
 
 
 @admin_bp.route('/initialize-data', methods=['GET'])

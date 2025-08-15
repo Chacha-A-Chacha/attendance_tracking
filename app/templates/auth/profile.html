@@ -1,0 +1,339 @@
+{% extends "enrollment_base.html" %}
+
+{% block title %}Profile - {{ current_user.full_name }}{% endblock %}
+
+{% block content %}
+<div class="bg-white">
+  <div class="mx-auto max-w-4xl py-16 sm:px-6 sm:py-24">
+    <div class="px-4 sm:px-0">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            Profile
+          </h1>
+          <p class="mt-2 text-sm text-gray-500">
+            Your account information and settings.
+          </p>
+        </div>
+        <div class="flex space-x-3">
+          <a href="{{ url_for('auth.change_password') }}"
+             class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+            </svg>
+            Change Password
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-16 space-y-16">
+      <!-- Account Information -->
+      <div>
+        <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+          <div class="px-4 py-6 sm:px-6">
+            <h3 class="text-base font-semibold text-gray-900">Account Information</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account status.</p>
+          </div>
+          <div class="border-t border-gray-100">
+            <dl class="divide-y divide-gray-100">
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Full name</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">{{ current_user.full_name }}</dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Username</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">{{ current_user.username }}</dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Email address</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex items-center">
+                    {{ current_user.email }}
+                    {% if current_user.is_verified %}
+                      <span class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        Verified
+                      </span>
+                    {% else %}
+                      <span class="ml-2 inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        Unverified
+                      </span>
+                    {% endif %}
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Account status</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {% if current_user.is_active %}
+                    <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                      </svg>
+                      Active
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                      </svg>
+                      Inactive
+                    </span>
+                  {% endif %}
+                </dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Member since</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {{ current_user.created_at.strftime('%B %d, %Y') }}
+                </dd>
+              </div>
+              {% if current_user.last_login %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Last login</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {{ current_user.last_login.strftime('%B %d, %Y at %I:%M %p') }}
+                </dd>
+              </div>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- Role and Permissions -->
+      <div>
+        <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+          <div class="px-4 py-6 sm:px-6">
+            <h3 class="text-base font-semibold text-gray-900">Roles and Permissions</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Your current roles and access levels.</p>
+          </div>
+          <div class="border-t border-gray-100">
+            <dl class="divide-y divide-gray-100">
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Primary role</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                    {{ current_user.primary_role }}
+                  </span>
+                </dd>
+              </div>
+              {% if current_user.roles|length > 1 %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">All roles</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex flex-wrap gap-2">
+                    {% for role in current_user.roles %}
+                      <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                        {{ role.display_name }}
+                      </span>
+                    {% endfor %}
+                  </div>
+                </dd>
+              </div>
+              {% endif %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Account type</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {% if current_user.is_staff() %}
+                    <span class="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-600/20">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clip-rule="evenodd"></path>
+                      </svg>
+                      Staff Member
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                      Student
+                    </span>
+                  {% endif %}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- Participant Information (for students) -->
+      {% if current_user.participant %}
+      <div>
+        <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+          <div class="px-4 py-6 sm:px-6">
+            <h3 class="text-base font-semibold text-gray-900">Course Information</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Your enrollment and course details.</p>
+          </div>
+          <div class="border-t border-gray-100">
+            <dl class="divide-y divide-gray-100">
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Student ID</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">{{ current_user.participant.unique_id }}</dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Classroom</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">Room {{ current_user.participant.classroom }}</dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Has laptop</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {% if current_user.participant.has_laptop %}
+                    <span class="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                      </svg>
+                      Yes
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
+                      <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                      </svg>
+                      No
+                    </span>
+                  {% endif %}
+                </dd>
+              </div>
+              {% if current_user.participant.saturday_session %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Saturday session</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">{{ current_user.participant.saturday_session.time_slot }}</dd>
+              </div>
+              {% endif %}
+              {% if current_user.participant.sunday_session %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Sunday session</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">{{ current_user.participant.sunday_session.time_slot }}</dd>
+              </div>
+              {% endif %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Enrolled since</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {{ current_user.participant.registration_timestamp.strftime('%B %d, %Y') }}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Security Information -->
+      <div>
+        <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+          <div class="px-4 py-6 sm:px-6">
+            <h3 class="text-base font-semibold text-gray-900">Security Information</h3>
+            <p class="mt-1 max-w-2xl text-sm text-gray-500">Password and account security details.</p>
+          </div>
+          <div class="border-t border-gray-100">
+            <dl class="divide-y divide-gray-100">
+              {% if current_user.password_changed_at %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Password last changed</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  {{ current_user.password_changed_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </dd>
+              </div>
+              {% endif %}
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Login attempts</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex items-center">
+                    {% if current_user.failed_login_attempts > 0 %}
+                      <span class="text-yellow-600">{{ current_user.failed_login_attempts }} failed attempts</span>
+                    {% else %}
+                      <span class="text-green-600">No recent failed attempts</span>
+                    {% endif %}
+                    {% if current_user.is_locked() %}
+                      <span class="ml-2 inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+                        Account Locked
+                      </span>
+                    {% endif %}
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                <dt class="text-sm font-medium text-gray-900">Total logins</dt>
+                <dd class="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">{{ current_user.login_count or 0 }}</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div>
+        <div class="bg-gray-50 px-4 py-6 sm:rounded-lg sm:p-6">
+          <h3 class="text-base font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <a href="{{ url_for('auth.change_password') }}"
+               class="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-hidden transition-colors">
+              <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+              </svg>
+              Change Password
+            </a>
+
+            {% if current_user.is_staff() %}
+              <a href="{{ url_for('admin.dashboard') }}"
+                 class="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-hidden transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-9 9a1 1 0 001.414 1.414L2 12.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-4.586l.293.293a1 1 0 001.414-1.414l-9-9z"></path>
+                </svg>
+                Admin Dashboard
+              </a>
+            {% else %}
+              <a href="{{ url_for('participant.dashboard') }}"
+                 class="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-hidden transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-9 9a1 1 0 001.414 1.414L2 12.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-4.586l.293.293a1 1 0 001.414-1.414l-9-9z"></path>
+                </svg>
+                My Dashboard
+              </a>
+            {% endif %}
+
+            <a href="{{ url_for('auth.logout') }}"
+               class="flex items-center justify-center rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-hidden transition-colors">
+              <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"></path>
+              </svg>
+              Sign Out
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh session status
+document.addEventListener('DOMContentLoaded', function() {
+    // Check session status every 5 minutes
+    setInterval(function() {
+        fetch('{{ url_for("auth.session_check") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.valid) {
+                    // Session expired or account issues
+                    window.location.href = '{{ url_for("auth.login") }}';
+                }
+            })
+            .catch(error => {
+                console.log('Session check failed:', error);
+            });
+    }, 300000); // 5 minutes
+});
+
+// Add tooltips or additional interactivity here if needed
+</script>
+{% endblock %}
