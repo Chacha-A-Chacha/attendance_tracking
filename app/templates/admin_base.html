@@ -12,18 +12,18 @@
 
     <!-- Tailwind CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/output.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
     <!-- Additional CSS -->
     {% block extra_css %}{% endblock %}
 
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
 
     {% block head %}{% endblock %}
 </head>
 <body class="h-full" x-data="adminApp()">
-    <!-- Mobile sidebar -->
+    <!-- Mobile sidebar backdrop -->
     <div x-show="mobileSidebarOpen"
          x-transition:enter="transition-opacity ease-linear duration-300"
          x-transition:enter-start="opacity-0"
@@ -37,6 +37,7 @@
         <div class="fixed inset-0 bg-gray-900/80"></div>
 
         <div class="fixed inset-0 flex">
+            <!-- Mobile sidebar panel -->
             <div x-show="mobileSidebarOpen"
                  x-transition:enter="transition ease-in-out duration-300 transform"
                  x-transition:enter-start="-translate-x-full"
@@ -47,6 +48,7 @@
                  class="relative mr-16 flex w-full max-w-xs flex-1"
                  @click.stop>
 
+                <!-- Close button -->
                 <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
                     <button type="button"
                             class="-m-2.5 p-2.5"
@@ -58,22 +60,138 @@
                     </button>
                 </div>
 
-                <!-- Mobile Sidebar content -->
+                <!-- Mobile sidebar content -->
                 <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-2">
+                    <!-- Logo -->
                     <div class="flex h-16 shrink-0 items-center">
-                        <div class="flex items-center">
-                            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <span class="text-xl font-bold text-gray-900">{{ site_name or 'Programming Course' }}</span>
-                        </div>
+                        <h1 class="text-xl font-bold text-blue-600">Programming Course</h1>
                     </div>
 
                     <!-- Mobile Navigation -->
-{#                    {% include 'admin/partials/sidebar_nav.html' %}#}
-                </di v>
+                    <nav class="flex flex-1 flex-col">
+                        <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                            <li>
+                                <ul role="list" class="-mx-2 space-y-1">
+                                    <!-- Dashboard -->
+                                    <li>
+                                        <a href="{{ url_for('admin.dashboard') }}"
+                                           class="group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold {{ 'bg-blue-50 text-blue-600' if request.endpoint == 'admin.dashboard' else 'text-gray-700 hover:text-blue-600 hover:bg-blue-50' }}">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                                 class="size-6 shrink-0 {{ 'text-blue-600' if request.endpoint == 'admin.dashboard' else 'text-gray-400 group-hover:text-blue-600' }}">
+                                                <path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            Dashboard
+                                        </a>
+                                    </li>
+
+                                    <!-- Enrollment Management -->
+                                    <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_enrollment' else 'false' }} }">
+                                        <button @click="open = !open"
+                                                class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                                 class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                                <path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h4.125M8.25 8.25l13.5 0" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            Enrollment Management
+                                            <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                            </svg>
+                                        </button>
+                                        <ul x-show="open" x-collapse class="mt-1 px-2">
+                                            <li><a href="{{ url_for('admin.pending_applications') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.pending_applications' else '' }}">Pending Applications</a></li>
+                                            <li><a href="{{ url_for('admin.payment_verification') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.payment_verification' else '' }}">Payment Verification</a></li>
+                                            <li><a href="{{ url_for('admin.application_history') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.application_history' else '' }}">Application History</a></li>
+                                            <li><a href="{{ url_for('admin.analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.analytics' else '' }}">Analytics</a></li>
+                                        </ul>
+                                    </li>
+
+                                    <!-- Student Management -->
+                                    <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_students' else 'false' }} }">
+                                        <button @click="open = !open"
+                                                class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                                 class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                                            </svg>
+                                            Student Management
+                                            <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                            </svg>
+                                        </button>
+                                        <ul x-show="open" x-collapse class="mt-1 px-2">
+                                            <li><a href="{{ url_for('admin.all_participants') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.all_participants' else '' }}">All Participants</a></li>
+                                            <li><a href="{{ url_for('admin.session_assignments') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.session_assignments' else '' }}">Session Assignments</a></li>
+                                            <li><a href="{{ url_for('admin.attendance_records') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.attendance_records' else '' }}">Attendance Records</a></li>
+                                            <li><a href="{{ url_for('admin.reassignment_requests') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.reassignment_requests' else '' }}">Reassignment Requests</a></li>
+                                        </ul>
+                                    </li>
+
+                                    <!-- Future Routes (Commented Out) -->
+                                    <!-- Reports -->
+                                    <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_reports' else 'false' }} }">
+                                        <button @click="open = !open"
+                                                class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                                 class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6zM13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                                            </svg>
+                                            Reports
+                                            <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                            </svg>
+                                        </button>
+{#                                        <ul x-show="open" x-collapse class="mt-1 px-2">#}
+{#                                            <li><a href="{{ url_for('admin_reports.enrollment_reports') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Enrollment Reports</a></li>#}
+{#                                            <li><a href="{{ url_for('admin_reports.attendance_analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Attendance Analytics</a></li>#}
+{#                                            <li><a href="{{ url_for('admin_reports.data_export') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Data Export</a></li>#}
+{#                                        </ul>#}
+                                    </li> 
+
+                                    <!-- System Administration -->
+                                    <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_system' else 'false' }} }">
+                                        <button @click="open = !open"
+                                                class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                                 class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.240.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            System Administration
+                                            <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                            </svg>
+                                        </button>
+{#                                        <ul x-show="open" x-collapse class="mt-1 px-2">#}
+{#                                            <li><a href="{{ url_for('admin_system.site_settings') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Site Settings</a></li>#}
+{#                                            <li><a href="{{ url_for('admin_system.bulk_operations') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Bulk Operations</a></li>#}
+{#                                            <li><a href="{{ url_for('admin_system.backup_restore') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Backup & Restore</a></li>#}
+{#                                        </ul>#}
+                                    </li> 
+
+                                    <!-- Staff Management -->
+                                    <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_auth' else 'false' }} }">
+                                        <button @click="open = !open"
+                                                class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                                 class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                                            </svg>
+                                            Staff Management
+                                            <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                            </svg>
+                                        </button>
+{#                                        <ul x-show="open" x-collapse class="mt-1 px-2">#}
+{#                                            <li><a href="{{ url_for('admin_auth.all_staff') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">All Staff</a></li>#}
+{#                                            <li><a href="{{ url_for('admin_auth.role_management') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Role Management</a></li>#}
+{#                                            <li><a href="{{ url_for('admin_auth.permissions') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-50">Permissions</a></li>#}
+{#                                        </ul>#}
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -81,15 +199,9 @@
     <!-- Static sidebar for desktop -->
     <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6">
+            <!-- Logo -->
             <div class="flex h-16 shrink-0 items-center">
-                <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-                        <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <span class="text-xl font-bold text-gray-900">{{ site_name or 'Programming Course' }}</span>
-                </div>
+                <h1 class="text-xl font-bold text-blue-600">Programming Course</h1>
             </div>
 
             <!-- Desktop Navigation -->
@@ -100,9 +212,10 @@
                             <!-- Dashboard -->
                             <li>
                                 <a href="{{ url_for('admin.dashboard') }}"
-                                   class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold {{ 'bg-blue-50 text-blue-600' if request.endpoint == 'admin.dashboard' else 'text-gray-700 hover:text-blue-600 hover:bg-blue-50' }}">
-                                    <svg class="h-6 w-6 shrink-0 {{ 'text-blue-600' if request.endpoint == 'admin.dashboard' else 'text-gray-400 group-hover:text-blue-600' }}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold {{ 'bg-blue-50 text-blue-600' if request.endpoint == 'admin.dashboard' else 'text-gray-700 hover:text-blue-600 hover:bg-blue-50' }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                         class="size-6 shrink-0 {{ 'text-blue-600' if request.endpoint == 'admin.dashboard' else 'text-gray-400 group-hover:text-blue-600' }}">
+                                        <path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                     Dashboard
                                 </a>
@@ -111,9 +224,10 @@
                             <!-- Enrollment Management -->
                             <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_enrollment' else 'false' }} }">
                                 <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h4.125M8.25 8.25l13.5 0" />
+                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                         class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                        <path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h4.125M8.25 8.25l13.5 0" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                     Enrollment Management
                                     <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -121,18 +235,19 @@
                                     </svg>
                                 </button>
                                 <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_enrollment.pending_applications') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Pending Applications</a></li>
-                                    <li><a href="{{ url_for('admin_enrollment.payment_verification') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Payment Verification</a></li>
-                                    <li><a href="{{ url_for('admin_enrollment.application_history') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Application History</a></li>
-                                    <li><a href="{{ url_for('admin_enrollment.analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Analytics</a></li>
+                                    <li><a href="{{ url_for('admin.pending_applications') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.pending_applications' else '' }}">Pending Applications</a></li>
+                                    <li><a href="{{ url_for('admin.payment_verification') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.payment_verification' else '' }}">Payment Verification</a></li>
+                                    <li><a href="{{ url_for('admin.application_history') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.application_history' else '' }}">Application History</a></li>
+                                    <li><a href="{{ url_for('admin.analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.analytics' else '' }}">Analytics</a></li>
                                 </ul>
                             </li>
 
                             <!-- Student Management -->
                             <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_students' else 'false' }} }">
                                 <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                         class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                                     </svg>
                                     Student Management
@@ -141,18 +256,61 @@
                                     </svg>
                                 </button>
                                 <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_students.all_participants') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">All Participants</a></li>
-                                    <li><a href="{{ url_for('admin_students.session_assignments') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Session Assignments</a></li>
-                                    <li><a href="{{ url_for('admin_students.attendance_records') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Attendance Records</a></li>
-                                    <li><a href="{{ url_for('admin_students.reassignment_requests') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Reassignment Requests</a></li>
+                                    <li><a href="{{ url_for('admin.all_participants') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.all_participants' else '' }}">All Participants</a></li>
+                                    <li><a href="{{ url_for('admin.session_assignments') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.session_assignments' else '' }}">Session Assignments</a></li>
+                                    <li><a href="{{ url_for('admin.attendance_records') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.attendance_records' else '' }}">Attendance Records</a></li>
+                                    <li><a href="{{ url_for('admin.reassignment_requests') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_students.reassignment_requests' else '' }}">Reassignment Requests</a></li>
                                 </ul>
+                            </li>
+
+                            <!-- Future Routes (Commented Out) -->
+                            <!-- Reports -->
+                             <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_reports' else 'false' }} }">
+                                <button @click="open = !open"
+                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                         class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6zM13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                                    </svg>
+                                    Reports
+                                    <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                </button>
+{#                                <ul x-show="open" x-collapse class="mt-1 px-2">#}
+{#                                    <li><a href="{{ url_for('admin_reports.enrollment_reports') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Enrollment Reports</a></li>#}
+{#                                    <li><a href="{{ url_for('admin_reports.attendance_analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Attendance Analytics</a></li>#}
+{#                                    <li><a href="{{ url_for('admin_reports.data_export') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Data Export</a></li>#}
+{#                                </ul>#}
+                            </li>
+
+                            <!-- System Administration -->
+                            <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_system' else 'false' }} }">
+                                <button @click="open = !open"
+                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                         class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.240.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    System Administration
+                                    <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                </button>
+{#                                <ul x-show="open" x-collapse class="mt-1 px-2">#}
+{#                                    <li><a href="{{ url_for('admin_system.site_settings') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Site Settings</a></li>#}
+{#                                    <li><a href="{{ url_for('admin_system.bulk_operations') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Bulk Operations</a></li>#}
+{#                                    <li><a href="{{ url_for('admin_system.backup_restore') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-50">Backup & Restore</a></li>#}
+{#                                </ul>#}
                             </li>
 
                             <!-- Staff Management -->
                             <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_auth' else 'false' }} }">
                                 <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                         class="size-6 shrink-0 text-gray-400 group-hover:text-blue-600">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                                     </svg>
                                     Staff Management
@@ -160,117 +318,43 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                                     </svg>
                                 </button>
-                                <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_auth.user_list') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">All Users</a></li>
-                                    <li><a href="{{ url_for('admin_auth.create_user') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Create User</a></li>
-                                    <li><a href="{{ url_for('admin_auth.create_student_accounts') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Student Accounts</a></li>
-                                </ul>
-                            </li>
-
-                            <!-- Academic Operations -->
-                            <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_academic' else 'false' }} }">
-                                <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                                    </svg>
-                                    Academic Operations
-                                    <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                    </svg>
-                                </button>
-                                <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_academic.session_management') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Session Management</a></li>
-                                    <li><a href="{{ url_for('admin_academic.classroom_management') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Classroom Management</a></li>
-                                    <li><a href="{{ url_for('admin_academic.attendance_dashboard') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Attendance Dashboard</a></li>
-                                </ul>
-                            </li>
-
-                            <!-- Communications -->
-                            <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_communications' else 'false' }} }">
-                                <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                                    </svg>
-                                    Communications
-                                    <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                    </svg>
-                                </button>
-                                <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_communications.email_management') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Email Management</a></li>
-                                    <li><a href="{{ url_for('admin_communications.bulk_notifications') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-50">Bulk Notifications</a></li>
-                                    <li><a href="{{ url_for('admin_communications.email_templates') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Email Templates</a></li>
-                                </ul>
-                            </li>
-
-                            <!-- Reports & Analytics -->
-                            <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_reports' else 'false' }} }">
-                                <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
-                                    </svg>
-                                    Reports & Analytics
-                                    <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                    </svg>
-                                </button>
-                                <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_reports.enrollment_reports') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Enrollment Reports</a></li>
-                                    <li><a href="{{ url_for('admin_reports.attendance_analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Attendance Analytics</a></li>
-                                    <li><a href="{{ url_for('admin_reports.data_export') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Data Export</a></li>
-                                </ul>
-                            </li>
-
-                            <!-- System Administration -->
-                            <li x-data="{ open: {{ 'true' if request.blueprint == 'admin_system' else 'false' }} }">
-                                <button @click="open = !open"
-                                        class="group flex w-full gap-x-3 rounded-md p-2 text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50">
-                                    <svg class="h-6 w-6 shrink-0 text-gray-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    System Admin
-                                    <svg :class="open ? 'rotate-90' : ''" class="ml-auto h-5 w-5 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                    </svg>
-                                </button>
-                                <ul x-show="open" x-collapse class="mt-1 px-2">
-                                    <li><a href="{{ url_for('admin_system.settings') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">System Settings</a></li>
-                                    <li><a href="{{ url_for('admin_system.audit_logs') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Audit Logs</a></li>
-                                    <li><a href="{{ url_for('admin_system.data_management') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Data Management</a></li>
-                                </ul>
+{#                                <ul x-show="open" x-collapse class="mt-1 px-2">#}
+{#                                    <li><a href="{{ url_for('admin_auth.all_staff') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">All Staff</a></li>#}
+{#                                    <li><a href="{{ url_for('admin_auth.role_management') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Role Management</a></li>#}
+{#                                    <li><a href="{{ url_for('admin_auth.permissions') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Permissions</a></li>#}
+{#                                </ul>#}
                             </li>
                         </ul>
                     </li>
 
-                    <!-- User Profile Section at Bottom -->
+                    <!-- Profile section -->
                     <li class="-mx-6 mt-auto">
                         <div x-data="{ profileOpen: false }" class="relative">
                             <button @click="profileOpen = !profileOpen"
-                                    class="flex w-full items-center gap-x-4 px-6 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50">
+                                    class="flex w-full items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-gray-900 hover:bg-gray-50">
                                 <div class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                                    <span class="text-sm font-medium text-white">{{ current_user.first_name[0] }}{{ current_user.last_name[0] }}</span>
+                                    <span class="text-sm font-medium text-white">{{ current_user.first_name[0] if current_user.first_name else 'U' }}{{ current_user.last_name[0] if current_user.last_name else 'U' }}</span>
                                 </div>
                                 <span class="sr-only">Your profile</span>
-                                <span aria-hidden="true" class="truncate">{{ current_user.full_name }}</span>
-                                <svg :class="profileOpen ? 'rotate-180' : ''" class="ml-auto h-4 w-4 shrink-0 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                <span aria-hidden="true">{{ current_user.first_name }} {{ current_user.last_name }}</span>
+                                <svg class="ml-auto h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                                 </svg>
                             </button>
 
-                            <!-- Profile Dropdown -->
+                            <!-- Desktop Profile Dropdown -->
                             <div x-show="profileOpen"
-                                 x-collapse
-                                 class="px-6 pb-2">
-                                <div class="space-y-1">
-                                    <a href="{{ url_for('auth.profile') }}" class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">View Profile</a>
-                                    <a href="{{ url_for('auth.change_password') }}" class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50">Change Password</a>
-                                    <a href="{{ url_for('auth.logout') }}" class="block rounded-md px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50">Sign Out</a>
-                                </div>
+                                 @click.away="profileOpen = false"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="absolute bottom-full left-0 z-10 mb-1 w-full origin-bottom-left rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">View Profile</a>
+                                <a href="{{ url_for('auth.change_password') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Change Password</a>
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">Sign Out</a>
                             </div>
                         </div>
                     </li>
@@ -282,21 +366,22 @@
     <!-- Mobile header -->
     <div class="sticky top-0 z-40 flex items-center gap-x-6 bg-white px-4 py-4 shadow-sm sm:px-6 lg:hidden">
         <button type="button"
-                class="-m-2.5 p-2.5 text-gray-700 hover:text-gray-900 lg:hidden"
+                class="-m-2.5 p-2.5 text-gray-700 lg:hidden"
                 @click="mobileSidebarOpen = true">
             <span class="sr-only">Open sidebar</span>
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
             </svg>
         </button>
-        <div class="flex-1 text-sm font-semibold text-gray-900">
-            {% block mobile_title %}Admin Dashboard{% endblock %}
-        </div>
+        <div class="flex-1 text-sm font-semibold leading-6 text-gray-900">Dashboard</div>
+
+        <!-- Mobile profile button -->
         <div x-data="{ mobileProfileOpen: false }" class="relative">
-            <button @click="mobileProfileOpen = !mobileProfileOpen" class="flex items-center">
+            <button @click="mobileProfileOpen = !mobileProfileOpen"
+                    class="flex items-center">
                 <span class="sr-only">Your profile</span>
                 <div class="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-                    <span class="text-sm font-medium text-white">{{ current_user.first_name[0] }}{{ current_user.last_name[0] }}</span>
+                    <span class="text-sm font-medium text-white">{{ current_user.first_name[0] if current_user.first_name else 'U' }}{{ current_user.last_name[0] if current_user.last_name else 'U' }}</span>
                 </div>
             </button>
 
@@ -305,9 +390,9 @@
                  @click.away="mobileProfileOpen = false"
                  x-transition
                  class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
-                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">View Profile</a>
-                <a href="{{ url_for('auth.change_password') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Change Password</a>
-                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">Sign Out</a>
+{#                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">View Profile</a>#}
+{#                <a href="{{ url_for('auth.change_password') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Change Password</a>#}
+{#                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">Sign Out</a>#}
             </div>
         </div>
     </div>
@@ -315,7 +400,71 @@
     <!-- Main content -->
     <main class="py-10 lg:pl-72">
         <div class="px-4 sm:px-6 lg:px-8">
-            <!-- Flash Messages (maintained from enrollment_base.html) -->
+            <!-- Global alert for AJAX responses -->
+            <div x-show="alert.show"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform scale-95"
+                 x-transition:enter-end="opacity-100 transform scale-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 transform scale-100"
+                 x-transition:leave-end="opacity-0 transform scale-95"
+                 class="mb-6">
+                <div class="flex items-center p-4 rounded-lg shadow-sm"
+                     :class="{
+                         'bg-red-50 border border-red-200': alert.type === 'error',
+                         'bg-green-50 border border-green-200': alert.type === 'success',
+                         'bg-yellow-50 border border-yellow-200': alert.type === 'warning',
+                         'bg-blue-50 border border-blue-200': alert.type === 'info'
+                     }">
+
+                    <div class="flex-shrink-0">
+                        <!-- Error Icon -->
+                        <svg x-show="alert.type === 'error'" class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                        <!-- Success Icon -->
+                        <svg x-show="alert.type === 'success'" class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <!-- Warning Icon -->
+                        <svg x-show="alert.type === 'warning'" class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <!-- Info Icon -->
+                        <svg x-show="alert.type === 'info'" class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+
+                    <div class="ml-3 flex-1">
+                        <p class="text-sm font-medium"
+                           :class="{
+                               'text-red-800': alert.type === 'error',
+                               'text-green-800': alert.type === 'success',
+                               'text-yellow-800': alert.type === 'warning',
+                               'text-blue-800': alert.type === 'info'
+                           }"
+                           x-text="alert.message"></p>
+                    </div>
+
+                    <div class="ml-auto pl-3">
+                        <button @click="dismissAlert()"
+                                class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                :class="{
+                                    'text-red-500 hover:bg-red-100 focus:ring-red-600': alert.type === 'error',
+                                    'text-green-500 hover:bg-green-100 focus:ring-green-600': alert.type === 'success',
+                                    'text-yellow-500 hover:bg-yellow-100 focus:ring-yellow-600': alert.type === 'warning',
+                                    'text-blue-500 hover:bg-blue-100 focus:ring-blue-600': alert.type === 'info'
+                                }">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flash Messages -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     <div class="mb-8 space-y-3" x-data="flashMessages()" x-init="init()">
@@ -333,7 +482,6 @@
                                  x-transition:leave-start="opacity-100 transform scale-100"
                                  x-transition:leave-end="opacity-0 transform scale-95">
 
-                                <!-- Icon -->
                                 <div class="flex-shrink-0">
                                     {% if category == 'error' %}
                                         <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -354,7 +502,6 @@
                                     {% endif %}
                                 </div>
 
-                                <!-- Message -->
                                 <div class="ml-3 flex-1">
                                     <p class="text-sm font-medium
                                         {% if category == 'error' %}text-red-800{% endif %}
@@ -365,10 +512,9 @@
                                     </p>
                                 </div>
 
-                                <!-- Close Button -->
                                 <div class="ml-auto pl-3">
                                     <button @click="dismissMessage()"
-                                            class="inline-flex rounded-md p-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
+                                            class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2
                                                 {% if category == 'error' %}text-red-500 hover:bg-red-100 focus:ring-red-600{% endif %}
                                                 {% if category == 'success' %}text-green-500 hover:bg-green-100 focus:ring-green-600{% endif %}
                                                 {% if category == 'warning' %}text-yellow-500 hover:bg-yellow-100 focus:ring-yellow-600{% endif %}
@@ -385,86 +531,19 @@
                 {% endif %}
             {% endwith %}
 
-            <!-- Dynamic Alert Messages (maintained from enrollment_base.html) -->
-            <div x-show="alert.show"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 transform scale-95"
-                 x-transition:enter-end="opacity-100 transform scale-100"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 transform scale-100"
-                 x-transition:leave-end="opacity-0 transform scale-95"
-                 class="mb-8">
-                <div class="flex items-center p-4 rounded-lg shadow-sm"
-                     :class="{
-                         'bg-red-50 border border-red-200': alert.type === 'error',
-                         'bg-green-50 border border-green-200': alert.type === 'success',
-                         'bg-yellow-50 border border-yellow-200': alert.type === 'warning',
-                         'bg-blue-50 border border-blue-200': alert.type === 'info'
-                     }">
-
-                    <!-- Dynamic Icon -->
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5"
-                             :class="{
-                                 'text-red-400': alert.type === 'error',
-                                 'text-green-400': alert.type === 'success',
-                                 'text-yellow-400': alert.type === 'warning',
-                                 'text-blue-400': alert.type === 'info'
-                             }"
-                             fill="currentColor" viewBox="0 0 20 20">
-                            <!-- Icons for different alert types -->
-                            <path x-show="alert.type === 'error'" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                            <path x-show="alert.type === 'success'" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            <path x-show="alert.type === 'warning'" fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            <path x-show="alert.type === 'info'" fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-
-                    <!-- Alert Message -->
-                    <div class="ml-3 flex-1">
-                        <p class="text-sm font-medium"
-                           :class="{
-                               'text-red-800': alert.type === 'error',
-                               'text-green-800': alert.type === 'success',
-                               'text-yellow-800': alert.type === 'warning',
-                               'text-blue-800': alert.type === 'info'
-                           }"
-                           x-text="alert.message">
-                        </p>
-                    </div>
-
-                    <!-- Close Button -->
-                    <div class="ml-auto pl-3">
-                        <button @click="dismissAlert()"
-                                class="inline-flex rounded-md p-1.5 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                                :class="{
-                                    'text-red-500 hover:bg-red-100 focus:ring-red-600': alert.type === 'error',
-                                    'text-green-500 hover:bg-green-100 focus:ring-green-600': alert.type === 'success',
-                                    'text-yellow-500 hover:bg-yellow-100 focus:ring-yellow-600': alert.type === 'warning',
-                                    'text-blue-500 hover:bg-blue-100 focus:ring-blue-600': alert.type === 'info'
-                                }">
-                            <span class="sr-only">Dismiss</span>
-                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
             <!-- Page Content -->
             {% block content %}{% endblock %}
         </div>
     </main>
 
-    <!-- Base JavaScript Functions (maintained from enrollment_base.html) -->
+    <!-- JavaScript Functions -->
     <script>
-        // Admin Alpine.js application
+        // Admin Alpine.js application (maintained from enrollment_base.html)
         function adminApp() {
             return {
                 mobileSidebarOpen: false,
 
-                // Global alert system for AJAX responses (maintained from enrollment_base.html)
+                // Global alert system for AJAX responses
                 alert: {
                     show: false,
                     type: 'info',
@@ -555,6 +634,42 @@
 
                 dismissMessage() {
                     this.showMessage = false;
+                }
+            }
+        }
+
+        // Form validation helpers (maintained from enrollment_base.html)
+        function formValidation() {
+            return {
+                errors: {},
+
+                validateEmail(email) {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    return emailRegex.test(email);
+                },
+
+                validatePhone(phone) {
+                    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+                    return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+                },
+
+                addError(field, message) {
+                    if (!this.errors[field]) {
+                        this.errors[field] = [];
+                    }
+                    this.errors[field].push(message);
+                },
+
+                clearError(field) {
+                    delete this.errors[field];
+                },
+
+                hasErrors() {
+                    return Object.keys(this.errors).length > 0;
+                },
+
+                getError(field) {
+                    return this.errors[field] ? this.errors[field][0] : null;
                 }
             }
         }

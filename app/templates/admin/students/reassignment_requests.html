@@ -1,0 +1,497 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Reassignment Requests - {{ site_name or 'Programming Course' }}{% endblock %}
+
+{% block mobile_title %}Reassignment Requests{% endblock %}
+
+{% block content %}
+<div x-data="reassignmentRequests()">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Session Reassignment Requests</h1>
+            <p class="mt-1 text-sm text-gray-500">Review and process student session change requests</p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <button @click="showFilters = !showFilters"
+                    class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"></path>
+                </svg>
+                Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    {% if stats %}
+    <div class="mb-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Request Overview</h3>
+        <dl class="grid grid-cols-1 divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm md:grid-cols-4 md:divide-x md:divide-y-0">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Pending Requests</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-yellow-600">
+                        {{ stats.pending or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-yellow-100 px-2.5 py-0.5 text-sm font-medium text-yellow-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                        Needs Review
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Approved</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-green-600">
+                        {{ stats.approved or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-green-100 px-2.5 py-0.5 text-sm font-medium text-green-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        Processed
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Rejected</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-red-600">
+                        {{ stats.rejected or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-medium text-red-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                        Declined
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">This Week</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-blue-600">
+                        {{ stats.this_week or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path>
+                        </svg>
+                        Recent
+                    </div>
+                </dd>
+            </div>
+        </dl>
+    </div>
+    {% endif %}
+
+    <!-- Frequent Requesters Alert -->
+    {% if frequent_requesters %}
+    <div class="mb-8">
+        <div class="rounded-md bg-blue-50 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium text-blue-800">Frequent Requesters</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p class="mb-2">The following participants have multiple reassignment requests:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            {% for participant in frequent_requesters %}
+                            <li><strong>{{ participant.full_name }}</strong> ({{ participant.unique_id }}) - {{ participant.reassignments_count }} requests</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters Panel -->
+    <div x-show="showFilters"
+         x-collapse
+         class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form method="GET" action="{{ url_for('admin.reassignment_requests') }}" class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <!-- Status Filter -->
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select id="status" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                </select>
+            </div>
+
+            <!-- Day Filter -->
+            <div>
+                <label for="day" class="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                <select id="day" name="day" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All Days</option>
+                    <option value="Saturday" {% if day_filter == 'Saturday' %}selected{% endif %}>Saturday</option>
+                    <option value="Sunday" {% if day_filter == 'Sunday' %}selected{% endif %}>Sunday</option>
+                </select>
+            </div>
+
+            <!-- Priority Filter -->
+            <div>
+                <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <select id="priority" name="priority" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All Priorities</option>
+                    <option value="high" {% if priority_filter == 'high' %}selected{% endif %}>High</option>
+                    <option value="normal" {% if priority_filter == 'normal' %}selected{% endif %}>Normal</option>
+                    <option value="low" {% if priority_filter == 'low' %}selected{% endif %}>Low</option>
+                </select>
+            </div>
+
+            <!-- Submit Filters -->
+            <div class="flex items-end">
+                <button type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Requests Table -->
+    <div class="bg-white shadow-sm border border-gray-200 sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="sm:flex sm:items-center mb-4">
+                <div class="sm:flex-auto">
+                    <h3 class="text-base font-semibold text-gray-900">Reassignment Requests</h3>
+                    <p class="mt-2 text-sm text-gray-700">{{ requests|length if requests else 0 }} requests found</p>
+                </div>
+            </div>
+
+            {% if requests %}
+            <div class="mt-8 flow-root">
+                <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-gray-900 sm:pl-6">Participant</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Day</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Session Change</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Reason</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                                    <th scope="col" class="py-3.5 pr-4 pl-3 sm:pr-6">
+                                        <span class="sr-only">Actions</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                {% for request in requests %}
+                                <tr>
+                                    <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6">
+                                        <div class="flex items-center">
+                                            <div class="flex-none w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                                <span class="text-sm font-medium text-gray-600">
+                                                    {{ request.participant.full_name[0] if request.participant.full_name else 'N' }}
+                                                </span>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="font-medium text-gray-900">{{ request.participant.full_name }}</div>
+                                                <div class="text-gray-500">{{ request.participant.unique_id }} • {{ request.participant.email }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">
+                                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                            {{ request.day_type }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">
+                                        <div class="space-y-1">
+                                            <div class="text-xs text-gray-400">From: {{ request.current_session }}</div>
+                                            <div class="text-xs font-medium">To: {{ request.requested_session }}</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm text-gray-500">
+                                        <div class="max-w-xs truncate" title="{{ request.reason }}">
+                                            {{ request.reason or 'No reason provided' }}
+                                        </div>
+                                        {% if request.days_pending is defined %}
+                                        <div class="text-xs text-gray-400 mt-1">
+                                            {{ request.days_pending }} day{{ 's' if request.days_pending != 1 else '' }} ago
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap">
+                                        {% if request.status == 'pending' %}
+                                            <span class="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
+                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                Pending
+                                            </span>
+                                        {% elif request.status == 'approved' %}
+                                            <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                Approved
+                                            </span>
+                                        {% elif request.status == 'rejected' %}
+                                            <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
+                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                                </svg>
+                                                Rejected
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6">
+                                        {% if request.status == 'pending' %}
+                                        <div class="flex items-center justify-end space-x-2">
+                                            <button @click="approveRequest('{{ request.id }}', '{{ request.participant.full_name }}')"
+                                                    class="rounded bg-green-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                                Approve
+                                            </button>
+                                            <button @click="rejectRequest('{{ request.id }}', '{{ request.participant.full_name }}')"
+                                                    class="rounded bg-red-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                                                Reject
+                                            </button>
+                                        </div>
+                                        {% else %}
+                                        <a href="{{ url_for('admin.process_reassignment_request', request_id=request.id) }}"
+                                           class="text-blue-600 hover:text-blue-900">
+                                            View Details
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 7V3a4 4 0 118 0v4m-4 6v6m1-10V4a5 5 0 00-10 0v3M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No reassignment requests</h3>
+                <p class="mt-1 text-sm text-gray-500">No requests match your current filters.</p>
+                <div class="mt-6">
+                    <a href="{{ url_for('admin.reassignment_requests') }}"
+                       class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Clear Filters
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Approval Confirmation Modal -->
+    <div x-show="showApprovalModal"
+         x-transition
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div x-show="showApprovalModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+            <div x-show="showApprovalModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div>
+                    <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-green-100">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="size-6 text-green-600">
+                            <path d="m4.5 12.75 6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-5">
+                        <h3 class="text-base font-semibold text-gray-900">Approve Reassignment Request</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500" x-text="'Are you sure you want to approve the session reassignment request for ' + selectedParticipantName + '? This action will immediately update their session assignment.'"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                    <button type="button"
+                            @click="confirmApproval()"
+                            :disabled="processing"
+                            class="inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 sm:col-start-2 disabled:opacity-50">
+                        <span x-show="!processing">Approve Request</span>
+                        <span x-show="processing">Processing...</span>
+                    </button>
+                    <button type="button"
+                            @click="closeApprovalModal()"
+                            :disabled="processing"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0 disabled:opacity-50">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejection Confirmation Modal -->
+    <div x-show="showRejectionModal"
+         x-transition
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div x-show="showRejectionModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+            <div x-show="showRejectionModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:size-10">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="size-6 text-red-600">
+                            <path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-base font-semibold text-gray-900">Reject Reassignment Request</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500" x-text="'Are you sure you want to reject the session reassignment request for ' + selectedParticipantName + '? This action cannot be undone.'"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button type="button"
+                            @click="confirmRejection()"
+                            :disabled="processing"
+                            class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto disabled:opacity-50">
+                        <span x-show="!processing">Reject Request</span>
+                        <span x-show="processing">Processing...</span>
+                    </button>
+                    <button type="button"
+                            @click="closeRejectionModal()"
+                            :disabled="processing"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto disabled:opacity-50">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function reassignmentRequests() {
+    return {
+        showFilters: false,
+        showApprovalModal: false,
+        showRejectionModal: false,
+        selectedRequestId: null,
+        selectedParticipantName: '',
+        processing: false,
+
+        approveRequest(requestId, participantName) {
+            this.selectedRequestId = requestId;
+            this.selectedParticipantName = participantName;
+            this.showApprovalModal = true;
+        },
+
+        rejectRequest(requestId, participantName) {
+            this.selectedRequestId = requestId;
+            this.selectedParticipantName = participantName;
+            this.showRejectionModal = true;
+        },
+
+        async confirmApproval() {
+            this.processing = true;
+
+            try {
+                const response = await this.fetchWithCSRF(`/admin/reassignment-request/${this.selectedRequestId}/process`, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action: 'approve',
+                        admin_notes: 'Quick approval via admin dashboard'
+                    })
+                });
+
+                if (response.ok) {
+                    this.showAlert('success', 'Request approved successfully');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showAlert('error', 'Failed to approve request');
+                }
+            } catch (error) {
+                this.showAlert('error', 'Network error. Please try again.');
+            }
+
+            this.processing = false;
+            this.closeApprovalModal();
+        },
+
+        async confirmRejection() {
+            this.processing = true;
+
+            try {
+                const response = await this.fetchWithCSRF(`/admin/reassignment-request/${this.selectedRequestId}/process`, {
+                    method: 'POST',
+                    body: new URLSearchParams({
+                        action: 'reject',
+                        admin_notes: 'Rejected via admin dashboard'
+                    })
+                });
+
+                if (response.ok) {
+                    this.showAlert('success', 'Request rejected successfully');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showAlert('error', 'Failed to reject request');
+                }
+            } catch (error) {
+                this.showAlert('error', 'Network error. Please try again.');
+            }
+
+            this.processing = false;
+            this.closeRejectionModal();
+        },
+
+        closeApprovalModal() {
+            this.showApprovalModal = false;
+            this.selectedRequestId = null;
+            this.selectedParticipantName = '';
+        },
+
+        closeRejectionModal() {
+            this.showRejectionModal = false;
+            this.selectedRequestId = null;
+            this.selectedParticipantName = '';
+        }
+    }
+}
+</script>
+{% endblock %}

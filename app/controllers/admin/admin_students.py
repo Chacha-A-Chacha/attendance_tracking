@@ -19,8 +19,7 @@ from app.services.session_classroom_service import SessionClassroomService
 from app.utils.auth import permission_required, staff_required
 from app.extensions import db
 
-# Use the main admin blueprint as requested
-admin_bp = Blueprint('admin_students', __name__, url_prefix='/admin/students')
+from . import admin_bp
 
 
 @admin_bp.route('/participants')
@@ -828,4 +827,3 @@ def check_session_capacity(session_id, classroom):
     except Exception as e:
         current_app.logger.error(f"Capacity check error: {str(e)}")
         return jsonify({'error': 'Failed to check capacity'}), 500
-    

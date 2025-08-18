@@ -1,0 +1,391 @@
+{% extends "admin_base.html" %}
+
+{% block title %}All Participants - {{ site_name or 'Programming Course' }}{% endblock %}
+
+{% block mobile_title %}All Participants{% endblock %}
+
+{% block content %}
+<div x-data="participantsManager()">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">All Participants</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage and view all course participants</p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <button @click="showFilters = !showFilters"
+                    class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"></path>
+                </svg>
+                Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="mb-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Participant Overview</h3>
+        <dl class="grid grid-cols-1 divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm md:grid-cols-4 md:divide-x md:divide-y-0">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Total Participants</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-blue-600">
+                        {{ stats.total_participants or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 md:mt-2 lg:mt-0">
+                        <span class="sr-only">Total enrolled</span>
+                        All Classes
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Have Laptops</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-green-600">
+                        {{ stats.with_laptops or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-green-100 px-2.5 py-0.5 text-sm font-medium text-green-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-green-500">
+                            <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                        </svg>
+                        Equipment
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">User Accounts</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-purple-600">
+                        {{ stats.with_user_accounts or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-purple-100 px-2.5 py-0.5 text-sm font-medium text-purple-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-purple-500">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                        </svg>
+                        Active
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Graduated</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-yellow-600">
+                        {{ stats.graduated or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-yellow-100 px-2.5 py-0.5 text-sm font-medium text-yellow-800 md:mt-2 lg:mt-0">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="mr-0.5 -ml-1 size-4 shrink-0 self-center text-yellow-500">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                        </svg>
+                        Completed
+                    </div>
+                </dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Classroom Utilization -->
+    {% if classroom_utilization %}
+    <div class="mb-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Classroom Utilization</h3>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {% for classroom, data in classroom_utilization.items() %}
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900">Classroom {{ classroom }}</h4>
+                        <p class="text-sm text-gray-500">{{ data.current_count }}/{{ data.capacity }} participants</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-semibold text-gray-900">{{ data.utilization_percentage }}%</div>
+                        <div class="text-sm text-gray-500">{{ data.available_spots }} spots left</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="h-2 rounded-full transition-all duration-300
+                            {% if data.utilization_percentage >= 90 %}bg-red-500
+                            {% elif data.utilization_percentage >= 75 %}bg-yellow-500
+                            {% else %}bg-green-500{% endif %}"
+                             style="width: {{ data.utilization_percentage }}%"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters Panel -->
+    <div x-show="showFilters"
+         x-collapse
+         class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form method="GET" action="{{ url_for('admin.all_participants') }}" class="grid grid-cols-1 gap-4 md:grid-cols-5">
+            <!-- Search -->
+            <div>
+                <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input type="text"
+                       id="search"
+                       name="search"
+                       value="{{ search }}"
+                       placeholder="Name, email, ID..."
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+            </div>
+
+            <!-- Classroom Filter -->
+            <div>
+                <label for="classroom" class="block text-sm font-medium text-gray-700 mb-1">Classroom</label>
+                <select id="classroom" name="classroom" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All Classrooms</option>
+                    <option value="A" {% if classroom_filter == 'A' %}selected{% endif %}>Classroom A</option>
+                    <option value="B" {% if classroom_filter == 'B' %}selected{% endif %}>Classroom B</option>
+                    <option value="C" {% if classroom_filter == 'C' %}selected{% endif %}>Classroom C</option>
+                </select>
+            </div>
+
+            <!-- Laptop Filter -->
+            <div>
+                <label for="has_laptop" class="block text-sm font-medium text-gray-700 mb-1">Laptop</label>
+                <select id="has_laptop" name="has_laptop" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All</option>
+                    <option value="yes" {% if has_laptop_filter == 'yes' %}selected{% endif %}>Has Laptop</option>
+                    <option value="no" {% if has_laptop_filter == 'no' %}selected{% endif %}>No Laptop</option>
+                </select>
+            </div>
+
+            <!-- User Account Filter -->
+            <div>
+                <label for="has_user" class="block text-sm font-medium text-gray-700 mb-1">User Account</label>
+                <select id="has_user" name="has_user" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All</option>
+                    <option value="yes" {% if has_user_filter == 'yes' %}selected{% endif %}>Has Account</option>
+                    <option value="no" {% if has_user_filter == 'no' %}selected{% endif %}>No Account</option>
+                </select>
+            </div>
+
+            <!-- Submit Filters -->
+            <div class="flex items-end">
+                <button type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Participants Table -->
+    <div class="bg-white shadow-sm border border-gray-200 sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <div class="sm:flex sm:items-center mb-4">
+                <div class="sm:flex-auto">
+                    <h3 class="text-base font-semibold text-gray-900">Participants</h3>
+                    <p class="mt-2 text-sm text-gray-700">
+                        {% if participants.items %}
+                            Showing {{ participants.items|length }} of {{ participants.total }} participants
+                        {% else %}
+                            No participants found
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            {% if participants.items %}
+            <div class="mt-8 flow-root">
+                <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                    <div class="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">ID</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Classroom</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Sessions</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                                    <th scope="col" class="py-3.5 pr-4 pl-3 sm:pr-6">
+                                        <span class="sr-only">Actions</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                {% for participant in participants.items %}
+                                <tr>
+                                    <td class="py-4 pr-3 pl-4 text-sm font-medium whitespace-nowrap text-gray-900 sm:pl-6">
+                                        <div class="flex items-center">
+                                            <div class="flex-none w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                                <span class="text-sm font-medium text-gray-600">
+                                                    {{ participant.first_name[0] }}{{ participant.surname[0] }}
+                                                </span>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="font-medium text-gray-900">{{ participant.full_name }}</div>
+                                                <div class="text-gray-500">{{ participant.email }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">
+                                        <span class="text-blue-600 font-medium">{{ participant.unique_id }}</span>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">
+                                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                            {{ participant.classroom }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap text-gray-500">
+                                        <div class="space-y-1">
+                                            {% if participant.saturday_session %}
+                                                <div class="text-xs">Sat: {{ participant.saturday_session.time_slot }}</div>
+                                            {% endif %}
+                                            {% if participant.sunday_session %}
+                                                <div class="text-xs">Sun: {{ participant.sunday_session.time_slot }}</div>
+                                            {% endif %}
+                                            {% if not participant.saturday_session and not participant.sunday_session %}
+                                                <span class="text-yellow-600">No sessions assigned</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="px-3 py-4 text-sm whitespace-nowrap">
+                                        <div class="flex flex-col space-y-1">
+                                            <!-- Laptop Status -->
+                                            {% if participant.has_laptop %}
+                                                <span class="inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Has Laptop
+                                                </span>
+                                            {% else %}
+                                                <span class="inline-flex items-center rounded-full bg-gray-50 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+                                                    No Laptop
+                                                </span>
+                                            {% endif %}
+
+                                            <!-- User Account Status -->
+                                            {% if participant.has_user_account() %}
+                                                <span class="inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Has Account
+                                                </span>
+                                            {% else %}
+                                                <span class="inline-flex items-center rounded-full bg-yellow-50 px-1.5 py-0.5 text-xs font-medium text-yellow-700">
+                                                    No Account
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="py-4 pr-4 pl-3 text-right text-sm font-medium whitespace-nowrap sm:pr-6">
+                                        <a href="{{ url_for('admin.participant_detail', participant_id=participant.id) }}"
+                                           class="text-blue-600 hover:text-blue-900">
+                                            View
+                                            <span class="sr-only">, {{ participant.full_name }}</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if participants.pages > 1 %}
+            <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6">
+                <div class="flex flex-1 justify-between sm:hidden">
+                    {% if participants.has_prev %}
+                        <a href="{{ url_for('admin.all_participants', page=participants.prev_num, search=search, classroom=classroom_filter, has_laptop=has_laptop_filter, has_user=has_user_filter) }}"
+                           class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Previous
+                        </a>
+                    {% endif %}
+                    {% if participants.has_next %}
+                        <a href="{{ url_for('admin.all_participants', page=participants.next_num, search=search, classroom=classroom_filter, has_laptop=has_laptop_filter, has_user=has_user_filter) }}"
+                           class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Next
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing <span class="font-medium">{{ ((participants.page - 1) * participants.per_page) + 1 }}</span>
+                            to <span class="font-medium">{{ ((participants.page - 1) * participants.per_page) + participants.items|length }}</span>
+                            of <span class="font-medium">{{ participants.total }}</span> results
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                            {% if participants.has_prev %}
+                                <a href="{{ url_for('admin.all_participants', page=participants.prev_num, search=search, classroom=classroom_filter, has_laptop=has_laptop_filter, has_user=has_user_filter) }}"
+                                   class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                    <span class="sr-only">Previous</span>
+                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                                    </svg>
+                                </a>
+                            {% endif %}
+
+                            <!-- Page numbers -->
+                            {% for page_num in participants.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != participants.page %}
+                                        <a href="{{ url_for('admin.all_participants', page=page_num, search=search, classroom=classroom_filter, has_laptop=has_laptop_filter, has_user=has_user_filter) }}"
+                                           class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                            {{ page_num }}
+                                        </a>
+                                    {% else %}
+                                        <a href="#" aria-current="page"
+                                           class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                                            {{ page_num }}
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">...</span>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if participants.has_next %}
+                                <a href="{{ url_for('admin.all_participants', page=participants.next_num, search=search, classroom=classroom_filter, has_laptop=has_laptop_filter, has_user=has_user_filter) }}"
+                                   class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+                                    <span class="sr-only">Next</span>
+                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                                    </svg>
+                                </a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m3 4.197a4 4 0 11-6.836-4.342 4 4 0 016.836 4.342z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No participants found</h3>
+                <p class="mt-1 text-sm text-gray-500">No participants match your current filters.</p>
+                <div class="mt-6">
+                    <a href="{{ url_for('admin.all_participants') }}"
+                       class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Clear Filters
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function participantsManager() {
+    return {
+        showFilters: false
+    }
+}
+</script>
+{% endblock %}

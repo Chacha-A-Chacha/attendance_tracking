@@ -1,0 +1,397 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Process Reassignment Request - {{ site_name or 'Programming Course' }}{% endblock %}
+
+{% block mobile_title %}Process Request{% endblock %}
+
+{% block content %}
+<div x-data="processReassignment()">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="Breadcrumb" class="flex mb-6">
+        <ol role="list" class="flex items-center space-x-4">
+            <li>
+                <div>
+                    <a href="{{ url_for('admin.dashboard') }}" class="text-gray-400 hover:text-gray-500">
+                        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5 shrink-0">
+                            <path d="M9.293 2.293a1 1 0 0 1 1.414 0l7 7A1 1 0 0 1 17 11h-1v6a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-6H3a1 1 0 0 1-.707-1.707l7-7Z" clip-rule="evenodd" fill-rule="evenodd" />
+                        </svg>
+                        <span class="sr-only">Home</span>
+                    </a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5 shrink-0 text-gray-400">
+                        <path d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" fill-rule="evenodd" />
+                    </svg>
+                    <a href="{{ url_for('admin.reassignment_requests') }}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Reassignment Requests</a>
+                </div>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-5 shrink-0 text-gray-400">
+                        <path d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" fill-rule="evenodd" />
+                    </svg>
+                    <span aria-current="page" class="ml-4 text-sm font-medium text-gray-500">Process Request</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Process Reassignment Request</h1>
+            <p class="mt-1 text-sm text-gray-500">Review and process session change request</p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <a href="{{ url_for('admin.participant_detail', participant_id=request.participant.id) }}"
+               class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+                View Participant
+            </a>
+        </div>
+    </div>
+
+    <!-- Request Overview -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Request Details</h3>
+
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <!-- Participant Information -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-900 mb-4">Participant Information</h4>
+                <dl class="space-y-3">
+                    <div class="flex items-center">
+                        <div class="flex-none w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-4">
+                            <span class="text-sm font-medium text-gray-600">
+                                {{ request.participant.first_name[0] }}{{ request.participant.surname[0] }}
+                            </span>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-900">{{ request.participant.full_name }}</dt>
+                            <dd class="text-sm text-gray-500">{{ request.participant.unique_id }} • {{ request.participant.email }}</dd>
+                        </div>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Classroom</dt>
+                        <dd class="text-sm text-gray-900">
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                Room {{ request.participant.classroom }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Equipment</dt>
+                        <dd class="text-sm text-gray-900">
+                            {% if request.participant.has_laptop %}
+                                <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Has Laptop
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">
+                                    No Laptop
+                                </span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Total Reassignments</dt>
+                        <dd class="text-sm text-gray-900">
+                            <span class="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
+                                {{ request.participant.reassignments_count }} total
+                            </span>
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Request Information -->
+            <div>
+                <h4 class="text-sm font-medium text-gray-900 mb-4">Request Information</h4>
+                <dl class="space-y-3">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Day</dt>
+                        <dd class="text-sm text-gray-900">
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                {{ request.day_type }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Current Session</dt>
+                        <dd class="text-sm text-gray-900 font-medium">{{ request.current_session.time_slot }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Requested Session</dt>
+                        <dd class="text-sm text-gray-900 font-medium text-green-600">{{ request.requested_session.time_slot }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Priority</dt>
+                        <dd class="text-sm text-gray-900">
+                            {% if request.priority == 'high' %}
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
+                                    High Priority
+                                </span>
+                            {% elif request.priority == 'normal' %}
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                    Normal
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">
+                                    Low Priority
+                                </span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Submitted</dt>
+                        <dd class="text-sm text-gray-900">{{ request.created_at.strftime('%B %d, %Y at %I:%M %p') }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Days Pending</dt>
+                        <dd class="text-sm text-gray-900">
+                            {% set days_pending = (moment.utcnow() - request.created_at).days %}
+                            {% if days_pending > 7 %}
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
+                                    {{ days_pending }} days
+                                </span>
+                            {% elif days_pending > 3 %}
+                                <span class="inline-flex items-center rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
+                                    {{ days_pending }} days
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                                    {{ days_pending }} days
+                                </span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Request Reason -->
+        {% if request.reason %}
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">Reason for Request</h4>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-sm text-gray-700">{{ request.reason }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Session Change Visualization -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Session Change</h3>
+
+        <div class="flex items-center justify-center">
+            <div class="flex items-center space-x-8">
+                <!-- Current Session -->
+                <div class="text-center">
+                    <div class="bg-gray-100 rounded-lg p-6 border-2 border-gray-200">
+                        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Current Session</div>
+                        <div class="text-lg font-semibold text-gray-900">{{ request.current_session.time_slot }}</div>
+                        <div class="text-sm text-gray-500 mt-1">{{ request.day_type }}</div>
+                    </div>
+                </div>
+
+                <!-- Arrow -->
+                <div class="flex-shrink-0">
+                    <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                    </svg>
+                </div>
+
+                <!-- Requested Session -->
+                <div class="text-center">
+                    <div class="bg-green-50 rounded-lg p-6 border-2 border-green-200">
+                        <div class="text-xs font-medium text-green-600 uppercase tracking-wide mb-2">Requested Session</div>
+                        <div class="text-lg font-semibold text-green-900">{{ request.requested_session.time_slot }}</div>
+                        <div class="text-sm text-green-600 mt-1">{{ request.day_type }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capacity Information -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Session Capacity Status</h3>
+
+        <div class="space-y-4">
+            <!-- Capacity Overview -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900">{{ request.requested_session.time_slot }} - Room {{ request.participant.classroom }}</h4>
+                    <p class="text-sm text-gray-500">Current capacity for {{ request.day_type }} session</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-2xl font-semibold
+                        {% if capacity_info.at_capacity %}text-red-600
+                        {% elif capacity_info.available <= 2 %}text-yellow-600
+                        {% else %}text-green-600{% endif %}">
+                        {{ capacity_info.current }}/{{ capacity_info.capacity }}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        {{ capacity_info.available }} spot{{ 's' if capacity_info.available != 1 else '' }} available
+                    </div>
+                </div>
+            </div>
+
+            <!-- Capacity Bar -->
+            <div class="w-full bg-gray-200 rounded-full h-3">
+                {% set utilization_percentage = (capacity_info.current / capacity_info.capacity * 100) if capacity_info.capacity > 0 else 0 %}
+                <div class="h-3 rounded-full transition-all duration-300
+                    {% if capacity_info.at_capacity %}bg-red-500
+                    {% elif utilization_percentage >= 90 %}bg-yellow-500
+                    {% else %}bg-green-500{% endif %}"
+                     style="width: {{ utilization_percentage }}%"></div>
+            </div>
+
+            <!-- Capacity Status Alert -->
+            {% if capacity_info.at_capacity %}
+            <div class="rounded-md bg-red-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Session at Capacity</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>The requested session is currently at full capacity. Approving this request would exceed the classroom limit.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% elif capacity_info.available <= 2 %}
+            <div class="rounded-md bg-yellow-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">Limited Capacity</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <p>The requested session has very limited capacity remaining. Only {{ capacity_info.available }} spot{{ 's' if capacity_info.available != 1 else '' }} available.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="rounded-md bg-green-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-green-800">Capacity Available</h3>
+                        <div class="mt-2 text-sm text-green-700">
+                            <p>The requested session has sufficient capacity. {{ capacity_info.available }} spot{{ 's' if capacity_info.available != 1 else '' }} available.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Decision Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Process Request</h3>
+
+        <form method="POST" action="{{ url_for('admin.process_reassignment_request', request_id=request.id) }}" x-data="{ action: '', submitting: false }" @submit="submitting = true">
+            {{ csrf_token() }}
+
+            <!-- Admin Notes -->
+            <div class="mb-6">
+                <label for="admin_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                    Admin Notes <span class="text-gray-400">(Optional)</span>
+                </label>
+                <textarea
+                    id="admin_notes"
+                    name="admin_notes"
+                    rows="4"
+                    placeholder="Add any notes about your decision..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <p class="mt-2 text-sm text-gray-500">These notes will be recorded with your decision and may be visible to other administrators.</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button
+                    type="submit"
+                    name="action"
+                    value="approve"
+                    :disabled="submitting"
+                    {% if capacity_info.at_capacity %}disabled{% endif %}
+                    class="flex-1 inline-flex justify-center items-center rounded-md bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span x-show="!submitting || action !== 'approve'">Approve Request</span>
+                    <span x-show="submitting && action === 'approve'">Approving...</span>
+                </button>
+
+                <button
+                    type="submit"
+                    name="action"
+                    value="reject"
+                    :disabled="submitting"
+                    class="flex-1 inline-flex justify-center items-center rounded-md bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    <span x-show="!submitting || action !== 'reject'">Reject Request</span>
+                    <span x-show="submitting && action === 'reject'">Rejecting...</span>
+                </button>
+            </div>
+
+            {% if capacity_info.at_capacity %}
+            <div class="mt-4 text-sm text-red-600">
+                <p><strong>Note:</strong> The approve button is disabled because the requested session is at full capacity.</p>
+            </div>
+            {% endif %}
+        </form>
+
+        <!-- Alternative Actions -->
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900">Need more information?</h4>
+                    <p class="text-sm text-gray-500">View the participant's full profile or attendance history.</p>
+                </div>
+                <a href="{{ url_for('admin.participant_detail', participant_id=request.participant.id) }}"
+                   class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    View Full Profile
+                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function processReassignment() {
+    return {
+        // Any additional JavaScript functionality can be added here
+    }
+}
+</script>
+{% endblock %}

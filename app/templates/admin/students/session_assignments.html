@@ -1,0 +1,356 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Session Assignments - {{ site_name or 'Programming Course' }}{% endblock %}
+
+{% block mobile_title %}Session Assignments{% endblock %}
+
+{% block content %}
+<div x-data="sessionAssignments()">
+    <!-- Page Header -->
+    <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Session Assignments</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage participant session assignments and capacity</p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <button @click="showFilters = !showFilters"
+                    class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z"></path>
+                </svg>
+                Filters
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    {% if session_report and session_report.overview %}
+    <div class="mb-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Session Overview</h3>
+        <dl class="grid grid-cols-1 divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm md:grid-cols-4 md:divide-x md:divide-y-0">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Total Participants</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-blue-600">
+                        {{ session_report.overview.total_participants or 0 }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 md:mt-2 lg:mt-0">
+                        <span class="sr-only">Total assigned</span>
+                        Assigned
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Laptop Classroom</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-green-600">
+                        {{ session_report.overview.classroom_distribution.get('205', 0) }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-green-100 px-2.5 py-0.5 text-sm font-medium text-green-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clip-rule="evenodd"></path>
+                        </svg>
+                        Room 205
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">No-Laptop Classroom</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-purple-600">
+                        {{ session_report.overview.classroom_distribution.get('203', 0) }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-purple-100 px-2.5 py-0.5 text-sm font-medium text-purple-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"></path>
+                        </svg>
+                        Room 203
+                    </div>
+                </dd>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-base font-normal text-gray-900">Reassignment Requests</dt>
+                <dd class="mt-1 flex items-baseline justify-between md:block lg:flex">
+                    <div class="flex items-baseline text-2xl font-semibold text-yellow-600">
+                        {{ session_report.overview.reassignment_requests.get('pending', 0) }}
+                    </div>
+                    <div class="inline-flex items-baseline rounded-full bg-yellow-100 px-2.5 py-0.5 text-sm font-medium text-yellow-800 md:mt-2 lg:mt-0">
+                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                        Pending
+                    </div>
+                </dd>
+            </div>
+        </dl>
+    </div>
+    {% endif %}
+
+    <!-- Capacity Warnings -->
+    {% if capacity_warnings and (capacity_warnings.at_capacity or capacity_warnings.near_capacity or capacity_warnings.over_capacity) %}
+    <div class="mb-8">
+        <h3 class="text-base font-semibold text-gray-900 mb-4">Capacity Warnings</h3>
+
+        {% if capacity_warnings.over_capacity %}
+        <div class="mb-4">
+            <div class="rounded-md bg-red-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Over Capacity Sessions</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                {% for warning in capacity_warnings.over_capacity %}
+                                <li>{{ warning.day }} {{ warning.time_slot }} - Room {{ warning.classroom }}: {{ warning.current_count }}/{{ warning.capacity }} ({{ warning.utilization_percentage }}%)</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if capacity_warnings.at_capacity %}
+        <div class="mb-4">
+            <div class="rounded-md bg-yellow-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">At Capacity Sessions</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                {% for warning in capacity_warnings.at_capacity %}
+                                <li>{{ warning.day }} {{ warning.time_slot }} - Room {{ warning.classroom }}: {{ warning.current_count }}/{{ warning.capacity }} ({{ warning.utilization_percentage }}%)</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if capacity_warnings.near_capacity %}
+        <div class="mb-4">
+            <div class="rounded-md bg-blue-50 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800">Near Capacity Sessions (>90%)</h3>
+                        <div class="mt-2 text-sm text-blue-700">
+                            <ul class="list-disc list-inside space-y-1">
+                                {% for warning in capacity_warnings.near_capacity %}
+                                <li>{{ warning.day }} {{ warning.time_slot }} - Room {{ warning.classroom }}: {{ warning.current_count }}/{{ warning.capacity }} ({{ warning.utilization_percentage }}%)</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Filters Panel -->
+    <div x-show="showFilters"
+         x-collapse
+         class="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <form method="GET" action="{{ url_for('admin.session_assignments') }}" class="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <!-- Day Filter -->
+            <div>
+                <label for="day" class="block text-sm font-medium text-gray-700 mb-1">Day</label>
+                <select id="day" name="day" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All Days</option>
+                    <option value="Saturday" {% if day_filter == 'Saturday' %}selected{% endif %}>Saturday</option>
+                    <option value="Sunday" {% if day_filter == 'Sunday' %}selected{% endif %}>Sunday</option>
+                </select>
+            </div>
+
+            <!-- Classroom Filter -->
+            <div>
+                <label for="classroom" class="block text-sm font-medium text-gray-700 mb-1">Classroom</label>
+                <select id="classroom" name="classroom" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All Classrooms</option>
+                    <option value="205" {% if classroom_filter == '205' %}selected{% endif %}>Room 205 (Laptop)</option>
+                    <option value="203" {% if classroom_filter == '203' %}selected{% endif %}>Room 203 (No Laptop)</option>
+                </select>
+            </div>
+
+            <!-- Session Filter -->
+            <div>
+                <label for="session" class="block text-sm font-medium text-gray-700 mb-1">Session Time</label>
+                <select id="session" name="session" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="">All Sessions</option>
+                    <!-- Dynamic session options would be populated from backend -->
+                    <option value="09:00-11:00" {% if session_filter == '09:00-11:00' %}selected{% endif %}>09:00-11:00</option>
+                    <option value="11:00-13:00" {% if session_filter == '11:00-13:00' %}selected{% endif %}>11:00-13:00</option>
+                    <option value="14:00-16:00" {% if session_filter == '14:00-16:00' %}selected{% endif %}>14:00-16:00</option>
+                    <option value="16:00-18:00" {% if session_filter == '16:00-18:00' %}selected{% endif %}>16:00-18:00</option>
+                </select>
+            </div>
+
+            <!-- Submit Filters -->
+            <div class="flex items-end">
+                <button type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Session Assignment Data -->
+    {% if assignment_data %}
+    <div class="space-y-8">
+        {% for day, sessions in assignment_data.items() %}
+            {% if not day_filter or day_filter.lower() == day %}
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                    {{ day.title() }} Sessions
+                </h3>
+
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {% for session_data in sessions %}
+                        {% if not session_filter or session_data.session.time_slot == session_filter %}
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                            <div class="px-6 py-4 border-b border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-base font-medium text-gray-900">{{ session_data.session.time_slot }}</h4>
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                                        {{ session_data.total_count }} participants
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="p-6">
+                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <!-- Laptop Classroom -->
+                                    {% if not classroom_filter or classroom_filter == '205' %}
+                                    <div>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h5 class="text-sm font-medium text-gray-900">Room 205 (Laptop)</h5>
+                                            <span class="text-sm text-gray-500">{{ session_data.laptop_count }} students</span>
+                                        </div>
+                                        {% if session_data.laptop_participants %}
+                                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                                {% for participant in session_data.laptop_participants[:5] %}
+                                                <div class="flex items-center text-xs text-gray-600">
+                                                    <span class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                                                        <span class="text-green-600 font-medium">{{ participant.first_name[0] }}</span>
+                                                    </span>
+                                                    <span class="truncate">{{ participant.full_name }}</span>
+                                                </div>
+                                                {% endfor %}
+                                                {% if session_data.laptop_participants|length > 5 %}
+                                                <div class="text-xs text-gray-400 pl-8">
+                                                    +{{ session_data.laptop_participants|length - 5 }} more...
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div class="text-sm text-gray-400 italic">No participants assigned</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- No-Laptop Classroom -->
+                                    {% if not classroom_filter or classroom_filter == '203' %}
+                                    <div>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h5 class="text-sm font-medium text-gray-900">Room 203 (No Laptop)</h5>
+                                            <span class="text-sm text-gray-500">{{ session_data.no_laptop_count }} students</span>
+                                        </div>
+                                        {% if session_data.no_laptop_participants %}
+                                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                                {% for participant in session_data.no_laptop_participants[:5] %}
+                                                <div class="flex items-center text-xs text-gray-600">
+                                                    <span class="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center mr-2">
+                                                        <span class="text-purple-600 font-medium">{{ participant.first_name[0] }}</span>
+                                                    </span>
+                                                    <span class="truncate">{{ participant.full_name }}</span>
+                                                </div>
+                                                {% endfor %}
+                                                {% if session_data.no_laptop_participants|length > 5 %}
+                                                <div class="text-xs text-gray-400 pl-8">
+                                                    +{{ session_data.no_laptop_participants|length - 5 }} more...
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div class="text-sm text-gray-400 italic">No participants assigned</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Capacity Utilization Bar -->
+                                {% set laptop_capacity = 30 %}
+                                {% set no_laptop_capacity = 30 %}
+                                {% set total_capacity = laptop_capacity + no_laptop_capacity %}
+                                {% set utilization_percentage = ((session_data.total_count / total_capacity) * 100) if total_capacity > 0 else 0 %}
+
+                                <div class="mt-4 pt-4 border-t border-gray-200">
+                                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                        <span>Session Capacity</span>
+                                        <span>{{ session_data.total_count }}/{{ total_capacity }} ({{ "%.1f"|format(utilization_percentage) }}%)</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="h-2 rounded-full transition-all duration-300
+                                            {% if utilization_percentage >= 100 %}bg-red-500
+                                            {% elif utilization_percentage >= 90 %}bg-yellow-500
+                                            {% else %}bg-green-500{% endif %}"
+                                             style="width: {{ utilization_percentage }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No session assignments</h3>
+        <p class="mt-1 text-sm text-gray-500">No session assignments match your current filters.</p>
+        <div class="mt-6">
+            <a href="{{ url_for('admin.session_assignments') }}"
+               class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Clear Filters
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function sessionAssignments() {
+    return {
+        showFilters: false
+    }
+}
+</script>
+{% endblock %}

@@ -570,7 +570,7 @@ def get_reassignment_requests():
 
 
 @admin_bp.route('/process-reassignment/<int:request_id>', methods=['POST'])
-def process_reassignment_request(request_id):
+def process_reassignment_request_old(request_id):
     """Process (approve/reject) a reassignment request"""
     # Get request data
     approve_value = request.form.get('approve', '')

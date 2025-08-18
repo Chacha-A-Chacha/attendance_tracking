@@ -48,7 +48,7 @@ def pending_applications():
 
         # Get enrollments that are pending or payment-related
         enrollments = EnrollmentService.get_enrollments_for_admin(
-            status=EnrollmentStatus.PENDING,
+            status=EnrollmentStatus.PAYMENT_PENDING,
             limit=per_page,
             offset=(page - 1) * per_page
         )
@@ -87,6 +87,7 @@ def pending_applications():
 
         return render_template(
             'admin/enrollment/pending_applications.html',
+            current_app=current_app,
             enrollments=enrollments,
             ready_enrollments=ready_enrollments,
             stats=dashboard_stats,
@@ -377,7 +378,7 @@ def application_detail(enrollment_id):
     except Exception as e:
         flash('Error loading application details.', 'error')
         current_app.logger.error(f"Application detail error: {str(e)}")
-        return redirect(url_for('admin_enrollment.pending_applications'))
+        return redirect(url_for('admin.pending_applications'))
 
 
 @admin_bp.route('/<enrollment_id>/verify-payment', methods=['GET', 'POST'])
@@ -422,7 +423,7 @@ def verify_payment(enrollment_id):
     except Exception as e:
         flash('Error processing payment verification.', 'error')
         current_app.logger.error(f"Payment verification error: {str(e)}")
-        return redirect(url_for('admin_enrollment.payment_verification'))
+        return redirect(url_for('admin.payment_verification'))
 
 
 @admin_bp.route('/<enrollment_id>/approve', methods=['GET', 'POST'])
@@ -435,11 +436,11 @@ def approve_application(enrollment_id):
 
         if not enrollment:
             flash('Enrollment application not found.', 'error')
-            return redirect(url_for('admin_enrollment.pending_applications'))
+            return redirect(url_for('admin.pending_applications'))
 
         if not enrollment.is_ready_for_enrollment():
             flash('Application is not ready for approval. Email and payment must be verified first.', 'warning')
-            return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+            return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
         if request.method == 'POST':
             classroom = request.form.get('classroom')
@@ -460,7 +461,7 @@ def approve_application(enrollment_id):
                 flash(f'Application approved! Participant {participant.unique_id} created successfully.', 'success')
                 flash('Welcome email with login credentials has been sent to the participant.', 'info')
 
-                return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+                return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
             except Exception as e:
                 flash('Error approving application.', 'error')
@@ -488,7 +489,7 @@ def approve_application(enrollment_id):
     except Exception as e:
         flash('Error processing application approval.', 'error')
         current_app.logger.error(f"Application approval error: {str(e)}")
-        return redirect(url_for('admin_enrollment.pending_applications'))
+        return redirect(url_for('admin.pending_applications'))
 
 
 @admin_bp.route('/<enrollment_id>/reject', methods=['GET', 'POST'])
@@ -501,11 +502,11 @@ def reject_application(enrollment_id):
 
         if not enrollment:
             flash('Enrollment application not found.', 'error')
-            return redirect(url_for('admin_enrollment.pending_applications'))
+            return redirect(url_for('admin.pending_applications'))
 
         if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
             flash('Cannot reject - application is already enrolled as participant.', 'error')
-            return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+            return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
         if request.method == 'POST':
             reason = request.form.get('reason', '').strip()
@@ -524,7 +525,7 @@ def reject_application(enrollment_id):
                 flash(f'Application {enrollment.application_number} has been rejected.', 'success')
                 flash('Rejection notification email has been sent to the applicant.', 'info')
 
-                return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+                return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
             except Exception as e:
                 flash('Error rejecting application.', 'error')
@@ -549,7 +550,7 @@ def reject_application(enrollment_id):
     except Exception as e:
         flash('Error processing application rejection.', 'error')
         current_app.logger.error(f"Application rejection error: {str(e)}")
-        return redirect(url_for('admin_enrollment.pending_applications'))
+        return redirect(url_for('admin.pending_applications'))
 
 
 @admin_bp.route('/<enrollment_id>/resend-verification')
@@ -562,11 +563,11 @@ def resend_verification_email(enrollment_id):
 
         if not enrollment:
             flash('Enrollment application not found.', 'error')
-            return redirect(url_for('admin_enrollment.pending_applications'))
+            return redirect(url_for('admin.pending_applications'))
 
         if enrollment.email_verified:
             flash('Email is already verified.', 'info')
-            return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+            return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
         # Resend verification email
         task_id, token = EnrollmentService.send_email_verification(
@@ -576,12 +577,12 @@ def resend_verification_email(enrollment_id):
 
         flash(f'Verification email resent to {enrollment.email}.', 'success')
 
-        return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+        return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
     except Exception as e:
         flash('Error resending verification email.', 'error')
         current_app.logger.error(f"Resend verification error: {str(e)}")
-        return redirect(url_for('admin_enrollment.application_detail', enrollment_id=enrollment_id))
+        return redirect(url_for('admin.application_detail', enrollment_id=enrollment_id))
 
 
 @admin_bp.route('/<enrollment_id>/receipt')
