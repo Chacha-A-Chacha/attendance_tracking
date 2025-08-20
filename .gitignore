@@ -178,3 +178,4 @@ node_modules/
 /utils/data
 /app/uploads/
 /app/static/qrcodes/
+.env.backup

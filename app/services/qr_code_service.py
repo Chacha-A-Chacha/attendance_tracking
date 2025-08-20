@@ -472,4 +472,3 @@ class QRCodeService:
                 logging.getLogger('qr_code_service').info(f"Cleaned up QR file: {qr_path}")
         except Exception as e:
             logging.getLogger('qr_code_service').warning(f"Could not delete QR file {qr_path}: {str(e)}")
-            

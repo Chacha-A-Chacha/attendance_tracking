@@ -1,4 +1,8 @@
 # models/participant.py
+import os
+
+from flask import url_for, current_app
+
 from app.extensions import db
 import random
 import string
@@ -16,6 +20,8 @@ class Participant(BaseModel):
     surname = db.Column(db.String(80), nullable=False)
     first_name = db.Column(db.String(80), nullable=False)
     second_name = db.Column(db.String(80), nullable=True)
+
+    profile_photo_path = db.Column(db.String(255), nullable=True)
 
     phone = db.Column(db.String(20), nullable=False)
     has_laptop = db.Column(db.Boolean, default=False)
@@ -104,6 +110,28 @@ class Participant(BaseModel):
             return self.saturday_session_id == session_id
         else:
             return self.sunday_session_id == session_id
+
+    def profile_photo_url(self):
+        if not self.profile_photo_path:
+            return None
+
+        try:
+            filename = os.path.basename(self.profile_photo_path)
+            return url_for('static', filename=f'profile_photos/{filename}')
+        except Exception as e:
+            current_app.logger.error(f'Error in Participant model: {e}')
+            return None
+
+    def delete_profile_photo(self):
+        """Delete profile photo file and clear path."""
+        if self.profile_photo_path:
+            try:
+                if os.path.isfile(self.profile_photo_path):
+                    os.remove(self.profile_photo_path)
+            except Exception:
+                pass  # Log error in production
+            finally:
+                self.profile_photo_path = None
 
     def create_user_account(self, username=None, password=None, roles=None):
         """Create a user account for this participant."""

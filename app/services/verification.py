@@ -102,7 +102,7 @@ class AttendanceVerifier:
                     'status': 'already_recorded',
                     'is_correct_session': existing_attendance.is_correct_session
                 })
-                
+
                 # Add information about correct session if needed
                 if not existing_attendance.is_correct_session:
                     response.update({
@@ -111,9 +111,9 @@ class AttendanceVerifier:
                             'day': expected_session.day if expected_session else self.get_current_day_name()
                         }
                     })
-                    
+
                 return response
-                
+
             # Record new attendance since it doesn't exist yet
             attendance = Attendance(
                 participant_id=participant.id,
@@ -165,7 +165,6 @@ class AttendanceVerifier:
                 'error_code': 'unknown_error'
             }
 
-    
     def mark_absent_participants(self, session_id):
         """Mark as absent all participants who were expected but not recorded for a session"""
         try:
@@ -177,25 +176,25 @@ class AttendanceVerifier:
                     'message': 'Session not found',
                     'error_code': 'session_not_found'
                 }
-                
+
             # Determine which day this is for
             is_saturday = session.day == 'Saturday'
-            
+
             # Find all participants expected in this session
             if is_saturday:
                 expected_participants = Participant.query.filter_by(saturday_session_id=session_id).all()
             else:
                 expected_participants = Participant.query.filter_by(sunday_session_id=session_id).all()
-                
+
             # Get all attendance records for this session
             attendance_records = Attendance.query.filter_by(session_id=session_id).all()
-            
+
             # Get IDs of participants who already have attendance records
             recorded_participant_ids = [record.participant_id for record in attendance_records]
-            
+
             # Find participants without attendance records
             absent_participants = [p for p in expected_participants if p.id not in recorded_participant_ids]
-            
+
             # Mark these participants as absent
             for participant in absent_participants:
                 # Create an absence record
@@ -207,16 +206,16 @@ class AttendanceVerifier:
                     status='absent'  # Add a status field to the Attendance model
                 )
                 db.session.add(absence)
-                
+
             db.session.commit()
-            
+
             return {
                 'success': True,
                 'message': f'Marked {len(absent_participants)} participants as absent',
                 'absent_count': len(absent_participants),
                 'total_expected': len(expected_participants)
             }
-                
+
         except SQLAlchemyError as e:
             db.session.rollback()
             current_app.logger.error(f"Database error marking absences: {str(e)}")
@@ -234,7 +233,6 @@ class AttendanceVerifier:
                 'error_code': 'unknown_error'
             }
 
-    
     def get_participant_attendance_history(self, unique_id):
         """Get attendance history for a participant"""
         participant = Participant.query.filter_by(unique_id=unique_id).first()
@@ -270,7 +268,6 @@ class AttendanceVerifier:
             },
             'attendance_history': history
         }
-    
 
     def get_attendance_by_session(self, session_id, date=None, include_absent=True):
         """
@@ -294,7 +291,7 @@ class AttendanceVerifier:
                     'message': 'Session not found',
                     'error_code': 'session_not_found'
                 }
-                
+
             # Handle date parameter
             if date is None:
                 # Use current date
@@ -312,7 +309,7 @@ class AttendanceVerifier:
             else:
                 # Assume it's already a date object
                 attendance_date = date
-                
+
             # Verify the day of week matches the session day
             day_of_week = attendance_date.strftime("%A")
             if day_of_week != session.day:
@@ -321,29 +318,29 @@ class AttendanceVerifier:
                     'message': f'Date {attendance_date} is a {day_of_week}, not a {session.day}',
                     'error_code': 'day_mismatch'
                 }
-                
+
             # Determine if this is a Saturday or Sunday session
             is_saturday = session.day == 'Saturday'
-            
+
             # Get all expected participants for this session
             if is_saturday:
                 expected_participants = Participant.query.filter_by(saturday_session_id=session_id).all()
             else:
                 expected_participants = Participant.query.filter_by(sunday_session_id=session_id).all()
-                
+
             # Get all attendance records for this session on the specific date
             # Filter by both session_id and date
             attendance_records = Attendance.query.filter(
                 Attendance.session_id == session_id,
                 func.date(Attendance.timestamp) == attendance_date
             ).all()
-            
+
             # Create a mapping of participant ID to attendance record
             attendance_map = {record.participant_id: record for record in attendance_records}
-            
+
             # Organize participants by classroom
             classes = {}
-            
+
             # Track statistics
             stats = {
                 'total_expected': len(expected_participants),
@@ -352,7 +349,7 @@ class AttendanceVerifier:
                 'wrong_session': 0,
                 'by_class': {}
             }
-            
+
             # Process each expected participant
             for participant in expected_participants:
                 # Get classroom and initialize if needed
@@ -369,13 +366,13 @@ class AttendanceVerifier:
                         'absent': 0,
                         'wrong_session': 0
                     }
-                
+
                 stats['by_class'][classroom]['expected'] += 1
-                
+
                 # Check if participant has an attendance record
                 if participant.id in attendance_map:
                     record = attendance_map[participant.id]
-                    
+
                     # Check if they were in the correct session
                     if record.is_correct_session:
                         # Check if they were marked as present or absent
@@ -428,17 +425,18 @@ class AttendanceVerifier:
                     })
                     stats['total_absent'] += 1
                     stats['by_class'][classroom]['absent'] += 1
-            
+
             # Calculate attendance percentages
             if stats['total_expected'] > 0:
                 stats['attendance_rate'] = round((stats['total_present'] / stats['total_expected']) * 100, 1)
-                
+
                 for classroom in stats['by_class']:
                     if stats['by_class'][classroom]['expected'] > 0:
                         stats['by_class'][classroom]['attendance_rate'] = round(
-                            (stats['by_class'][classroom]['present'] / stats['by_class'][classroom]['expected']) * 100, 1
+                            (stats['by_class'][classroom]['present'] / stats['by_class'][classroom]['expected']) * 100,
+                            1
                         )
-            
+
             return {
                 'success': True,
                 'session': {
@@ -450,7 +448,7 @@ class AttendanceVerifier:
                 'classes': classes,
                 'stats': stats
             }
-                
+
         except SQLAlchemyError as e:
             current_app.logger.error(f"Database error retrieving attendance: {str(e)}")
             return {
