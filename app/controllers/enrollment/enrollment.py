@@ -321,7 +321,7 @@ def receipt_success(enrollment_id):
         return redirect(url_for('enrollment.search_application'))
 
 
-@enrollment_bp.route('/verify-email/<enrollment_id>/<token>')
+@enrollment_bp.route('/enrollment/verify-email/<enrollment_id>/<token>')
 def verify_email(enrollment_id, token):
     """Verify email address."""
     try:

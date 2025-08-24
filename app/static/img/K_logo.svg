@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 836.02 260.16">
+  <defs>
+    <style>
+      .cls-1 {
+        font-size: 123.61px;
+      }
+
+      .cls-1, .cls-2 {
+        fill: #00583a;
+      }
+
+      .cls-1, .cls-3 {
+        font-family: Poppins-SemiBold, Poppins;
+        font-weight: 600;
+      }
+
+      .cls-4, .cls-3 {
+        fill: #addf02;
+      }
+
+      .cls-3 {
+        font-size: 60.04px;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <g>
+        <path class="cls-2" d="M265.2,48.17v161.02c0,26.55-21.6,48.16-48.16,48.16H48.17c-26.56,0-48.17-21.61-48.17-48.16V48.17C0,21.61,21.61,0,48.17,0h168.87c26.56,0,48.16,21.61,48.16,48.17Z"/>
+        <g>
+          <path class="cls-4" d="M194.76,34.57l-101.81,87.61c-.83.71-1.89,1.11-2.98,1.11h-44.67c-2.52,0-4.57-2.04-4.57-4.57V34.57h48.31v36.11c0,3.91,4.59,6.01,7.55,3.46l45.98-39.58h52.18Z"/>
+          <path class="cls-4" d="M194.76,222.78l-101.81-87.61c-.83-.71-1.89-1.11-2.98-1.11h-44.67c-2.52,0-4.57,2.04-4.57,4.57v84.15s48.31,0,48.31,0v-36.11c0-3.91,4.59-6.01,7.55-3.46l45.98,39.58h52.18Z"/>
+        </g>
+      </g>
+      <g>
+        <text class="cls-1" transform="translate(299.66 156.33)"><tspan x="0" y="0">Kangero</tspan></text>
+        <text class="cls-3" transform="translate(307.06 224.55)"><tspan x="0" y="0">FARMS</tspan></text>
+      </g>
+    </g>
+  </g>
+</svg>
