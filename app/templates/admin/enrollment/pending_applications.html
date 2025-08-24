@@ -240,7 +240,7 @@
 
                             <!-- Action Button -->
                             <div class="ml-6">
-                                <a href="{{ url_for('admin_enrollment.application_detail', enrollment_id=enrollment.id) }}"
+                                <a href="{{ url_for('admin.application_detail', enrollment_id=enrollment.id) }}"
                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
@@ -396,7 +396,7 @@ function pendingApplications() {
             this.loading = true;
 
             try {
-                const response = await this.fetchWithCSRF('{{ url_for("admin_enrollment.search_applications") }}', {
+                const response = await this.fetchWithCSRF('{{ url_for("admin.search_applications") }}', {
                     method: 'POST',
                     body: JSON.stringify({
                         search: this.search,
