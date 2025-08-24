@@ -539,4 +539,3 @@ def resend_verification_email(enrollment_id):
             'success': False,
             'message': 'Error resending verification email.'
         }), 500
-    
