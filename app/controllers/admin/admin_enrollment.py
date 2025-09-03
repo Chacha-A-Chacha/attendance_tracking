@@ -106,7 +106,7 @@ def application_detail(enrollment_id):
 
         if not enrollment:
             flash('Enrollment application not found.', 'error')
-            return redirect(url_for('admin_enrollment.pending_applications'))
+            return redirect(url_for('admin.pending_applications'))
 
         # Get processing timeline
         timeline = []
@@ -182,7 +182,7 @@ def application_detail(enrollment_id):
     except Exception as e:
         flash('Error loading application details.', 'error')
         current_app.logger.error(f"Application detail error: {str(e)}")
-        return redirect(url_for('admin_enrollment.pending_applications'))
+        return redirect(url_for('admin.pending_applications'))
 
 
 @admin_bp.route('/analytics')

@@ -99,8 +99,6 @@
                                         </button>
                                         <ul x-show="open" x-collapse class="mt-1 px-2">
                                             <li><a href="{{ url_for('admin.pending_applications') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.pending_applications' else '' }}">Pending Applications</a></li>
-                                            <li><a href="{{ url_for('admin.payment_verification') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.payment_verification' else '' }}">Payment Verification</a></li>
-                                            <li><a href="{{ url_for('admin.application_history') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.application_history' else '' }}">Application History</a></li>
                                             <li><a href="{{ url_for('admin.analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.analytics' else '' }}">Analytics</a></li>
                                         </ul>
                                     </li>
@@ -236,8 +234,6 @@
                                 </button>
                                 <ul x-show="open" x-collapse class="mt-1 px-2">
                                     <li><a href="{{ url_for('admin.pending_applications') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.pending_applications' else '' }}">Pending Applications</a></li>
-                                    <li><a href="{{ url_for('admin.payment_verification') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.payment_verification' else '' }}">Payment Verification</a></li>
-                                    <li><a href="{{ url_for('admin.application_history') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.application_history' else '' }}">Application History</a></li>
                                     <li><a href="{{ url_for('admin.analytics') }}" class="block rounded-md py-2 pr-2 pl-9 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 {{ 'text-blue-600 bg-blue-50' if request.endpoint == 'admin_enrollment.analytics' else '' }}">Analytics</a></li>
                                 </ul>
                             </li>

@@ -1,4 +1,4 @@
-{% extends "enrollment_base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Application Details - {{ enrollment.application_number }}{% endblock %}
 
@@ -9,7 +9,7 @@
         <!-- Header with Back Button -->
         <div class="mb-8">
             <div class="flex items-center space-x-4 mb-4">
-                <a href="{{ url_for('admin_enrollment.pending_applications') }}"
+                <a href="{{ url_for('admin.pending_applications') }}"
                    class="inline-flex items-center text-blue-600 hover:text-blue-500 font-medium">
                     <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L4.414 9H17a1 1 0 110 2H4.414l5.293 5.293a1 1 0 010 1.414z" clip-rule="evenodd"></path>
@@ -383,7 +383,7 @@
 
                                         <div x-show="!receiptLoading" class="text-center">
                                             {% if enrollment.receipt_upload_path %}
-                                            <img src="{{ url_for('admin_enrollment.view_receipt', enrollment_id=enrollment.id) }}"
+                                            <img src="{{ url_for('admin.view_receipt', enrollment_id=enrollment.id) }}"
                                                  alt="Payment Receipt"
                                                  class="max-w-full h-auto rounded-lg shadow-sm"
                                                  @load="receiptLoading = false"
