@@ -578,7 +578,8 @@
 
 {% block extra_js %}
 <script>
-function applicationDetail(enrollmentId) {
+// Define the function in global scope BEFORE Alpine.js initializes
+window.applicationDetail = function(enrollmentId) {
     return {
         // Component data
         enrollmentId: enrollmentId,
@@ -593,8 +594,8 @@ function applicationDetail(enrollmentId) {
         receiptLoading: true,
         receiptError: false,
 
-        // Form data
-        selectedClassroom: '{{ suggested_classroom or "" }}',
+        // Form data - safely handle template variables
+        selectedClassroom: {% if suggested_classroom %}'{{ suggested_classroom|safe }}'{% else %}''{% endif %},
         rejectionReason: '',
         customRejectionReason: '',
 
@@ -628,7 +629,6 @@ function applicationDetail(enrollmentId) {
             this.receiptError = false;
 
             try {
-                // Use the base template's fetchWithCSRF method
                 const response = await this.fetchWithCSRF(`/admin/enrollment/${this.enrollmentId}/receipt`, {
                     method: 'GET',
                     headers: {
@@ -636,16 +636,13 @@ function applicationDetail(enrollmentId) {
                     }
                 });
 
-                // Get the content type to determine how to display
                 const contentType = response.headers.get('content-type');
 
                 if (contentType && contentType.startsWith('image/')) {
-                    // For images, create a blob URL
                     const blob = await response.blob();
                     const imageUrl = URL.createObjectURL(blob);
                     this.displayImage(imageUrl);
                 } else if (contentType && contentType.includes('application/pdf')) {
-                    // For PDFs, open in new tab or embed
                     const blob = await response.blob();
                     const pdfUrl = URL.createObjectURL(blob);
                     this.displayPDF(pdfUrl);
@@ -656,7 +653,6 @@ function applicationDetail(enrollmentId) {
             } catch (error) {
                 console.error('Error loading receipt:', error);
                 this.receiptError = true;
-                // Use base template's showAlert method
                 this.showAlert('error', 'Failed to load receipt. Please try again.');
             } finally {
                 this.receiptLoading = false;
@@ -696,7 +692,7 @@ function applicationDetail(enrollmentId) {
             }
         },
 
-        // Action functions using base template utilities
+        // Action functions
         async resendVerification() {
             if (this.actionLoading) return;
 
@@ -723,7 +719,6 @@ function applicationDetail(enrollmentId) {
             this.actionLoading = true;
 
             try {
-                // Use FormData for the payment verification endpoint
                 const formData = new FormData();
                 formData.append('action', 'verify');
 
@@ -734,7 +729,6 @@ function applicationDetail(enrollmentId) {
 
                 this.showAlert('success', 'Payment verified successfully!');
 
-                // Reload page to update status
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
@@ -762,7 +756,6 @@ function applicationDetail(enrollmentId) {
             this.actionLoading = true;
 
             try {
-                // Use FormData for the approval endpoint
                 const formData = new FormData();
                 formData.append('classroom', this.selectedClassroom);
 
@@ -774,7 +767,6 @@ function applicationDetail(enrollmentId) {
                 this.showAlert('success', 'Application approved successfully!');
                 this.closeApprovalModal();
 
-                // Reload page to update status
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
@@ -807,7 +799,6 @@ function applicationDetail(enrollmentId) {
             this.actionLoading = true;
 
             try {
-                // Use FormData for the rejection endpoint
                 const formData = new FormData();
                 formData.append('reason', reason);
 
@@ -819,7 +810,6 @@ function applicationDetail(enrollmentId) {
                 this.showAlert('success', 'Application rejected successfully!');
                 this.closeRejectionModal();
 
-                // Reload page to update status
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
@@ -832,17 +822,13 @@ function applicationDetail(enrollmentId) {
             }
         },
 
-        // Simple utility methods that use existing infrastructure
+        // Utility methods
         getCSRFToken() {
-            // Directly access the CSRF token that's already in the head
             return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         },
 
         async fetchWithCSRF(url, options = {}) {
-            // Simple fetch wrapper that includes CSRF token
             const csrfToken = this.getCSRFToken();
-
-            // Handle FormData separately (don't set Content-Type for FormData)
             const isFormData = options.body instanceof FormData;
 
             const defaultHeaders = {
@@ -868,21 +854,20 @@ function applicationDetail(enrollmentId) {
         },
 
         showAlert(type, message, duration = 5000) {
-            // Use the existing global alert system
-            // Find the admin app element and call its showAlert method
             const adminAppElement = document.querySelector('body[x-data*="adminApp"]');
             if (adminAppElement && window.Alpine) {
-                // Try to access the Alpine data and call showAlert
-                const adminData = window.Alpine.$data(adminAppElement);
-                if (adminData && adminData.showAlert) {
-                    return adminData.showAlert(type, message, duration);
+                try {
+                    const adminData = window.Alpine.$data(adminAppElement);
+                    if (adminData && adminData.showAlert) {
+                        return adminData.showAlert(type, message, duration);
+                    }
+                } catch (e) {
+                    console.log('Could not access parent showAlert, using fallback');
                 }
             }
 
-            // Fallback: create our own alert display
             console.log(`${type.toUpperCase()}: ${message}`);
 
-            // Create a temporary flash message
             const alertDiv = document.createElement('div');
             alertDiv.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg max-w-sm ${
                 type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
@@ -905,7 +890,6 @@ function applicationDetail(enrollmentId) {
 
             document.body.appendChild(alertDiv);
 
-            // Auto-remove after duration
             if (duration > 0) {
                 setTimeout(() => {
                     if (alertDiv.parentElement) {
@@ -914,7 +898,10 @@ function applicationDetail(enrollmentId) {
                 }, duration);
             }
         }
-    }
-}
+    };
+};
+
+// Make sure the function is available immediately
+console.log('applicationDetail function defined:', typeof window.applicationDetail);
 </script>
 {% endblock %}
