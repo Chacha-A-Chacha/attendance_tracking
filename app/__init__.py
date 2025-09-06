@@ -324,6 +324,8 @@ def create_app(config_name=None):
     # Initialize default data
     # initialize_default_data(app)
 
+    print(f"Database URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
     app.logger.info("Application factory completed successfully")
 
     return app
