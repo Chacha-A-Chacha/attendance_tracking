@@ -335,7 +335,7 @@ def search_applications():
 @admin_bp.route('/<enrollment_id>/approve', methods=['POST'])
 @login_required
 @staff_required
-def approve_application_ajax(enrollment_id):
+def approve_application(enrollment_id):
     """AJAX endpoint for application approval."""
     try:
         data = request.get_json()
@@ -384,7 +384,7 @@ def approve_application_ajax(enrollment_id):
 @admin_bp.route('/<enrollment_id>/reject', methods=['POST'])
 @login_required
 @staff_required
-def reject_application_ajax(enrollment_id):
+def reject_application(enrollment_id):
     """AJAX endpoint for application rejection."""
     try:
         data = request.get_json()
@@ -430,7 +430,7 @@ def reject_application_ajax(enrollment_id):
 @admin_bp.route('/<enrollment_id>/verify-payment', methods=['POST'])
 @login_required
 @staff_required
-def verify_payment_ajax(enrollment_id):
+def verify_payment(enrollment_id):
     """AJAX endpoint for payment verification."""
     try:
         enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)

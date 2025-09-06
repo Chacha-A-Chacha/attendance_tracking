@@ -24,92 +24,90 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Main Content -->
             <div class="lg:col-span-2 space-y-6">
-
-                <!-- Status Overview Card -->
+                <!-- Application Status -->
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h2 class="text-xl font-semibold text-gray-900 mb-4">Application Status</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <!-- Email Status -->
-                        <div class="text-center p-4 border rounded-lg {{ 'border-green-200 bg-green-50' if enrollment.email_verified else 'border-red-200 bg-red-50' }}">
-                            <div class="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center {{ 'bg-green-100' if enrollment.email_verified else 'bg-red-100' }}">
+                        <!-- Email Verification Status -->
+                        <div class="text-center p-4 border rounded-lg {{ 'border-green-200 bg-green-50' if enrollment.email_verified else 'border-yellow-200 bg-yellow-50' }}">
+                            <div class="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center {{ 'bg-green-100' if enrollment.email_verified else 'bg-yellow-100' }}">
                                 {% if enrollment.email_verified %}
                                 <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                 </svg>
                                 {% else %}
-                                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
                                 </svg>
                                 {% endif %}
                             </div>
-                            <h3 class="font-medium {{ 'text-green-800' if enrollment.email_verified else 'text-red-800' }}">Email</h3>
-                            <p class="text-sm {{ 'text-green-600' if enrollment.email_verified else 'text-red-600' }}">
-                                {{ 'Verified' if enrollment.email_verified else 'Unverified' }}
+                            <h3 class="text-sm font-medium {{ 'text-green-800' if enrollment.email_verified else 'text-yellow-800' }}">Email</h3>
+                            <p class="text-sm {{ 'text-green-600' if enrollment.email_verified else 'text-yellow-600' }}">
+                                {% if enrollment.email_verified %}Verified{% else %}Pending{% endif %}
                             </p>
                         </div>
 
                         <!-- Payment Status -->
-                        <div class="text-center p-4 border rounded-lg
-                            {% if enrollment.payment_status.value == 'verified' %}border-green-200 bg-green-50
-                            {% elif enrollment.payment_status.value == 'paid' %}border-yellow-200 bg-yellow-50
-                            {% else %}border-red-200 bg-red-50{% endif %}">
-                            <div class="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center
-                                {% if enrollment.payment_status.value == 'verified' %}bg-green-100
-                                {% elif enrollment.payment_status.value == 'paid' %}bg-yellow-100
-                                {% else %}bg-red-100{% endif %}">
-                                <svg class="w-6 h-6
-                                    {% if enrollment.payment_status.value == 'verified' %}text-green-600
-                                    {% elif enrollment.payment_status.value == 'paid' %}text-yellow-600
-                                    {% else %}text-red-600{% endif %}" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zM14 6a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h6zM4 14a2 2 0 002 2h8a2 2 0 002-2v-2H4v2z"></path>
+                        <div class="text-center p-4 border rounded-lg {{ 'border-green-200 bg-green-50' if enrollment.payment_verified else 'border-yellow-200 bg-yellow-50' }}">
+                            <div class="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center {{ 'bg-green-100' if enrollment.payment_verified else 'bg-yellow-100' }}">
+                                {% if enrollment.payment_verified %}
+                                <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                 </svg>
+                                {% else %}
+                                <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                </svg>
+                                {% endif %}
                             </div>
-                            <h3 class="font-medium
-                                {% if enrollment.payment_status.value == 'verified' %}text-green-800
-                                {% elif enrollment.payment_status.value == 'paid' %}text-yellow-800
-                                {% else %}text-red-800{% endif %}">Payment</h3>
-                            <p class="text-sm
-                                {% if enrollment.payment_status.value == 'verified' %}text-green-600
-                                {% elif enrollment.payment_status.value == 'paid' %}text-yellow-600
-                                {% else %}text-red-600{% endif %}">
-                                {% if enrollment.payment_status.value == 'verified' %}Verified
-                                {% elif enrollment.payment_status.value == 'paid' %}Pending Review
-                                {% else %}Not Paid{% endif %}
+                            <h3 class="text-sm font-medium {{ 'text-green-800' if enrollment.payment_verified else 'text-yellow-800' }}">Payment</h3>
+                            <p class="text-sm {{ 'text-green-600' if enrollment.payment_verified else 'text-yellow-600' }}">
+                                {% if enrollment.payment_verified %}Verified{% else %}Pending{% endif %}
                             </p>
                         </div>
 
-                        <!-- Enrollment Status -->
+                        <!-- Overall Status -->
                         <div class="text-center p-4 border rounded-lg
-                            {% if enrollment.enrollment_status.value == 'enrolled' %}border-green-200 bg-green-50
-                            {% elif enrollment.enrollment_status.value == 'payment_verified' %}border-blue-200 bg-blue-50
-                            {% elif enrollment.enrollment_status.value == 'rejected' %}border-red-200 bg-red-50
+                            {% if enrollment.enrollment_status == 'enrolled' %}border-green-200 bg-green-50
+                            {% elif enrollment.enrollment_status == 'payment_verified' %}border-blue-200 bg-blue-50
+                            {% elif enrollment.enrollment_status == 'rejected' %}border-red-200 bg-red-50
                             {% else %}border-yellow-200 bg-yellow-50{% endif %}">
                             <div class="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center
-                                {% if enrollment.enrollment_status.value == 'enrolled' %}bg-green-100
-                                {% elif enrollment.enrollment_status.value == 'payment_verified' %}bg-blue-100
-                                {% elif enrollment.enrollment_status.value == 'rejected' %}bg-red-100
+                                {% if enrollment.enrollment_status == 'enrolled' %}bg-green-100
+                                {% elif enrollment.enrollment_status == 'payment_verified' %}bg-blue-100
+                                {% elif enrollment.enrollment_status == 'rejected' %}bg-red-100
                                 {% else %}bg-yellow-100{% endif %}">
-                                <svg class="w-6 h-6
-                                    {% if enrollment.enrollment_status.value == 'enrolled' %}text-green-600
-                                    {% elif enrollment.enrollment_status.value == 'payment_verified' %}text-blue-600
-                                    {% elif enrollment.enrollment_status.value == 'rejected' %}text-red-600
-                                    {% else %}text-yellow-600{% endif %}" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"></path>
+                                {% if enrollment.enrollment_status == 'enrolled' %}
+                                <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                 </svg>
+                                {% elif enrollment.enrollment_status == 'payment_verified' %}
+                                <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                </svg>
+                                {% elif enrollment.enrollment_status == 'rejected' %}
+                                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                </svg>
+                                {% else %}
+                                <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                </svg>
+                                {% endif %}
                             </div>
-                            <h3 class="font-medium
-                                {% if enrollment.enrollment_status.value == 'enrolled' %}text-green-800
-                                {% elif enrollment.enrollment_status.value == 'payment_verified' %}text-blue-800
-                                {% elif enrollment.enrollment_status.value == 'rejected' %}text-red-800
+                            <h3 class="text-sm font-medium
+                                {% if enrollment.enrollment_status == 'enrolled' %}text-green-800
+                                {% elif enrollment.enrollment_status == 'payment_verified' %}text-blue-800
+                                {% elif enrollment.enrollment_status == 'rejected' %}text-red-800
                                 {% else %}text-yellow-800{% endif %}">Status</h3>
                             <p class="text-sm
-                                {% if enrollment.enrollment_status.value == 'enrolled' %}text-green-600
-                                {% elif enrollment.enrollment_status.value == 'payment_verified' %}text-blue-600
-                                {% elif enrollment.enrollment_status.value == 'rejected' %}text-red-600
+                                {% if enrollment.enrollment_status == 'enrolled' %}text-green-600
+                                {% elif enrollment.enrollment_status == 'payment_verified' %}text-blue-600
+                                {% elif enrollment.enrollment_status == 'rejected' %}text-red-600
                                 {% else %}text-yellow-600{% endif %}">
-                                {% if enrollment.enrollment_status.value == 'enrolled' %}Enrolled
-                                {% elif enrollment.enrollment_status.value == 'payment_verified' %}Ready
-                                {% elif enrollment.enrollment_status.value == 'rejected' %}Rejected
+                                {% if enrollment.enrollment_status == 'enrolled' %}Enrolled
+                                {% elif enrollment.enrollment_status == 'payment_verified' %}Ready
+                                {% elif enrollment.enrollment_status == 'rejected' %}Rejected
                                 {% else %}Pending{% endif %}
                             </p>
                         </div>
@@ -135,9 +133,8 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Has Laptop</label>
                             <p class="mt-1 text-sm text-gray-900">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                    {{ 'bg-blue-100 text-blue-800' if enrollment.has_laptop else 'bg-gray-100 text-gray-800' }}">
-                                    {{ '💻 Yes' if enrollment.has_laptop else '📱 No' }}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-green-100 text-green-800' if enrollment.has_laptop else 'bg-red-100 text-red-800' }}">
+                                    {{ 'Yes' if enrollment.has_laptop else 'No' }}
                                 </span>
                             </p>
                         </div>
@@ -153,6 +150,18 @@
                             <p class="mt-1 text-sm text-gray-900">{{ enrollment.laptop_model }}</p>
                         </div>
                         {% endif %}
+                        {% if enrollment.programming_experience %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Programming Experience</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.programming_experience.replace('_', ' ').title() }}</p>
+                        </div>
+                        {% endif %}
+                        {% if enrollment.special_requirements %}
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Special Requirements</label>
+                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.special_requirements }}</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -160,12 +169,12 @@
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-xl font-semibold text-gray-900">Payment Information</h2>
-                        {% if enrollment.receipt_upload_path %}
-                        <button @click="openReceiptDrawer()"
-                                class="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
-                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
-                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                        {% if enrollment.receipt_file_url %}
+                        <button @click="showReceiptDrawer = true"
+                                class="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                             </svg>
                             View Receipt
                         </button>
@@ -174,81 +183,74 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Receipt Number</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.receipt_number or 'N/A' }}</p>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Payment Amount</label>
-                            <p class="mt-1 text-sm text-gray-900">${{ "%.2f"|format(enrollment.payment_amount) if enrollment.payment_amount else '0.00' }}</p>
+                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.receipt_number or 'Not provided' }}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Payment Date</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.payment_date.strftime('%b %d, %Y at %I:%M %p') if enrollment.payment_date else 'N/A' }}</p>
+                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.payment_date.strftime('%B %d, %Y') if enrollment.payment_date else 'Not provided' }}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Verified At</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.payment_verified_at.strftime('%b %d, %Y at %I:%M %p') if enrollment.payment_verified_at else 'Not verified' }}</p>
+                            <label class="block text-sm font-medium text-gray-700">Payment Amount</label>
+                            <p class="mt-1 text-sm text-gray-900">KES {{ '{:,.2f}'.format(enrollment.payment_amount) if enrollment.payment_amount else 'Not provided' }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Payment Status</label>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-green-100 text-green-800' if enrollment.payment_verified else 'bg-yellow-100 text-yellow-800' }}">
+                                {{ 'Verified' if enrollment.payment_verified else 'Pending Verification' }}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Additional Information -->
-                {% if enrollment.emergency_contact or enrollment.special_requirements %}
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Additional Information</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {% if enrollment.emergency_contact %}
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Emergency Contact</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.emergency_contact }}</p>
-                            {% if enrollment.emergency_phone %}
-                            <p class="mt-1 text-sm text-gray-500">{{ enrollment.emergency_phone }}</p>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        {% if enrollment.special_requirements %}
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Special Requirements</label>
-                            <p class="mt-1 text-sm text-gray-900">{{ enrollment.special_requirements }}</p>
-                        </div>
-                        {% endif %}
+                {% if enrollment.rejection_reason %}
+                <!-- Rejection Information -->
+                <div class="bg-red-50 rounded-lg border border-red-200 p-6">
+                    <h2 class="text-xl font-semibold text-red-900 mb-4">Rejection Details</h2>
+                    <div>
+                        <label class="block text-sm font-medium text-red-700">Reason for Rejection</label>
+                        <p class="mt-1 text-sm text-red-900">{{ enrollment.rejection_reason }}</p>
                     </div>
+                    {% if enrollment.processed_at %}
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-red-700">Rejected On</label>
+                        <p class="mt-1 text-sm text-red-900">{{ enrollment.processed_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                    </div>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Sidebar -->
+            <!-- Sidebar Actions -->
             <div class="space-y-6">
                 <!-- Quick Actions -->
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                     <div class="space-y-3">
                         {% if not enrollment.email_verified %}
-                        <button @click="resendVerification()"
+                        <button @click="resendVerificationEmail()"
                                 :disabled="actionLoading"
-                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors">
+                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50">
                             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
                                 <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
                             </svg>
-                            <span x-show="!actionLoading">Resend Email Verification</span>
-                            <span x-show="actionLoading">Sending...</span>
+                            Resend Verification Email
                         </button>
                         {% endif %}
 
-                        {% if enrollment.payment_status.value == 'paid' %}
+                        {% if enrollment.receipt_file_url and not enrollment.payment_verified %}
                         <button @click="verifyPayment()"
                                 :disabled="actionLoading"
-                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-colors">
+                                class="w-full inline-flex justify-center items-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50">
                             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                             </svg>
-                            <span x-show="!actionLoading">Verify Payment</span>
-                            <span x-show="actionLoading">Verifying...</span>
+                            Verify Payment
                         </button>
                         {% endif %}
 
-                        {% if enrollment.is_ready_for_enrollment() %}
-                        <button @click="openApprovalModal()"
+                        {% if enrollment.email_verified and enrollment.payment_verified and enrollment.enrollment_status not in ['enrolled', 'rejected'] %}
+                        <button @click="showApprovalModal = true"
                                 class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
                             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
@@ -257,8 +259,8 @@
                         </button>
                         {% endif %}
 
-                        {% if enrollment.enrollment_status.value not in ['enrolled', 'rejected'] %}
-                        <button @click="openRejectionModal()"
+                        {% if enrollment.enrollment_status not in ['enrolled', 'rejected'] %}
+                        <button @click="showRejectionModal = true"
                                 class="w-full inline-flex justify-center items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
                             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
@@ -270,6 +272,7 @@
                 </div>
 
                 <!-- Timeline -->
+                {% if timeline %}
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Timeline</h3>
                     <div class="flow-root">
@@ -283,7 +286,7 @@
                                                 {% if event.type == 'success' %}bg-green-500
                                                 {% elif event.type == 'error' %}bg-red-500
                                                 {% else %}bg-blue-500{% endif %}">
-                                                <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                                     {% if event.type == 'success' %}
                                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
                                                     {% elif event.type == 'error' %}
@@ -296,13 +299,10 @@
                                         </div>
                                         <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                                             <div>
-                                                <p class="text-sm font-medium text-gray-900">{{ event.event }}</p>
                                                 <p class="text-sm text-gray-500">{{ event.description }}</p>
                                             </div>
                                             <div class="text-right text-sm whitespace-nowrap text-gray-500">
-                                                {% if event.date %}
-                                                {{ event.date.strftime('%b %d, %Y') }}
-                                                {% endif %}
+                                                {{ event.date.strftime('%b %d, %Y') if event.date else 'N/A' }}
                                             </div>
                                         </div>
                                     </div>
@@ -312,263 +312,236 @@
                         </ul>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
+    </div>
 
-        <!-- Receipt Drawer (Slide-over Panel) -->
-        <div x-show="showReceiptDrawer"
-             x-transition:enter="transform transition ease-in-out duration-500"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transform transition ease-in-out duration-500"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full"
-             class="fixed inset-0 z-50 overflow-hidden"
-             style="display: none;">
+    <!-- Receipt Drawer -->
+    <div x-show="showReceiptDrawer"
+         x-transition:enter="transition-opacity ease-linear duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-linear duration-300"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-hidden"
+         style="display: none;"
+         @click.self="showReceiptDrawer = false">
 
-            <!-- Background overlay -->
-            <div class="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-                 @click="closeReceiptDrawer()"></div>
+        <div class="absolute inset-0 bg-gray-500 bg-opacity-75"></div>
 
-            <!-- Slide-over panel -->
-            <div class="fixed inset-y-0 right-0 max-w-full flex">
-                <div class="relative w-screen max-w-md">
-                    <!-- Header -->
-                    <div class="flex items-start justify-between p-6 bg-white border-b border-gray-200">
-                        <div>
+        <div class="fixed inset-y-0 right-0 max-w-full flex">
+            <div x-show="showReceiptDrawer"
+                 x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700"
+                 x-transition:enter-start="translate-x-full"
+                 x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700"
+                 x-transition:leave-start="translate-x-0"
+                 x-transition:leave-end="translate-x-full"
+                 class="w-screen max-w-md">
+
+                <div class="h-full flex flex-col bg-white shadow-xl">
+                    <div class="px-4 py-6 bg-gray-50 sm:px-6">
+                        <div class="flex items-center justify-between">
                             <h2 class="text-lg font-medium text-gray-900">Payment Receipt</h2>
-                            <p class="text-sm text-gray-500">{{ enrollment.application_number }}</p>
+                            <button @click="showReceiptDrawer = false"
+                                    class="text-gray-400 hover:text-gray-600">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
                         </div>
-                        <button @click="closeReceiptDrawer()"
-                                class="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
                     </div>
 
-                    <!-- Content -->
-                    <div class="flex-1 px-6 py-6 bg-white overflow-y-auto">
-                        <!-- Receipt Details -->
-                        <div class="space-y-4 mb-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Receipt Number</label>
-                                <p class="mt-1 text-sm text-gray-900">{{ enrollment.receipt_number }}</p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Amount</label>
-                                <p class="mt-1 text-sm text-gray-900">
-                                    ${{ "%.2f"|format(enrollment.payment_amount) if enrollment.payment_amount else '0.00' }}
-                                </p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Upload Date</label>
-                                <p class="mt-1 text-sm text-gray-900">
-                                    {{ enrollment.payment_date.strftime('%b %d, %Y at %I:%M %p') if enrollment.payment_date else 'N/A' }}
-                                </p>
-                            </div>
-                        </div>
+                    <div class="flex-1 px-4 py-6 sm:px-6">
+                        {% if enrollment.receipt_file_url %}
+                        <div class="text-center">
+                            <img src="{{ enrollment.receipt_file_url }}"
+                                 alt="Payment Receipt"
+                                 class="max-w-full h-auto rounded-lg shadow-md"
+                                 x-show="!receiptError"
+                                 @error="receiptError = true">
 
-                        <!-- Receipt Display Area -->
-                        <div class="border-2 border-gray-300 border-dashed rounded-lg p-6">
-                            <!-- Loading State -->
-                            <div class="text-center" x-show="receiptLoading">
-                                <svg class="animate-spin h-12 w-12 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            <div x-show="receiptError"
+                                 class="text-center py-8"
+                                 style="display: none;">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <p class="text-sm text-gray-500">Loading receipt...</p>
-                            </div>
-
-                            <!-- Error State -->
-                            <div class="text-center" x-show="receiptError && !receiptLoading">
-                                <svg class="h-12 w-12 text-red-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L5.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                <p class="text-sm text-gray-500 mb-4">Failed to load receipt</p>
-                                <button @click="loadReceipt()"
-                                        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
-                                    </svg>
-                                    Retry
-                                </button>
-                            </div>
-
-                            <!-- Receipt Content Area -->
-                            <div x-ref="receiptContainer"
-                                 x-show="!receiptLoading && !receiptError"
-                                 class="text-center">
-                                <!-- Receipt content will be dynamically loaded here -->
-                            </div>
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="mt-6 pt-6 border-t border-gray-200">
-                            <div class="flex space-x-3">
-                                <a :href="`/admin/enrollment/${enrollmentId}/receipt`"
+                                <p class="mt-2 text-sm text-gray-500">Unable to display receipt</p>
+                                <a href="{{ enrollment.receipt_file_url }}"
                                    target="_blank"
-                                   class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                   class="mt-2 inline-flex items-center text-blue-600 hover:text-blue-500 text-sm">
+                                    Open in new tab
+                                    <svg class="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
-                                    Download
                                 </a>
-                                <button @click="closeReceiptDrawer()"
-                                        class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                    Close
-                                </button>
                             </div>
                         </div>
+                        {% else %}
+                        <div class="text-center py-8">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <p class="mt-2 text-sm text-gray-500">No receipt uploaded</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Approval Modal -->
-        <div x-show="showApprovalModal"
-             x-transition:enter="transition-opacity ease-out duration-300"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition-opacity ease-in duration-200"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-50 overflow-y-auto"
-             style="display: none;">
-            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeApprovalModal()"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-                <div x-show="showApprovalModal"
-                     x-transition:enter="transition-all ease-out duration-300"
-                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                     x-transition:leave="transition-all ease-in duration-200"
-                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                     class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                    <div>
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                            <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    <!-- Approval Modal -->
+    <div x-show="showApprovalModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;"
+         @click.self="closeApprovalModal()">
+
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">
+                            Approve Application
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Are you sure you want to approve this application? This will create a participant record and send welcome emails.
+                            </p>
+                        </div>
+
+                        <!-- Classroom Selection -->
+                        <div class="mt-4">
+                            <label for="classroom-select" class="block text-sm font-medium text-gray-700 mb-2">
+                                Select Classroom
+                            </label>
+                            <select x-model="selectedClassroom"
+                                    id="classroom-select"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Choose classroom...</option>
+                                <option value="{{ config.LAPTOP_CLASSROOM }}">{{ config.LAPTOP_CLASSROOM }} (With Laptop)</option>
+                                <option value="{{ config.NO_LAPTOP_CLASSROOM }}">{{ config.NO_LAPTOP_CLASSROOM }} (No Laptop)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button @click="approveApplication()"
+                            :disabled="actionLoading || !selectedClassroom"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!actionLoading">Approve Application</span>
+                        <span x-show="actionLoading" class="flex items-center" style="display: none;">
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                        </div>
-                        <div class="mt-3 text-center sm:mt-5">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">Approve Application</h3>
-                            <div class="mt-2">
-                                <p class="text-sm text-gray-500">
-                                    Are you sure you want to approve this application? This will create a participant record and send welcome emails.
-                                </p>
-                            </div>
-                            <div class="mt-4">
-                                <label class="block text-sm font-medium text-gray-700 text-left">Classroom Assignment</label>
-                                <select x-model="selectedClassroom" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="{{ config.LAPTOP_CLASSROOM }}">{{ config.LAPTOP_CLASSROOM }} - Computer Lab (Laptop Required)</option>
-                                    <option value="{{ config.NO_LAPTOP_CLASSROOM }}">{{ config.NO_LAPTOP_CLASSROOM }} - Regular Classroom (No Laptop Required)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                        <button @click="approveApplication()"
-                                :disabled="actionLoading || !selectedClassroom"
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 sm:text-sm disabled:opacity-50">
-                            <span x-show="!actionLoading">Approve Application</span>
-                            <span x-show="actionLoading" class="flex items-center">
-                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Approving...
-                            </span>
-                        </button>
-                        <button @click="closeApprovalModal()"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm">
-                            Cancel
-                        </button>
-                    </div>
+                            Approving...
+                        </span>
+                    </button>
+                    <button @click="closeApprovalModal()"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Rejection Modal -->
-        <div x-show="showRejectionModal"
-             x-transition:enter="transition-opacity ease-out duration-300"
-             x-transition:enter-start="opacity-0"
-             x-transition:enter-end="opacity-100"
-             x-transition:leave="transition-opacity ease-in duration-200"
-             x-transition:leave-start="opacity-100"
-             x-transition:leave-end="opacity-0"
-             class="fixed inset-0 z-50 overflow-y-auto"
-             style="display: none;">
-            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeRejectionModal()"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-                <div x-show="showRejectionModal"
-                     x-transition:enter="transition-all ease-out duration-300"
-                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                     x-transition:leave="transition-all ease-in duration-200"
-                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
-                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                     class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-                    <div>
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                            <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+    <!-- Rejection Modal -->
+    <div x-show="showRejectionModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;"
+         @click.self="closeRejectionModal()">
+
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75"></div>
+
+            <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">
+                            Reject Application
+                        </h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500">
+                                Please provide a reason for rejecting this application. The applicant will be notified via email.
+                            </p>
                         </div>
-                        <div class="mt-3 text-center sm:mt-5">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900">Reject Application</h3>
-                            <div class="mt-2">
-                                <p class="text-sm text-gray-500">
-                                    Please provide a reason for rejecting this application. This will be sent to the applicant.
-                                </p>
 
-                                <div class="space-y-4 mt-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 text-left">Rejection Reason</label>
-                                        <select x-model="rejectionReason"
-                                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500">
-                                            <option value="">Select a reason</option>
-                                            <option value="Incomplete payment information">Incomplete payment information</option>
-                                            <option value="Invalid payment receipt">Invalid payment receipt</option>
-                                            <option value="Duplicate application">Duplicate application</option>
-                                            <option value="Does not meet eligibility criteria">Does not meet eligibility criteria</option>
-                                            <option value="Course capacity reached">Course capacity reached</option>
-                                            <option value="Incorrect personal information">Incorrect personal information</option>
-                                            <option value="custom">Other (specify below)</option>
-                                        </select>
-                                    </div>
+                        <!-- Rejection Reason Selection -->
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Rejection Reason
+                            </label>
+                            <select x-model="rejectionReason"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 mb-3">
+                                <option value="">Select a reason</option>
+                                <option value="Incomplete payment information">Incomplete payment information</option>
+                                <option value="Invalid payment receipt">Invalid payment receipt</option>
+                                <option value="Duplicate application">Duplicate application</option>
+                                <option value="Does not meet eligibility criteria">Does not meet eligibility criteria</option>
+                                <option value="Course capacity reached">Course capacity reached</option>
+                                <option value="Incorrect personal information">Incorrect personal information</option>
+                                <option value="custom">Other (specify below)</option>
+                            </select>
 
-                                    <div x-show="rejectionReason === 'custom'">
-                                        <label class="block text-sm font-medium text-gray-700 text-left">Custom Reason</label>
-                                        <textarea x-model="customRejectionReason"
-                                                  rows="3"
-                                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                                                  placeholder="Please specify the reason for rejection..."></textarea>
-                                    </div>
-                                </div>
+                            <!-- Custom reason input -->
+                            <div x-show="rejectionReason === 'custom'" class="mt-3" style="display: none;">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Custom Reason
+                                </label>
+                                <textarea x-model="customRejectionReason"
+                                          rows="3"
+                                          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                          placeholder="Please specify the reason for rejection..."></textarea>
                             </div>
                         </div>
                     </div>
-                    <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                        <button @click="rejectApplication()"
-                                :disabled="actionLoading || !getRejectionReason()"
-                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:col-start-2 sm:text-sm disabled:opacity-50">
-                            <span x-show="!actionLoading">Reject Application</span>
-                            <span x-show="actionLoading" class="flex items-center">
-                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Rejecting...
-                            </span>
-                        </button>
-                        <button @click="closeRejectionModal()"
-                                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm">
-                            Cancel
-                        </button>
-                    </div>
+                </div>
+                <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button @click="rejectApplication()"
+                            :disabled="actionLoading || !getRejectionReason()"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!actionLoading">Reject Application</span>
+                        <span x-show="actionLoading" class="flex items-center" style="display: none;">
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Rejecting...
+                        </span>
+                    </button>
+                    <button @click="closeRejectionModal()"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -578,7 +551,7 @@
 
 {% block extra_js %}
 <script>
-// Define the function in global scope BEFORE Alpine.js initializes
+// Fixed Alpine.js component - simplified to avoid common errors
 window.applicationDetail = function(enrollmentId) {
     return {
         // Component data
@@ -591,11 +564,10 @@ window.applicationDetail = function(enrollmentId) {
 
         // Loading states
         actionLoading: false,
-        receiptLoading: true,
         receiptError: false,
 
-        // Form data - safely handle template variables
-        selectedClassroom: {% if suggested_classroom %}'{{ suggested_classroom|safe }}'{% else %}''{% endif %},
+        // Form data - FIXED: Safe template variable handling
+        selectedClassroom: {% if suggested_classroom %}"{{ suggested_classroom|e }}"{% else %}""{% endif %},
         rejectionReason: '',
         customRejectionReason: '',
 
@@ -612,178 +584,9 @@ window.applicationDetail = function(enrollmentId) {
             return this.rejectionReason;
         },
 
-        // Receipt drawer functions
-        async openReceiptDrawer() {
-            this.showReceiptDrawer = true;
-            await this.loadReceipt();
-        },
-
-        closeReceiptDrawer() {
-            this.showReceiptDrawer = false;
-            this.receiptLoading = true;
-            this.receiptError = false;
-        },
-
-        async loadReceipt() {
-            this.receiptLoading = true;
-            this.receiptError = false;
-
-            try {
-                const response = await this.fetchWithCSRF(`/admin/enrollment/${this.enrollmentId}/receipt`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json, image/*, application/pdf'
-                    }
-                });
-
-                const contentType = response.headers.get('content-type');
-
-                if (contentType && contentType.startsWith('image/')) {
-                    const blob = await response.blob();
-                    const imageUrl = URL.createObjectURL(blob);
-                    this.displayImage(imageUrl);
-                } else if (contentType && contentType.includes('application/pdf')) {
-                    const blob = await response.blob();
-                    const pdfUrl = URL.createObjectURL(blob);
-                    this.displayPDF(pdfUrl);
-                } else {
-                    throw new Error('Unsupported file type');
-                }
-
-            } catch (error) {
-                console.error('Error loading receipt:', error);
-                this.receiptError = true;
-                this.showAlert('error', 'Failed to load receipt. Please try again.');
-            } finally {
-                this.receiptLoading = false;
-            }
-        },
-
-        displayImage(imageUrl) {
-            const container = document.querySelector('[x-ref="receiptContainer"]');
-            if (container) {
-                container.innerHTML = `
-                    <img src="${imageUrl}"
-                         alt="Payment Receipt"
-                         class="max-w-full h-auto rounded-lg shadow-lg"
-                         style="max-height: 70vh;">
-                `;
-            }
-        },
-
-        displayPDF(pdfUrl) {
-            const container = document.querySelector('[x-ref="receiptContainer"]');
-            if (container) {
-                container.innerHTML = `
-                    <div class="text-center space-y-4">
-                        <div class="bg-gray-100 rounded-lg p-8">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
-                            </svg>
-                            <p class="text-gray-600 mb-4">PDF Receipt</p>
-                            <a href="${pdfUrl}"
-                               target="_blank"
-                               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-                                Open PDF
-                            </a>
-                        </div>
-                    </div>
-                `;
-            }
-        },
-
-        // Action functions
-        async resendVerification() {
-            if (this.actionLoading) return;
-
-            this.actionLoading = true;
-
-            try {
-                const response = await this.fetchWithCSRF(`/admin/enrollment/${this.enrollmentId}/resend-verification`, {
-                    method: 'GET'
-                });
-
-                this.showAlert('success', 'Verification email sent successfully!');
-
-            } catch (error) {
-                console.error('Error resending verification:', error);
-                this.showAlert('error', 'Failed to send verification email. Please try again.');
-            } finally {
-                this.actionLoading = false;
-            }
-        },
-
-        async verifyPayment() {
-            if (this.actionLoading) return;
-
-            this.actionLoading = true;
-
-            try {
-                const formData = new FormData();
-                formData.append('action', 'verify');
-
-                const response = await this.fetchWithCSRF(`/admin/enrollment/${this.enrollmentId}/verify-payment`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                this.showAlert('success', 'Payment verified successfully!');
-
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Error verifying payment:', error);
-                this.showAlert('error', 'Failed to verify payment. Please try again.');
-            } finally {
-                this.actionLoading = false;
-            }
-        },
-
-        // Approval modal functions
-        openApprovalModal() {
-            this.showApprovalModal = true;
-        },
-
+        // Modal control methods
         closeApprovalModal() {
             this.showApprovalModal = false;
-        },
-
-        async approveApplication() {
-            if (this.actionLoading || !this.selectedClassroom) return;
-
-            this.actionLoading = true;
-
-            try {
-                const formData = new FormData();
-                formData.append('classroom', this.selectedClassroom);
-
-                const response = await this.fetchWithCSRF(`/admin/enrollment/${this.enrollmentId}/approve`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                this.showAlert('success', 'Application approved successfully!');
-                this.closeApprovalModal();
-
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Error approving application:', error);
-                this.showAlert('error', 'Failed to approve application. Please try again.');
-            } finally {
-                this.actionLoading = false;
-            }
-        },
-
-        // Rejection modal functions
-        openRejectionModal() {
-            this.showRejectionModal = true;
-            this.rejectionReason = '';
-            this.customRejectionReason = '';
         },
 
         closeRejectionModal() {
@@ -792,116 +595,136 @@ window.applicationDetail = function(enrollmentId) {
             this.customRejectionReason = '';
         },
 
-        async rejectApplication() {
-            const reason = this.getRejectionReason();
-            if (this.actionLoading || !reason) return;
-
-            this.actionLoading = true;
-
-            try {
-                const formData = new FormData();
-                formData.append('reason', reason);
-
-                const response = await this.fetchWithCSRF(`/admin/enrollment/${this.enrollmentId}/reject`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                this.showAlert('success', 'Application rejected successfully!');
-                this.closeRejectionModal();
-
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Error rejecting application:', error);
-                this.showAlert('error', 'Failed to reject application. Please try again.');
-            } finally {
-                this.actionLoading = false;
-            }
-        },
-
-        // Utility methods
+        // CSRF token helper
         getCSRFToken() {
-            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            return metaTag ? metaTag.getAttribute('content') : '';
         },
 
-        async fetchWithCSRF(url, options = {}) {
-            const csrfToken = this.getCSRFToken();
-            const isFormData = options.body instanceof FormData;
-
-            const defaultHeaders = {
-                ...(csrfToken && { 'X-CSRFToken': csrfToken }),
-                ...(!isFormData && { 'Content-Type': 'application/json' })
-            };
-
-            const mergedOptions = {
-                ...options,
-                headers: {
-                    ...defaultHeaders,
-                    ...options.headers
-                }
-            };
-
-            const response = await fetch(url, mergedOptions);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            return response;
-        },
-
-        showAlert(type, message, duration = 5000) {
-            const adminAppElement = document.querySelector('body[x-data*="adminApp"]');
-            if (adminAppElement && window.Alpine) {
+        // Simplified alert system
+        showAlert(type, message) {
+            // Try parent alert system first
+            const body = document.querySelector('body');
+            if (body && window.Alpine) {
                 try {
-                    const adminData = window.Alpine.$data(adminAppElement);
-                    if (adminData && adminData.showAlert) {
-                        return adminData.showAlert(type, message, duration);
+                    const adminData = Alpine.$data(body);
+                    if (adminData && typeof adminData.showAlert === 'function') {
+                        return adminData.showAlert(type, message);
                     }
                 } catch (e) {
-                    console.log('Could not access parent showAlert, using fallback');
+                    // Fall through to simple alert
                 }
             }
 
-            console.log(`${type.toUpperCase()}: ${message}`);
+            // Simple fallback
+            alert(`${type.toUpperCase()}: ${message}`);
+        },
 
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg max-w-sm ${
-                type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-                type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-                type === 'warning' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                'bg-blue-100 text-blue-800 border border-blue-200'
-            }`;
-            alertDiv.innerHTML = `
-                <div class="flex items-center">
-                    <div class="flex-1">
-                        <p class="text-sm font-medium">${message}</p>
-                    </div>
-                    <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-gray-400 hover:text-gray-600">
-                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                        </svg>
-                    </button>
-                </div>
-            `;
+        // Action methods - simplified to use direct navigation/form submission
+        resendVerificationEmail() {
+            if (this.actionLoading) return;
+            this.actionLoading = true;
+            window.location.href = "{{ url_for('admin.resend_verification_email', enrollment_id=enrollment.id) }}";
+        },
 
-            document.body.appendChild(alertDiv);
+        verifyPayment() {
+            if (this.actionLoading) return;
+            this.actionLoading = true;
 
-            if (duration > 0) {
-                setTimeout(() => {
-                    if (alertDiv.parentElement) {
-                        alertDiv.remove();
-                    }
-                }, duration);
+            // Create and submit form for payment verification
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url_for('admin.verify_payment', enrollment_id=enrollment.id) }}";
+
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = this.getCSRFToken();
+            form.appendChild(csrfInput);
+
+            // Add action field
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'verify';
+            form.appendChild(actionInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        },
+
+        approveApplication() {
+            if (this.actionLoading) return;
+
+            if (!this.selectedClassroom) {
+                this.showAlert('error', 'Please select a classroom');
+                return;
             }
+
+            this.actionLoading = true;
+            this.closeApprovalModal();
+
+            // Create and submit form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url_for('admin.approve_application', enrollment_id=enrollment.id) }}";
+
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = this.getCSRFToken();
+            form.appendChild(csrfInput);
+
+            // Add classroom field
+            const classroomInput = document.createElement('input');
+            classroomInput.type = 'hidden';
+            classroomInput.name = 'classroom';
+            classroomInput.value = this.selectedClassroom;
+            form.appendChild(classroomInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        },
+
+        rejectApplication() {
+            if (this.actionLoading) return;
+
+            const reason = this.getRejectionReason();
+            if (!reason) {
+                this.showAlert('error', 'Please provide a reason for rejection');
+                return;
+            }
+
+            this.actionLoading = true;
+            this.closeRejectionModal();
+
+            // Create and submit form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url_for('admin.reject_application', enrollment_id=enrollment.id) }}";
+
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = this.getCSRFToken();
+            form.appendChild(csrfInput);
+
+            // Add reason field
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'reason';
+            reasonInput.value = reason;
+            form.appendChild(reasonInput);
+
+            document.body.appendChild(form);
+            form.submit();
         }
     };
 };
 
-// Make sure the function is available immediately
-console.log('applicationDetail function defined:', typeof window.applicationDetail);
+console.log('applicationDetail function defined successfully');
 </script>
 {% endblock %}

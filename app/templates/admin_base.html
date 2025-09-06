@@ -669,7 +669,37 @@
                 }
             }
         }
+
+        function createErrorBoundary() {
+            return {
+                async safeRequest(url, options = {}) {
+                    try {
+                        const response = await fetch(url, {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.getCSRFToken(),
+                                ...options.headers
+                            },
+                            ...options
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error || `HTTP ${response.status}`);
+                        }
+
+                        return await response.json();
+                    } catch (error) {
+                        console.error('Request failed:', error);
+                        this.showAlert('error', error.message || 'Request failed');
+                        throw error;
+                    }
+                }
+            }
+        }
     </script>
+
+
 
     <!-- Additional JavaScript -->
     {% block extra_js %}{% endblock %}
