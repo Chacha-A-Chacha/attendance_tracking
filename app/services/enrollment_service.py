@@ -1051,3 +1051,369 @@ class EnrollmentService:
         except Exception as e:
             logging.getLogger('enrollment_service').error(f"Error getting email status: {str(e)}")
             return {'status': 'error', 'error': str(e)}
+
+    @staticmethod
+    def get_bulk_enrollment_candidates(constraints=None):
+        """
+        Get enrollments that are candidates for bulk processing based on constraints.
+
+        Args:
+            constraints: Dict with optional filters:
+                - email_verified: True/False/None
+                - has_laptop: True/False/None
+                - payment_status: PaymentStatus value or None
+                - enrollment_status: EnrollmentStatus value or None
+                - limit: Max results (default 200)
+
+        Returns:
+            dict: Query results with counts and preview data
+        """
+        logger = logging.getLogger('enrollment_service')
+
+        try:
+            # Base query for enrollments that can be processed
+            base_query = (
+                db.session.query(StudentEnrollment)
+                .filter(StudentEnrollment.enrollment_status != EnrollmentStatus.ENROLLED)
+                .filter(StudentEnrollment.enrollment_status != EnrollmentStatus.REJECTED)
+                .filter(StudentEnrollment.enrollment_status != EnrollmentStatus.CANCELLED)
+            )
+
+            # Apply constraints
+            if constraints:
+                if constraints.get('email_verified') is not None:
+                    base_query = base_query.filter(
+                        StudentEnrollment.email_verified == constraints['email_verified']
+                    )
+
+                if constraints.get('has_laptop') is not None:
+                    base_query = base_query.filter(
+                        StudentEnrollment.has_laptop == constraints['has_laptop']
+                    )
+
+                if constraints.get('payment_status'):
+                    base_query = base_query.filter(
+                        StudentEnrollment.payment_status == constraints['payment_status']
+                    )
+
+                if constraints.get('enrollment_status'):
+                    base_query = base_query.filter(
+                        StudentEnrollment.enrollment_status == constraints['enrollment_status']
+                    )
+
+            # Get total count
+            total_count = base_query.count()
+
+            # Get preview data (limited results)
+            limit = constraints.get('limit', 200) if constraints else 200
+            preview_enrollments = (
+                base_query
+                .order_by(StudentEnrollment.submitted_at.desc())
+                .limit(limit)
+                .all()
+            )
+
+            # Analyze the dataset
+            analysis = {
+                'total_candidates': total_count,
+                'preview_count': len(preview_enrollments),
+                'breakdown': {
+                    'email_verified': sum(1 for e in preview_enrollments if e.email_verified),
+                    'payment_verified': sum(1 for e in preview_enrollments if e.payment_status == PaymentStatus.VERIFIED),
+                    'has_laptop': sum(1 for e in preview_enrollments if e.has_laptop),
+                    'ready_for_enrollment': sum(1 for e in preview_enrollments if e.is_ready_for_enrollment())
+                }
+            }
+
+            # Check session capacity impact
+            capacity_check = EnrollmentService._analyze_bulk_capacity_impact(preview_enrollments)
+
+            return {
+                'success': True,
+                'total_count': total_count,
+                'preview_enrollments': preview_enrollments,
+                'analysis': analysis,
+                'capacity_impact': capacity_check,
+                'constraints_applied': constraints or {}
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting bulk enrollment candidates: {str(e)}")
+            raise
+
+
+    @staticmethod
+    def bulk_process_enrollments(enrollment_ids, constraints=None, processed_by_user_id=None,
+                                 send_emails=True, batch_size=25):
+        """
+        Process multiple enrollments to participants in batches with progress tracking.
+
+        Args:
+            enrollment_ids: List of enrollment IDs to process
+            constraints: Optional constraints to validate before processing
+            processed_by_user_id: Admin user ID performing bulk operation
+            send_emails: Whether to send approval emails
+            batch_size: Number of enrollments per batch
+
+        Returns:
+            dict: Detailed results with progress information
+        """
+        logger = logging.getLogger('enrollment_service')
+
+        # Validate inputs
+        if not enrollment_ids:
+            raise ValueError("No enrollment IDs provided")
+
+        if len(enrollment_ids) > 500:
+            raise ValueError("Too many enrollments selected (max 500)")
+
+        try:
+            # Initialize results tracking
+            results = {
+                'total_requested': len(enrollment_ids),
+                'processed': 0,
+                'failed': 0,
+                'skipped': 0,
+                'created_participants': [],
+                'failed_enrollments': [],
+                'skipped_enrollments': [],
+                'session_assignments': {'Saturday': {}, 'Sunday': {}},
+                'classroom_distribution': {},
+                'batch_results': [],
+                'started_at': datetime.now(),
+                'completed_at': None
+            }
+
+            # Process in batches
+            total_batches = (len(enrollment_ids) + batch_size - 1) // batch_size
+
+            for batch_num in range(total_batches):
+                start_idx = batch_num * batch_size
+                end_idx = min(start_idx + batch_size, len(enrollment_ids))
+                batch_ids = enrollment_ids[start_idx:end_idx]
+
+                logger.info(f"Processing batch {batch_num + 1}/{total_batches} ({len(batch_ids)} enrollments)")
+
+                batch_result = EnrollmentService._process_enrollment_batch(
+                    batch_ids, constraints, processed_by_user_id, send_emails
+                )
+
+                # Update overall results
+                results['processed'] += batch_result['processed']
+                results['failed'] += batch_result['failed']
+                results['skipped'] += batch_result['skipped']
+                results['created_participants'].extend(batch_result['created_participants'])
+                results['failed_enrollments'].extend(batch_result['failed_enrollments'])
+                results['skipped_enrollments'].extend(batch_result['skipped_enrollments'])
+                results['batch_results'].append(batch_result)
+
+                # Update session assignments
+                for day in ['Saturday', 'Sunday']:
+                    for time_slot, count in batch_result['session_assignments'][day].items():
+                        results['session_assignments'][day][time_slot] = \
+                            results['session_assignments'][day].get(time_slot, 0) + count
+
+                # Update classroom distribution
+                for classroom, count in batch_result['classroom_distribution'].items():
+                    results['classroom_distribution'][classroom] = \
+                        results['classroom_distribution'].get(classroom, 0) + count
+
+                # Commit batch (important for memory management)
+                db.session.commit()
+
+                logger.info(f"Batch {batch_num + 1} completed: {batch_result['processed']} processed, "
+                            f"{batch_result['failed']} failed, {batch_result['skipped']} skipped")
+
+            results['completed_at'] = datetime.now()
+            results['duration'] = (results['completed_at'] - results['started_at']).total_seconds()
+
+            logger.info(f"Bulk enrollment completed: {results['processed']} participants created, "
+                        f"{results['failed']} failed, {results['skipped']} skipped in {results['duration']:.1f}s")
+
+            return results
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Bulk enrollment processing failed: {str(e)}")
+            raise
+
+
+    @staticmethod
+    def _process_enrollment_batch(enrollment_ids, constraints, processed_by_user_id, send_emails):
+        """Process a single batch of enrollments."""
+        logger = logging.getLogger('enrollment_service')
+
+        batch_result = {
+            'processed': 0,
+            'failed': 0,
+            'skipped': 0,
+            'created_participants': [],
+            'failed_enrollments': [],
+            'skipped_enrollments': [],
+            'session_assignments': {'Saturday': {}, 'Sunday': {}},
+            'classroom_distribution': {}
+        }
+
+        try:
+            # Get enrollments for this batch
+            enrollments = (
+                db.session.query(StudentEnrollment)
+                .filter(StudentEnrollment.id.in_(enrollment_ids))
+                .all()
+            )
+
+            for enrollment in enrollments:
+                try:
+                    # Validate constraints if provided
+                    if constraints and not EnrollmentService._validate_enrollment_constraints(enrollment, constraints):
+                        batch_result['skipped'] += 1
+                        batch_result['skipped_enrollments'].append({
+                            'enrollment_id': enrollment.id,
+                            'application_number': enrollment.application_number,
+                            'reason': 'Does not meet specified constraints'
+                        })
+                        continue
+
+                    # Check if ready for enrollment
+                    if not enrollment.is_ready_for_enrollment():
+                        batch_result['skipped'] += 1
+                        batch_result['skipped_enrollments'].append({
+                            'enrollment_id': enrollment.id,
+                            'application_number': enrollment.application_number,
+                            'reason': f'Not ready: email_verified={enrollment.email_verified}, payment_status={enrollment.payment_status}'
+                        })
+                        continue
+
+                    # Process enrollment to participant
+                    participant = enrollment.enroll_as_participant(
+                        classroom=None,  # Let auto-assignment handle it
+                        processed_by_user_id=processed_by_user_id
+                    )
+
+                    # Create user account
+                    user, password = participant.create_user_account()
+
+                    # Track results
+                    batch_result['processed'] += 1
+                    batch_result['created_participants'].append({
+                        'enrollment_id': enrollment.id,
+                        'application_number': enrollment.application_number,
+                        'participant_id': participant.unique_id,
+                        'username': user.username,
+                        'password': password,
+                        'classroom': participant.classroom,
+                        'saturday_session': participant.saturday_session.time_slot if participant.saturday_session else None,
+                        'sunday_session': participant.sunday_session.time_slot if participant.sunday_session else None
+                    })
+
+                    # Track session assignments
+                    if participant.saturday_session:
+                        time_slot = participant.saturday_session.time_slot
+                        batch_result['session_assignments']['Saturday'][time_slot] = \
+                            batch_result['session_assignments']['Saturday'].get(time_slot, 0) + 1
+
+                    if participant.sunday_session:
+                        time_slot = participant.sunday_session.time_slot
+                        batch_result['session_assignments']['Sunday'][time_slot] = \
+                            batch_result['session_assignments']['Sunday'].get(time_slot, 0) + 1
+
+                    # Track classroom distribution
+                    batch_result['classroom_distribution'][participant.classroom] = \
+                        batch_result['classroom_distribution'].get(participant.classroom, 0) + 1
+
+                    # Send approval email if requested
+                    if send_emails:
+                        try:
+                            custom_data = {
+                                'participant_id': participant.unique_id,
+                                'username': user.username,
+                                'temporary_password': password,
+                                'login_url': f"{current_app.config.get('BASE_URL', '')}/auth/login",
+                                'approval_date': enrollment.processed_at.strftime('%B %d, %Y'),
+                                'session_info': {
+                                    'saturday_session': participant.saturday_session.time_slot if participant.saturday_session else 'Not assigned',
+                                    'sunday_session': participant.sunday_session.time_slot if participant.sunday_session else 'Not assigned',
+                                    'classroom': participant.classroom,
+                                    'classroom_name': (
+                                        'Computer Lab (Laptop Required)' if participant.classroom == current_app.config[
+                                            'LAPTOP_CLASSROOM']
+                                        else 'Regular Classroom (No Laptop Required)'
+                                    )
+                                }
+                            }
+
+                            EnrollmentService.send_enrollment_status_email(
+                                enrollment.id, 'approved', custom_data
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to send approval email for {enrollment.application_number}: {e}")
+
+                except Exception as e:
+                    batch_result['failed'] += 1
+                    batch_result['failed_enrollments'].append({
+                        'enrollment_id': enrollment.id,
+                        'application_number': enrollment.application_number,
+                        'error': str(e)
+                    })
+                    logger.error(f"Failed to process enrollment {enrollment.application_number}: {e}")
+
+            return batch_result
+
+        except Exception as e:
+            logger.error(f"Batch processing failed: {str(e)}")
+            raise
+
+
+    @staticmethod
+    def _validate_enrollment_constraints(enrollment, constraints):
+        """Validate enrollment against specified constraints."""
+        if constraints.get('email_verified') is not None:
+            if enrollment.email_verified != constraints['email_verified']:
+                return False
+
+        if constraints.get('has_laptop') is not None:
+            if enrollment.has_laptop != constraints['has_laptop']:
+                return False
+
+        if constraints.get('payment_status'):
+            if enrollment.payment_status != constraints['payment_status']:
+                return False
+
+        if constraints.get('enrollment_status'):
+            if enrollment.enrollment_status != constraints['enrollment_status']:
+                return False
+
+        return True
+
+
+    @staticmethod
+    def _analyze_bulk_capacity_impact(enrollments):
+        """Analyze the capacity impact of bulk processing these enrollments."""
+        laptop_count = sum(1 for e in enrollments if e.has_laptop)
+        no_laptop_count = len(enrollments) - laptop_count
+
+        # Get current classroom utilization
+        from app.services.session_classroom_service import SessionClassroomService
+
+        laptop_classroom = current_app.config.get('LAPTOP_CLASSROOM', '205')
+        no_laptop_classroom = current_app.config.get('NO_LAPTOP_CLASSROOM', '203')
+
+        laptop_utilization = SessionClassroomService.get_classroom_utilization(laptop_classroom)
+        no_laptop_utilization = SessionClassroomService.get_classroom_utilization(no_laptop_classroom)
+
+        return {
+            'laptop_classroom': {
+                'current_capacity': laptop_utilization,
+                'additional_students': laptop_count,
+                'projected_utilization': laptop_utilization['current_count'] + laptop_count,
+                'will_exceed_capacity': (laptop_utilization['current_count'] + laptop_count) > laptop_utilization[
+                    'capacity']
+            },
+            'no_laptop_classroom': {
+                'current_capacity': no_laptop_utilization,
+                'additional_students': no_laptop_count,
+                'projected_utilization': no_laptop_utilization['current_count'] + no_laptop_count,
+                'will_exceed_capacity': (no_laptop_utilization['current_count'] + no_laptop_count) > no_laptop_utilization[
+                    'capacity']
+            }
+        }

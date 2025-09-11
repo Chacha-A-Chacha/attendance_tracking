@@ -469,14 +469,21 @@ def verify_payment(enrollment_id):
 def view_receipt(enrollment_id):
     """View uploaded receipt file as preview."""
     try:
+        print(f"DEBUG: Looking for enrollment_id: {enrollment_id}")
         enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)
+        print(f"DEBUG: Enrollment found: {enrollment is not None}")
 
         if not enrollment:
+            print("DEBUG: Enrollment not found")
             return jsonify({'error': 'Enrollment not found'}), 404
 
+        print(f"DEBUG: Receipt upload path: {enrollment.receipt_upload_path}")
         receipt_path = EnrollmentService.get_receipt_file_path(enrollment_id)
+        print(f"DEBUG: Receipt file path: {receipt_path}")
+        print(f"DEBUG: File exists: {os.path.exists(receipt_path) if receipt_path else False}")
 
         if not receipt_path or not os.path.exists(receipt_path):
+            print("DEBUG: Receipt file not found")
             return jsonify({'error': 'Receipt file not found'}), 404
 
         # Determine content type
@@ -539,3 +546,243 @@ def resend_verification_email(enrollment_id):
             'success': False,
             'message': 'Error resending verification email.'
         }), 500
+
+
+@admin_bp.route('/bulk-enrollment')
+@login_required
+@staff_required
+def bulk_enrollment():
+    """Bulk enrollment management interface."""
+    try:
+        # Get basic statistics
+        enrollment_stats = EnrollmentService.get_enrollment_statistics()
+
+        # Get default constraints (ready for enrollment)
+        default_constraints = {
+            'email_verified': True,
+            'payment_status': PaymentStatus.VERIFIED,
+            'enrollment_status': EnrollmentStatus.PAYMENT_VERIFIED,
+            'limit': 200
+        }
+
+        # Get candidates with default constraints
+        candidates_result = EnrollmentService.get_bulk_enrollment_candidates(default_constraints)
+
+        # Get classroom utilization
+        from app.services.session_classroom_service import SessionClassroomService
+        classroom_utilization = SessionClassroomService.get_classroom_utilization()
+
+        return render_template(
+            'admin/enrollment/bulk_enrollment.html',
+            enrollment_stats=enrollment_stats,
+            candidates_result=candidates_result,
+            classroom_utilization=classroom_utilization,
+            default_constraints=default_constraints,
+            PaymentStatus=PaymentStatus,
+            EnrollmentStatus=EnrollmentStatus
+        )
+
+    except Exception as e:
+        flash('Error loading bulk enrollment interface.', 'error')
+        current_app.logger.error(f"Bulk enrollment interface error: {str(e)}")
+        return redirect(url_for('admin.pending_applications'))
+
+
+@admin_bp.route('/bulk-enrollment/preview', methods=['POST'])
+@login_required
+@staff_required
+def bulk_enrollment_preview():
+    """AJAX endpoint to preview bulk enrollment candidates based on constraints."""
+    if not request.is_json:
+        return jsonify({'error': 'Invalid request format'}), 400
+
+    data = request.get_json()
+    constraints = {
+        'email_verified': data.get('email_verified'),
+        'has_laptop': data.get('has_laptop'),
+        'payment_status': data.get('payment_status'),
+        'enrollment_status': data.get('enrollment_status'),
+        'limit': data.get('limit', 200)
+    }
+
+    # Remove None values
+    constraints = {k: v for k, v in constraints.items() if v is not None}
+
+    try:
+        result = EnrollmentService.get_bulk_enrollment_candidates(constraints)
+
+        # Format for JSON response
+        response_data = {
+            'success': True,
+            'total_count': result['total_count'],
+            'analysis': result['analysis'],
+            'capacity_impact': result['capacity_impact'],
+            'constraints_applied': result['constraints_applied'],
+            'preview_data': []
+        }
+
+        # Add preview data (limited fields for performance)
+        for enrollment in result['preview_enrollments'][:50]:  # Limit preview to 50 items
+            response_data['preview_data'].append({
+                'id': enrollment.id,
+                'application_number': enrollment.application_number,
+                'full_name': enrollment.full_name,
+                'email': enrollment.email,
+                'has_laptop': enrollment.has_laptop,
+                'email_verified': enrollment.email_verified,
+                'payment_status': enrollment.payment_status,
+                'enrollment_status': enrollment.enrollment_status,
+                'submitted_at': enrollment.submitted_at.isoformat() if enrollment.submitted_at else None,
+                'is_ready': enrollment.is_ready_for_enrollment()
+            })
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        current_app.logger.error(f"Bulk enrollment preview error: {str(e)}")
+        return jsonify({'error': 'Preview failed'}), 500
+
+
+@admin_bp.route('/bulk-enrollment/process', methods=['POST'])
+@login_required
+@staff_required
+def process_bulk_enrollment():
+    """Process bulk enrollment of selected applications."""
+    if not request.is_json:
+        return jsonify({'error': 'Invalid request format'}), 400
+
+    data = request.get_json()
+    enrollment_ids = data.get('enrollment_ids', [])
+    constraints = data.get('constraints', {})
+    send_emails = data.get('send_emails', True)
+    batch_size = data.get('batch_size', 25)
+
+    if not enrollment_ids:
+        return jsonify({'error': 'No enrollments selected'}), 400
+
+    if len(enrollment_ids) > 500:
+        return jsonify({'error': 'Too many enrollments selected (max 500)'}), 400
+
+    try:
+        # Start bulk processing
+        results = EnrollmentService.bulk_process_enrollments(
+            enrollment_ids=enrollment_ids,
+            constraints=constraints,
+            processed_by_user_id=current_user.id,
+            send_emails=send_emails,
+            batch_size=batch_size
+        )
+
+        # Format response
+        response = {
+            'success': True,
+            'message': f'Bulk enrollment completed: {results["processed"]} participants created',
+            'results': {
+                'total_requested': results['total_requested'],
+                'processed': results['processed'],
+                'failed': results['failed'],
+                'skipped': results['skipped'],
+                'duration': results['duration'],
+                'session_assignments': results['session_assignments'],
+                'classroom_distribution': results['classroom_distribution']
+            },
+            'details': {
+                'created_participants': results['created_participants'][:20],  # Limit for response size
+                'failed_enrollments': results['failed_enrollments'],
+                'skipped_enrollments': results['skipped_enrollments']
+            }
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        current_app.logger.error(f"Bulk enrollment processing error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/bulk-enrollment/progress/<task_id>')
+@login_required
+@staff_required
+def bulk_enrollment_progress(task_id):
+    """Get progress of bulk enrollment processing (for future async implementation)."""
+    # This is a placeholder for async bulk processing
+    # Currently bulk processing is synchronous
+    return jsonify({
+        'status': 'completed',
+        'progress': 100,
+        'message': 'Bulk processing completed'
+    })
+
+
+@admin_bp.route('/bulk-enrollment/export-results', methods=['POST'])
+@login_required
+@staff_required
+def export_bulk_enrollment_results():
+    """Export bulk enrollment results as CSV."""
+    if not request.is_json:
+        return jsonify({'error': 'Invalid request format'}), 400
+
+    data = request.get_json()
+    results_data = data.get('results')
+
+    if not results_data:
+        return jsonify({'error': 'No results data provided'}), 400
+
+    try:
+        import csv
+        import io
+        from flask import make_response
+
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Write headers
+        writer.writerow([
+            'Application Number', 'Participant ID', 'Full Name', 'Email',
+            'Username', 'Password', 'Classroom', 'Saturday Session', 'Sunday Session',
+            'Status'
+        ])
+
+        # Write successful enrollments
+        for participant in results_data.get('created_participants', []):
+            writer.writerow([
+                participant['application_number'],
+                participant['participant_id'],
+                '',  # Full name would need to be added
+                '',  # Email would need to be added
+                participant['username'],
+                participant['password'],
+                participant['classroom'],
+                participant['saturday_session'],
+                participant['sunday_session'],
+                'Successfully Created'
+            ])
+
+        # Write failed enrollments
+        for failed in results_data.get('failed_enrollments', []):
+            writer.writerow([
+                failed['application_number'],
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                f"Failed: {failed['error']}"
+            ])
+
+        # Create response
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers[
+            'Content-Disposition'] = f'attachment; filename=bulk_enrollment_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Export results error: {str(e)}")
+        return jsonify({'error': 'Export failed'}), 500
