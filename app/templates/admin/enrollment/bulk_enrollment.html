@@ -1,4 +1,4 @@
-{% extends "admin/admin_base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Bulk Enrollment - Programming Course{% endblock %}
 
@@ -29,24 +29,11 @@
                 <div class="flex items-center space-x-3">
                     <div class="text-right">
                         <div class="text-sm text-gray-500">Ready for Processing</div>
-                        <div class="text-2xl font-bold text-blue-600">{{ candidates_result.analysis.ready_for_enrollment }}</div>
+                        <div class="text-2xl font-bold text-blue-600">{{ candidates_result.analysis.ready_for_enrollment or 0 }}</div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-6">
-                    {% for category, message in messages %}
-                        <div class="p-4 rounded-md mb-3 {% if category == 'error' %}bg-red-50 border border-red-200 text-red-800{% elif category == 'success' %}bg-green-50 border border-green-200 text-green-800{% elif category == 'warning' %}bg-yellow-50 border border-yellow-200 text-yellow-800{% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
 
         <!-- Statistics Overview -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -59,7 +46,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Email Verified</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.email_verified }}</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.email_verified or 0 }}</p>
                     </div>
                 </div>
             </div>
@@ -73,7 +60,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Payment Verified</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.payment_verified }}</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.payment_verified or 0 }}</p>
                     </div>
                 </div>
             </div>
@@ -87,7 +74,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Has Laptop</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.has_laptop }}</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.has_laptop or 0 }}</p>
                     </div>
                 </div>
             </div>
@@ -101,7 +88,7 @@
                     </div>
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-600">Ready to Process</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.ready_for_enrollment }}</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ candidates_result.analysis.ready_for_enrollment or 0 }}</p>
                     </div>
                 </div>
             </div>
@@ -336,7 +323,7 @@
 
                     <!-- Applications List -->
                     <div class="max-h-96 overflow-y-auto">
-                        <div x-show="!previewData || previewData.preview_data.length === 0" class="p-6 text-center text-gray-500">
+                        <div x-show="!previewData || !previewData.preview_data || previewData.preview_data.length === 0" class="p-6 text-center text-gray-500">
                             <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
@@ -344,8 +331,8 @@
                             <p class="text-sm mt-1">Adjust your filters to see more candidates</p>
                         </div>
 
-                        <div x-show="previewData && previewData.preview_data.length > 0">
-                            <template x-for="(application, index) in previewData.preview_data" :key="application.id">
+                        <div x-show="previewData && previewData.preview_data && previewData.preview_data.length > 0">
+                            <template x-for="(application, index) in (previewData?.preview_data || [])" :key="application.id">
                                 <div class="border-b border-gray-200 p-4 hover:bg-gray-50">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-4">
@@ -559,6 +546,11 @@
 
 {% block extra_js %}
 <script>
+// Get CSRF token function (uses existing pattern from admin_base.html)
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
 function bulkEnrollmentManager() {
     return {
         // State
@@ -592,7 +584,7 @@ function bulkEnrollmentManager() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRFToken': getCSRFToken()
                     },
                     body: JSON.stringify(this.constraints)
                 });
@@ -676,7 +668,7 @@ function bulkEnrollmentManager() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRFToken': getCSRFToken()
                     },
                     body: JSON.stringify({
                         enrollment_ids: this.selectedApplications,
@@ -712,7 +704,7 @@ function bulkEnrollmentManager() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRFToken': getCSRFToken()
                     },
                     body: JSON.stringify({
                         results: this.processResults
@@ -738,7 +730,7 @@ function bulkEnrollmentManager() {
             }
         },
 
-        // Show error message using existing flash system
+        // Show error message using existing flash system pattern
         showError(message) {
             // Create a temporary flash message element using existing styles
             const flashContainer = document.createElement('div');
