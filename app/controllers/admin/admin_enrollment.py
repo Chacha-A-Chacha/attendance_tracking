@@ -3,9 +3,13 @@
 Streamlined admin enrollment management routes.
 Handles application review, payment verification, approval/rejection with AJAX.
 """
-
+import csv
+import io
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file
+from typing import List
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file, \
+    make_response
 from flask_login import login_required, current_user
 from sqlalchemy import and_, or_, func, desc
 from datetime import datetime, timedelta
@@ -14,7 +18,7 @@ from werkzeug.exceptions import NotFound
 from app.models.enrollment import StudentEnrollment, EnrollmentStatus, PaymentStatus
 from app.models.participant import Participant
 from app.models.user import Permission
-from app.services.enrollment_service import EnrollmentService
+from app.services.enrollment_service import EnrollmentService, BulkEnrollmentMode
 from app.utils.auth import permission_required, staff_required
 from app.extensions import db
 from app.config import Config
@@ -548,57 +552,118 @@ def resend_verification_email(enrollment_id):
         }), 500
 
 
+
+# Updated Bulk Enrollment Endpoints
+
 @admin_bp.route('/bulk-enrollment')
 @login_required
 @staff_required
 def bulk_enrollment():
-    """Bulk enrollment management interface."""
-    # Minimal version that definitely returns a response
-    return render_template(
-        'admin/enrollment/bulk_enrollment.html',
-        enrollment_stats={'total': 0, 'ready_for_processing': 0},
-        candidates_result={'analysis': {'ready_for_enrollment': 0, 'email_verified': 0, 'payment_verified': 0, 'has_laptop': 0}},
-        classroom_utilization={},
-        default_constraints={}
-    )
+    """Enhanced bulk enrollment management interface with proper initialization."""
+    try:
+        # Get basic enrollment statistics
+        enrollment_stats = EnrollmentService.get_enrollment_statistics()
+
+        # Get overview by processing mode
+        constraint_based_result = EnrollmentService.get_bulk_enrollment_candidates_optimized(
+            mode=BulkEnrollmentMode.CONSTRAINT_BASED,
+            limit=10  # Small limit for overview
+        )
+
+        override_mode_result = EnrollmentService.get_bulk_enrollment_candidates_optimized(
+            mode=BulkEnrollmentMode.ADMIN_OVERRIDE,
+            limit=10  # Small limit for overview
+        )
+
+        # Session capacity overview (optional)
+        try:
+            from app.services.session_classroom_service import SessionClassroomService
+            classroom_utilization = SessionClassroomService.get_classroom_utilization_summary()
+        except Exception:
+            classroom_utilization = {}
+
+        # Default constraints for UI initialization
+        default_constraints = {
+            'processing_modes': {
+                'constraint_based': {
+                    'label': 'Standard (Ready Students Only)',
+                    'description': 'Process only students with verified email and payment',
+                    'candidates': constraint_based_result['total_count']
+                },
+                'admin_override': {
+                    'label': 'Administrative Override',
+                    'description': 'Process students regardless of verification status',
+                    'candidates': override_mode_result['total_count']
+                }
+            },
+            'payment_status_options': [
+                {'value': 'verified', 'label': 'Admin Verified', 'description': 'Payment confirmed by administrator'},
+                {'value': 'paid', 'label': 'Awaiting Verification',
+                 'description': 'Receipt uploaded, pending admin review'},
+                {'value': 'unpaid', 'label': 'No Payment', 'description': 'No payment receipt uploaded'}
+            ]
+        }
+
+        return render_template(
+            'admin/enrollment/bulk_enrollment.html',
+            enrollment_stats=enrollment_stats,
+            constraint_based_analysis=constraint_based_result['analysis'],
+            override_mode_analysis=override_mode_result['analysis'],
+            classroom_utilization=classroom_utilization,
+            default_constraints=default_constraints,
+            processing_modes=BulkEnrollmentMode
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Bulk enrollment interface error: {str(e)}")
+        flash('Error loading bulk enrollment interface.', 'error')
+        return redirect(url_for('admin.dashboard'))
 
 
 @admin_bp.route('/bulk-enrollment/preview', methods=['POST'])
 @login_required
 @staff_required
 def bulk_enrollment_preview():
-    """AJAX endpoint to preview bulk enrollment candidates based on constraints."""
+    """Enhanced AJAX endpoint to preview bulk enrollment candidates with flexible constraints."""
     if not request.is_json:
         return jsonify({'error': 'Invalid request format'}), 400
 
-    data = request.get_json()
-    constraints = {
-        'email_verified': data.get('email_verified'),
-        'has_laptop': data.get('has_laptop'),
-        'payment_status': data.get('payment_status'),
-        'enrollment_status': data.get('enrollment_status'),
-        'limit': data.get('limit', 200)
-    }
-
-    # Remove None values
-    constraints = {k: v for k, v in constraints.items() if v is not None}
-
     try:
-        result = EnrollmentService.get_bulk_enrollment_candidates(constraints)
+        data = request.get_json()
 
-        # Format for JSON response
+        # Parse and validate request parameters
+        constraints, mode, force_override, limit, offset = parse_bulk_enrollment_request(data)
+
+        current_app.logger.info(
+            f"Bulk enrollment preview: mode={mode}, constraints={constraints}, force_override={force_override}")
+
+        # Get candidates using optimized service method
+        result = EnrollmentService.get_bulk_enrollment_candidates_optimized(
+            constraints=constraints,
+            mode=mode,
+            limit=limit,
+            offset=offset
+        )
+
+        # Format response data for frontend
         response_data = {
             'success': True,
             'total_count': result['total_count'],
             'analysis': result['analysis'],
             'capacity_impact': result['capacity_impact'],
+            'processing_mode': result['processing_mode'],
             'constraints_applied': result['constraints_applied'],
+            'query_performance': result['query_performance'],
             'preview_data': []
         }
 
-        # Add preview data (limited fields for performance)
-        for enrollment in result['preview_enrollments'][:50]:  # Limit preview to 50 items
-            response_data['preview_data'].append({
+        # Add override warnings for admin override mode
+        if mode == BulkEnrollmentMode.ADMIN_OVERRIDE:
+            response_data['override_warnings'] = result.get('override_warnings', [])
+
+        # Format preview data (limit to 50 for performance)
+        for enrollment in result['preview_enrollments'][:50]:
+            enrollment_data = {
                 'id': enrollment.id,
                 'application_number': enrollment.application_number,
                 'full_name': enrollment.full_name,
@@ -606,158 +671,429 @@ def bulk_enrollment_preview():
                 'has_laptop': enrollment.has_laptop,
                 'email_verified': enrollment.email_verified,
                 'payment_status': enrollment.payment_status,
-                'enrollment_status': enrollment.enrollment_status,
                 'submitted_at': enrollment.submitted_at.isoformat() if enrollment.submitted_at else None,
                 'is_ready': enrollment.is_ready_for_enrollment()
-            })
+            }
+
+            # Add constraint violation indicators for override mode
+            if mode == BulkEnrollmentMode.ADMIN_OVERRIDE:
+                violations = []
+                if not enrollment.email_verified:
+                    violations.append('email_unverified')
+                if enrollment.payment_status != PaymentStatus.VERIFIED:
+                    violations.append('payment_unverified')
+                enrollment_data['constraint_violations'] = violations
+                enrollment_data['requires_override'] = len(violations) > 0
+
+            response_data['preview_data'].append(enrollment_data)
+
+        # Add pagination info
+        response_data['pagination'] = {
+            'limit': limit,
+            'offset': offset,
+            'has_more': result['total_count'] > (offset + len(response_data['preview_data']))
+        }
 
         return jsonify(response_data)
 
+    except ValueError as e:
+        current_app.logger.warning(f"Bulk enrollment preview validation error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+
     except Exception as e:
         current_app.logger.error(f"Bulk enrollment preview error: {str(e)}")
-        return jsonify({'error': 'Preview failed'}), 500
+        return jsonify({'success': False, 'error': 'Preview failed'}), 500
 
 
 @admin_bp.route('/bulk-enrollment/process', methods=['POST'])
 @login_required
 @staff_required
 def process_bulk_enrollment():
-    """Process bulk enrollment of selected applications."""
+    """Enhanced bulk enrollment processing with flexible modes and constraint handling."""
     if not request.is_json:
         return jsonify({'error': 'Invalid request format'}), 400
 
-    data = request.get_json()
-    enrollment_ids = data.get('enrollment_ids', [])
-    constraints = data.get('constraints', {})
-    send_emails = data.get('send_emails', True)
-    batch_size = data.get('batch_size', 25)
-
-    if not enrollment_ids:
-        return jsonify({'error': 'No enrollments selected'}), 400
-
-    if len(enrollment_ids) > 500:
-        return jsonify({'error': 'Too many enrollments selected (max 500)'}), 400
-
     try:
-        # Start bulk processing
-        results = EnrollmentService.bulk_process_enrollments(
+        data = request.get_json()
+
+        # Validate enrollment IDs
+        enrollment_ids = validate_enrollment_ids(data.get('enrollment_ids', []))
+
+        # Parse processing parameters
+        constraints, mode, force_override, _, _ = parse_bulk_enrollment_request(data)
+
+        # Additional processing parameters
+        send_emails = bool(data.get('send_emails', True))
+        batch_size = min(int(data.get('batch_size', 25)), 50)  # Cap batch size
+
+        current_app.logger.info(
+            f"Starting bulk enrollment: {len(enrollment_ids)} enrollments, mode={mode}, force_override={force_override}")
+
+        # Process enrollments using flexible service method
+        results = EnrollmentService.bulk_process_enrollments_flexible(
             enrollment_ids=enrollment_ids,
+            mode=mode,
             constraints=constraints,
             processed_by_user_id=current_user.id,
             send_emails=send_emails,
-            batch_size=batch_size
+            batch_size=batch_size,
+            force_override=force_override
         )
 
-        # Format response
+        # Generate success message based on results
+        success_message_parts = []
+        if results['processed'] > 0:
+            success_message_parts.append(f"{results['processed']} participants created")
+        if results.get('override_processed', 0) > 0:
+            success_message_parts.append(f"{results['override_processed']} override enrollments processed")
+        if results['failed'] > 0:
+            success_message_parts.append(f"{results['failed']} failed")
+        if results['skipped'] > 0:
+            success_message_parts.append(f"{results['skipped']} skipped")
+
+        success_message = f"Bulk enrollment completed: {', '.join(success_message_parts)}"
+
+        # Format comprehensive response
         response = {
             'success': True,
-            'message': f'Bulk enrollment completed: {results["processed"]} participants created',
+            'message': success_message,
+            'processing_mode': results['processing_mode'],
             'results': {
                 'total_requested': results['total_requested'],
                 'processed': results['processed'],
+                'override_processed': results.get('override_processed', 0),
                 'failed': results['failed'],
                 'skipped': results['skipped'],
-                'duration': results['duration'],
+                'duration': results.get('duration', 0),
                 'session_assignments': results['session_assignments'],
                 'classroom_distribution': results['classroom_distribution']
             },
             'details': {
                 'created_participants': results['created_participants'][:20],  # Limit for response size
+                'override_enrollments': results.get('override_enrollments', [])[:10],
                 'failed_enrollments': results['failed_enrollments'],
-                'skipped_enrollments': results['skipped_enrollments']
+                'skipped_enrollments': results['skipped_enrollments'][:10]  # Limit for response size
+            },
+            'eligibility_check': results.get('eligibility_check', {}),
+            'audit_info': {
+                'force_override_used': results.get('force_override_used', False),
+                'constraints_applied': results.get('constraints_applied', {}),
+                'processed_by': current_user.id,
+                'processing_started': results.get('started_at').isoformat() if results.get('started_at') else None,
+                'processing_completed': results.get('completed_at').isoformat() if results.get('completed_at') else None
             }
         }
 
+        # Add warnings for override operations
+        if mode == BulkEnrollmentMode.ADMIN_OVERRIDE or force_override:
+            response['override_warnings'] = {
+                'message': 'Administrative override was used to process enrollments that did not meet standard criteria',
+                'processed_count': results.get('override_processed', 0),
+                'audit_trail_available': True
+            }
+
         return jsonify(response)
+
+    except ValueError as e:
+        current_app.logger.warning(f"Bulk enrollment processing validation error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 400
 
     except Exception as e:
         current_app.logger.error(f"Bulk enrollment processing error: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': f'Processing failed: {str(e)}'}), 500
 
 
-@admin_bp.route('/bulk-enrollment/progress/<task_id>')
+@admin_bp.route('/bulk-enrollment/validate', methods=['POST'])
 @login_required
 @staff_required
-def bulk_enrollment_progress(task_id):
-    """Get progress of bulk enrollment processing (for future async implementation)."""
-    # This is a placeholder for async bulk processing
-    # Currently bulk processing is synchronous
-    return jsonify({
-        'status': 'completed',
-        'progress': 100,
-        'message': 'Bulk processing completed'
-    })
+def validate_bulk_enrollment():
+    """Pre-validate bulk enrollment request for eligibility and impact assessment."""
+    if not request.is_json:
+        return jsonify({'error': 'Invalid request format'}), 400
+
+    try:
+        data = request.get_json()
+
+        # Validate enrollment IDs
+        enrollment_ids = validate_enrollment_ids(data.get('enrollment_ids', []))
+
+        # Parse processing parameters
+        constraints, mode, force_override, _, _ = parse_bulk_enrollment_request(data)
+
+        # Quick eligibility validation using service method
+        eligibility_result = EnrollmentService._validate_bulk_enrollment_eligibility(
+            enrollment_ids, mode, constraints, force_override
+        )
+
+        # Capacity impact analysis for eligible enrollments
+        if eligibility_result['eligible_ids']:
+            # Get sample of eligible enrollments for impact analysis
+            sample_size = min(50, len(eligibility_result['eligible_ids']))
+            sample_ids = eligibility_result['eligible_ids'][:sample_size]
+
+            sample_enrollments = (
+                db.session.query(StudentEnrollment)
+                .filter(StudentEnrollment.id.in_(sample_ids))
+                .options(db.load_only(StudentEnrollment.has_laptop))
+                .all()
+            )
+
+            capacity_impact = EnrollmentService._analyze_bulk_capacity_impact_optimized(sample_enrollments)
+        else:
+            capacity_impact = {'total_impact': 0, 'laptop_classroom_impact': 0, 'no_laptop_classroom_impact': 0}
+
+        response = {
+            'success': True,
+            'eligibility': eligibility_result,
+            'capacity_impact': capacity_impact,
+            'processing_mode': mode,
+            'validation_warnings': [],
+            'recommendations': []
+        }
+
+        # Add warnings and recommendations
+        if eligibility_result['override_candidates']:
+            response['validation_warnings'].append({
+                'type': 'constraint_violations',
+                'message': f"{len(eligibility_result['override_candidates'])} enrollments have constraint violations",
+                'details': eligibility_result['override_candidates'][:5]  # Sample
+            })
+
+        if eligibility_result['validation_summary']['ineligible'] > 0:
+            response['validation_warnings'].append({
+                'type': 'ineligible_enrollments',
+                'message': f"{eligibility_result['validation_summary']['ineligible']} enrollments cannot be processed",
+                'count': eligibility_result['validation_summary']['ineligible']
+            })
+
+        # Processing recommendations
+        if mode == BulkEnrollmentMode.CONSTRAINT_BASED and eligibility_result['override_candidates']:
+            response['recommendations'].append({
+                'type': 'consider_override_mode',
+                'message': 'Consider using Administrative Override mode to process additional candidates',
+                'additional_candidates': len(eligibility_result['override_candidates'])
+            })
+
+        return jsonify(response)
+
+    except ValueError as e:
+        current_app.logger.warning(f"Bulk enrollment validation error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+    except Exception as e:
+        current_app.logger.error(f"Bulk enrollment validation error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Validation failed'}), 500
 
 
 @admin_bp.route('/bulk-enrollment/export-results', methods=['POST'])
 @login_required
 @staff_required
 def export_bulk_enrollment_results():
-    """Export bulk enrollment results as CSV."""
+    """Enhanced CSV export with override tracking and comprehensive audit information."""
     if not request.is_json:
         return jsonify({'error': 'Invalid request format'}), 400
 
-    data = request.get_json()
-    results_data = data.get('results')
-
-    if not results_data:
-        return jsonify({'error': 'No results data provided'}), 400
-
     try:
-        import csv
-        import io
-        from flask import make_response
+        data = request.get_json()
+        results_data = data.get('results')
+
+        if not results_data:
+            return jsonify({'error': 'No results data provided'}), 400
 
         # Create CSV content
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # Write headers
+        # Enhanced CSV headers
         writer.writerow([
             'Application Number', 'Participant ID', 'Full Name', 'Email',
             'Username', 'Password', 'Classroom', 'Saturday Session', 'Sunday Session',
-            'Status'
+            'Processing Status', 'Processing Mode', 'Override Used', 'Override Reasons',
+            'Processed At', 'Processing Duration'
         ])
 
-        # Write successful enrollments
+        # Write successful standard enrollments
         for participant in results_data.get('created_participants', []):
             writer.writerow([
                 participant['application_number'],
                 participant['participant_id'],
-                '',  # Full name would need to be added
-                '',  # Email would need to be added
+                participant.get('full_name', ''),
+                participant.get('email', ''),
                 participant['username'],
                 participant['password'],
                 participant['classroom'],
-                participant['saturday_session'],
-                participant['sunday_session'],
-                'Successfully Created'
+                participant.get('saturday_session', ''),
+                participant.get('sunday_session', ''),
+                'Successfully Created',
+                results_data.get('processing_mode', 'constraint_based'),
+                'No',
+                '',
+                participant.get('processed_at', ''),
+                ''
+            ])
+
+        # Write override enrollments
+        for participant in results_data.get('override_enrollments', []):
+            override_reasons = ', '.join(participant.get('override_reasons', []))
+            writer.writerow([
+                participant['application_number'],
+                participant['participant_id'],
+                participant.get('full_name', ''),
+                participant.get('email', ''),
+                participant['username'],
+                participant['password'],
+                participant['classroom'],
+                participant.get('saturday_session', ''),
+                participant.get('sunday_session', ''),
+                'Successfully Created (Override)',
+                results_data.get('processing_mode', 'admin_override'),
+                'Yes',
+                override_reasons,
+                participant.get('processed_at', ''),
+                ''
             ])
 
         # Write failed enrollments
         for failed in results_data.get('failed_enrollments', []):
             writer.writerow([
                 failed['application_number'],
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                f"Failed: {failed['error']}"
+                '', '', '', '', '', '', '', '',
+                f"Failed: {failed['error']}",
+                results_data.get('processing_mode', ''),
+                '', '',
+                failed.get('failed_at', ''),
+                ''
             ])
 
-        # Create response
+        # Write skipped enrollments
+        for skipped in results_data.get('skipped_enrollments', []):
+            writer.writerow([
+                skipped.get('application_number', skipped['enrollment_id']),
+                '', '', '', '', '', '', '', '',
+                f"Skipped: {skipped['reason']}",
+                results_data.get('processing_mode', ''),
+                '', '',
+                skipped.get('skipped_at', ''),
+                ''
+            ])
+
+        # Create response with enhanced filename
         output.seek(0)
+        processing_mode = results_data.get('processing_mode', 'bulk')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"bulk_enrollment_{processing_mode}_{timestamp}.csv"
+
         response = make_response(output.getvalue())
         response.headers['Content-Type'] = 'text/csv'
-        response.headers[
-            'Content-Disposition'] = f'attachment; filename=bulk_enrollment_results_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
 
         return response
 
     except Exception as e:
         current_app.logger.error(f"Export results error: {str(e)}")
         return jsonify({'error': 'Export failed'}), 500
+
+
+@admin_bp.route('/bulk-enrollment/progress/<task_id>')
+@login_required
+@staff_required
+def bulk_enrollment_progress(task_id):
+    """Get progress of bulk enrollment processing (placeholder for future async implementation)."""
+    # This remains a placeholder for now
+    # Can be enhanced later for true async processing with Celery/Redis
+    return jsonify({
+        'task_id': task_id,
+        'status': 'completed',
+        'progress': 100,
+        'message': 'Bulk processing completed',
+        'results_available': True
+    })
+
+
+# Additional helper endpoint for mode information
+@admin_bp.route('/bulk-enrollment/modes')
+@login_required
+@staff_required
+def get_bulk_enrollment_modes():
+    """Get available bulk enrollment processing modes and their descriptions."""
+    modes = {
+        BulkEnrollmentMode.CONSTRAINT_BASED: {
+            'label': 'Standard Processing',
+            'description': 'Process only students who meet all enrollment criteria (email verified, payment verified)',
+            'requirements': ['Email verified', 'Payment admin-verified', 'Ready status'],
+            'safe_for_automation': True
+        },
+        BulkEnrollmentMode.ADMIN_OVERRIDE: {
+            'label': 'Administrative Override',
+            'description': 'Process students regardless of verification status (requires admin approval)',
+            'requirements': ['Admin oversight required', 'Audit trail maintained'],
+            'safe_for_automation': False,
+            'warnings': ['May process unverified emails', 'May process unverified payments']
+        }
+    }
+
+    return jsonify({
+        'success': True,
+        'modes': modes,
+        'default_mode': BulkEnrollmentMode.CONSTRAINT_BASED
+    })
+
+def parse_bulk_enrollment_request(data):
+    """
+    Parse and validate bulk enrollment request parameters.
+    Handles boolean string conversion and constraint validation.
+    """
+    constraints = {}
+
+    # Boolean parameter parsing (frontend sends "true"/"false" strings)
+    if 'email_verified' in data and data['email_verified'] not in [None, '']:
+        constraints['email_verified'] = str(data['email_verified']).lower() == 'true'
+
+    if 'has_laptop' in data and data['has_laptop'] not in [None, '']:
+        constraints['has_laptop'] = str(data['has_laptop']).lower() == 'true'
+
+    # Payment status enum validation
+    if 'payment_status' in data and data['payment_status']:
+        payment_status = data['payment_status']
+        valid_payment_statuses = ['unpaid', 'paid', 'verified']
+        if payment_status in valid_payment_statuses:
+            constraints['payment_status'] = payment_status
+        else:
+            raise ValueError(f"Invalid payment_status: {payment_status}. Must be one of: {valid_payment_statuses}")
+
+    # Processing mode parsing
+    mode = data.get('processing_mode', BulkEnrollmentMode.CONSTRAINT_BASED)
+    valid_modes = [BulkEnrollmentMode.CONSTRAINT_BASED, BulkEnrollmentMode.ADMIN_OVERRIDE]
+    if mode not in valid_modes:
+        mode = BulkEnrollmentMode.CONSTRAINT_BASED  # Default fallback
+
+    # Override settings
+    force_override = bool(data.get('force_override', False))
+
+    # Pagination parameters
+    limit = min(int(data.get('limit', 500)), 1000)  # Increased limit, cap at 1000
+    offset = max(int(data.get('offset', 0)), 0)
+
+    return constraints, mode, force_override, limit, offset
+
+
+def validate_enrollment_ids_simple(enrollment_ids: List[str]) -> List[str]:
+    """Validate enrollment IDs list (UUIDs) - simplified version."""
+    if not enrollment_ids:
+        raise ValueError("No enrollment IDs provided")
+
+    if not isinstance(enrollment_ids, list):
+        raise ValueError("enrollment_ids must be a list")
+
+    if len(enrollment_ids) > 1000:
+        raise ValueError("Too many enrollments selected (maximum 1000 allowed)")
+
+    # Ensure all are strings and not empty
+    validated_ids = []
+    for enrollment_id in enrollment_ids:
+        clean_id = str(enrollment_id).strip()
+        if not clean_id:
+            raise ValueError("Empty enrollment ID provided")
+        validated_ids.append(clean_id)
+
+    return validated_ids
