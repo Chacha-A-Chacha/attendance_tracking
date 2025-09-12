@@ -1077,7 +1077,7 @@ def parse_bulk_enrollment_request(data):
     return constraints, mode, force_override, limit, offset
 
 
-def validate_enrollment_ids_simple(enrollment_ids: List[str]) -> List[str]:
+def validate_enrollment_ids(enrollment_ids: List[str]) -> List[str]:
     """Validate enrollment IDs list (UUIDs) - simplified version."""
     if not enrollment_ids:
         raise ValueError("No enrollment IDs provided")

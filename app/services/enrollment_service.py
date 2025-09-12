@@ -1153,7 +1153,7 @@ class EnrollmentService:
 
     @staticmethod
     def bulk_process_enrollments_flexible(
-            enrollment_ids: List[int],
+            enrollment_ids: List[str],
             mode: str = BulkEnrollmentMode.CONSTRAINT_BASED,
             constraints: Optional[Dict] = None,
             processed_by_user_id: Optional[str] = None,
@@ -1165,7 +1165,7 @@ class EnrollmentService:
         Flexible bulk enrollment processing with constraint validation and override capability.
 
         Args:
-            enrollment_ids: List of enrollment IDs to process
+            enrollment_ids: List of enrollment UUID strings to process
             mode: Processing mode (constraint_based or admin_override)
             constraints: Optional constraints for validation
             processed_by_user_id: Admin user ID performing operation
@@ -1345,14 +1345,22 @@ class EnrollmentService:
 
     @staticmethod
     def _validate_bulk_enrollment_eligibility(
-            enrollment_ids: List[int],
+            enrollment_ids: List[str],
             mode: str,
             constraints: Optional[Dict] = None,
             force_override: bool = False
     ) -> Dict[str, Any]:
         """
         Validate eligibility of enrollments for bulk processing.
-        Separates validation logic from processing logic.
+
+        Args:
+            enrollment_ids: List of enrollment UUID strings
+            mode: Processing mode
+            constraints: Optional constraints
+            force_override: Whether to force override
+
+        Returns:
+            dict: Eligibility results with UUID strings
         """
         logger = logging.getLogger('enrollment_service')
 
@@ -1368,12 +1376,12 @@ class EnrollmentService:
 
         enrollments = eligibility_query.all()
 
-        eligible_ids = []
-        ineligible_reasons = {}
+        eligible_ids: List[str] = []
+        ineligible_reasons: Dict[str, str] = {}
         override_candidates = []
 
         for enrollment in enrollments:
-            enrollment_id = enrollment.id
+            enrollment_id: str = enrollment.id
 
             # Critical exclusion: cannot process already enrolled participants
             if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
@@ -1424,7 +1432,7 @@ class EnrollmentService:
                     eligible_ids.append(enrollment_id)
 
         # Validate requested IDs exist
-        found_ids = {e.id for e in enrollments}
+        found_ids = {str(e.id) for e in enrollments}
         missing_ids = set(enrollment_ids) - found_ids
         for missing_id in missing_ids:
             ineligible_reasons[missing_id] = 'Enrollment not found'
@@ -1444,7 +1452,7 @@ class EnrollmentService:
 
     @staticmethod
     def _process_enrollment_batch_optimized(
-            enrollment_ids: List[int],
+            enrollment_ids: List[str],
             mode: str,
             constraints: Optional[Dict],
             processed_by_user_id: Optional[str],
@@ -1518,7 +1526,7 @@ class EnrollmentService:
 
                     # Track success
                     participant_data = {
-                        'enrollment_id': enrollment.id,
+                        'enrollment_id': str(enrollment.id),
                         'application_number': enrollment.application_number,
                         'participant_id': participant.unique_id,
                         'username': user.username,
