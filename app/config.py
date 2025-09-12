@@ -13,11 +13,57 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
     DEBUG = os.environ.get('FLASK_DEBUG') or True
 
+    MYSQL_CONNECT_TIMEOUT = 30
+    MYSQL_READ_TIMEOUT = 30
+    MYSQL_WRITE_TIMEOUT = 30
+
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///attendance.db'
-    # SQLALCHEMY_TRACK_MODIFICATIONS = False
+    base_db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///attendance.db'
+
+    # If using MySQL, add connection parameters
+    if base_db_uri.startswith('mysql'):
+        # Parse the URI to add parameters
+        from urllib.parse import urlparse, urlunparse
+        parsed = urlparse(base_db_uri)
+
+        # Add connection parameters as query string
+        query_params = {
+            'charset': 'utf8mb4',
+            'connect_timeout': str(MYSQL_CONNECT_TIMEOUT),
+            'read_timeout': str(MYSQL_READ_TIMEOUT),
+            'write_timeout': str(MYSQL_WRITE_TIMEOUT),
+            'pool_recycle': '3600',
+            'pool_pre_ping': 'true'
+        }
+
+        query_string = '&'.join([f"{k}={v}" for k, v in query_params.items()])
+        new_query = f"{parsed.query}&{query_string}" if parsed.query else query_string
+
+        # Reconstruct the URI
+        SQLALCHEMY_DATABASE_URI = urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            new_query,
+            parsed.fragment
+        ))
+    else:
+        SQLALCHEMY_DATABASE_URI = base_db_uri    # SQLALCHEMY_TRACK_MODIFICATIONS = False
     # SQLALCHEMY_RECORD_QUERIES = True
     # SQLALCHEMY_ECHO = False
+
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_recycle": 3600,  # Recycle connections after 1 hour
+        "pool_pre_ping": True,  # Check connection health before use
+        "pool_size": 10,
+        "max_overflow": 20,
+        "connect_args": {
+            "connect_timeout": 30,  # 30 second connection timeout
+            "read_timeout": 30,  # 30 second read timeout
+            "write_timeout": 30,  # 30 second write timeout
+        }
+    }
 
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)

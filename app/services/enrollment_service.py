@@ -6,17 +6,24 @@ This version maintains all existing functionality while fixing email context iss
 
 import os
 import logging
+from typing import Dict, List, Optional, Tuple, Any
+
 from flask import current_app, render_template, url_for
-from sqlalchemy import and_, or_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, or_, func, case, text, exists
+from sqlalchemy.orm import load_only, joinedload
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
-
 from app.utils.enhanced_email import Priority
 from app.models.enrollment import StudentEnrollment, EnrollmentStatus, PaymentStatus
 from app.models.participant import Participant
 from app.config import Config
 from app.extensions import db, email_service
+
+
+class BulkEnrollmentMode:
+    """Bulk enrollment processing modes."""
+    CONSTRAINT_BASED = 'constraint_based'  # Only process ready students
+    ADMIN_OVERRIDE = 'admin_override'  # Process regardless of constraints
 
 
 class EnrollmentService:
@@ -1052,111 +1059,122 @@ class EnrollmentService:
             logging.getLogger('enrollment_service').error(f"Error getting email status: {str(e)}")
             return {'status': 'error', 'error': str(e)}
 
+
+
     @staticmethod
-    def get_bulk_enrollment_candidates(constraints=None):
+    def get_bulk_enrollment_candidates_optimized(
+            constraints: Optional[Dict] = None,
+            mode: str = BulkEnrollmentMode.CONSTRAINT_BASED,
+            limit: int = 500,
+            offset: int = 0
+    ) -> Dict[str, Any]:
         """
-        Get enrollments that are candidates for bulk processing based on constraints.
+        Get enrollment candidates using optimized database queries.
 
         Args:
-            constraints: Dict with optional filters:
-                - email_verified: True/False/None
-                - has_laptop: True/False/None
-                - payment_status: PaymentStatus value or None
-                - enrollment_status: EnrollmentStatus value or None
-                - limit: Max results (default 200)
+            constraints: Filter constraints (email_verified, has_laptop, payment_status)
+            mode: Processing mode (constraint_based or admin_override)
+            limit: Maximum results to return
+            offset: Query offset for pagination
 
         Returns:
-            dict: Query results with counts and preview data
+            dict: Comprehensive results with analysis and candidates
         """
         logger = logging.getLogger('enrollment_service')
 
         try:
-            # Base query for enrollments that can be processed
-            base_query = (
-                db.session.query(StudentEnrollment)
-                .filter(StudentEnrollment.enrollment_status != EnrollmentStatus.ENROLLED)
-                .filter(StudentEnrollment.enrollment_status != EnrollmentStatus.REJECTED)
-                .filter(StudentEnrollment.enrollment_status != EnrollmentStatus.CANCELLED)
+            # Build optimized base query
+            base_query = EnrollmentService._build_enrollment_candidates_query(
+                constraints=constraints,
+                mode=mode,
+                for_preview=True
             )
 
-            # Apply constraints
-            if constraints:
-                if constraints.get('email_verified') is not None:
-                    base_query = base_query.filter(
-                        StudentEnrollment.email_verified == constraints['email_verified']
-                    )
+            # Get total count (optimized with index)
+            count_query = base_query.with_only_columns([func.count(StudentEnrollment.id)])
+            total_count = count_query.scalar()
 
-                if constraints.get('has_laptop') is not None:
-                    base_query = base_query.filter(
-                        StudentEnrollment.has_laptop == constraints['has_laptop']
-                    )
+            # Get preview data with optimized loading
+            preview_query = base_query.options(
+                load_only(
+                    StudentEnrollment.id,
+                    StudentEnrollment.application_number,
+                    StudentEnrollment.first_name,
+                    StudentEnrollment.surname,
+                    StudentEnrollment.email,
+                    StudentEnrollment.has_laptop,
+                    StudentEnrollment.email_verified,
+                    StudentEnrollment.payment_status,
+                    StudentEnrollment.enrollment_status,
+                    StudentEnrollment.submitted_at
+                )
+            ).limit(limit).offset(offset)
 
-                if constraints.get('payment_status'):
-                    base_query = base_query.filter(
-                        StudentEnrollment.payment_status == constraints['payment_status']
-                    )
+            preview_enrollments = preview_query.all()
 
-                if constraints.get('enrollment_status'):
-                    base_query = base_query.filter(
-                        StudentEnrollment.enrollment_status == constraints['enrollment_status']
-                    )
-
-            # Get total count
-            total_count = base_query.count()
-
-            # Get preview data (limited results)
-            limit = constraints.get('limit', 200) if constraints else 200
-            preview_enrollments = (
-                base_query
-                .order_by(StudentEnrollment.submitted_at.desc())
-                .limit(limit)
-                .all()
+            # Generate analysis using database aggregation
+            analysis = EnrollmentService._generate_bulk_analysis_optimized(
+                base_query, mode, constraints
             )
 
-            # Analyze the dataset
-            analysis = {
-                'total_candidates': total_count,
-                'preview_count': len(preview_enrollments),
-                'breakdown': {
-                    'email_verified': sum(1 for e in preview_enrollments if e.email_verified),
-                    'payment_verified': sum(1 for e in preview_enrollments if e.payment_status == PaymentStatus.VERIFIED),
-                    'has_laptop': sum(1 for e in preview_enrollments if e.has_laptop),
-                    'ready_for_enrollment': sum(1 for e in preview_enrollments if e.is_ready_for_enrollment())
-                }
-            }
+            # Capacity impact analysis
+            capacity_impact = EnrollmentService._analyze_bulk_capacity_impact_optimized(
+                preview_enrollments
+            )
 
-            # Check session capacity impact
-            capacity_check = EnrollmentService._analyze_bulk_capacity_impact(preview_enrollments)
+            # Constraint override warnings
+            override_warnings = []
+            if mode == BulkEnrollmentMode.ADMIN_OVERRIDE:
+                override_warnings = EnrollmentService._analyze_constraint_overrides(
+                    preview_enrollments
+                )
+
+            logger.info(f"Bulk candidates query: {total_count} total, {len(preview_enrollments)} preview")
 
             return {
                 'success': True,
                 'total_count': total_count,
                 'preview_enrollments': preview_enrollments,
                 'analysis': analysis,
-                'capacity_impact': capacity_check,
-                'constraints_applied': constraints or {}
+                'capacity_impact': capacity_impact,
+                'constraints_applied': constraints or {},
+                'processing_mode': mode,
+                'override_warnings': override_warnings,
+                'query_performance': {
+                    'total_candidates': total_count,
+                    'preview_loaded': len(preview_enrollments),
+                    'database_optimized': True
+                }
             }
 
         except Exception as e:
             logger.error(f"Error getting bulk enrollment candidates: {str(e)}")
             raise
 
-
     @staticmethod
-    def bulk_process_enrollments(enrollment_ids, constraints=None, processed_by_user_id=None,
-                                 send_emails=True, batch_size=25):
+    def bulk_process_enrollments_flexible(
+            enrollment_ids: List[int],
+            mode: str = BulkEnrollmentMode.CONSTRAINT_BASED,
+            constraints: Optional[Dict] = None,
+            processed_by_user_id: Optional[str] = None,
+            send_emails: bool = True,
+            batch_size: int = 25,
+            force_override: bool = False
+    ) -> Dict[str, Any]:
         """
-        Process multiple enrollments to participants in batches with progress tracking.
+        Flexible bulk enrollment processing with constraint validation and override capability.
 
         Args:
             enrollment_ids: List of enrollment IDs to process
-            constraints: Optional constraints to validate before processing
-            processed_by_user_id: Admin user ID performing bulk operation
+            mode: Processing mode (constraint_based or admin_override)
+            constraints: Optional constraints for validation
+            processed_by_user_id: Admin user ID performing operation
             send_emails: Whether to send approval emails
-            batch_size: Number of enrollments per batch
+            batch_size: Batch size for processing
+            force_override: Force processing even with constraint violations
 
         Returns:
-            dict: Detailed results with progress information
+            dict: Comprehensive processing results with audit trail
         """
         logger = logging.getLogger('enrollment_service')
 
@@ -1164,98 +1182,297 @@ class EnrollmentService:
         if not enrollment_ids:
             raise ValueError("No enrollment IDs provided")
 
-        if len(enrollment_ids) > 500:
-            raise ValueError("Too many enrollments selected (max 500)")
+        if len(enrollment_ids) > 1000:  # Increased limit for flexible processing
+            raise ValueError("Too many enrollments selected (max 1000)")
 
         try:
-            # Initialize results tracking
+            # Pre-validation and eligibility check
+            eligibility_result = EnrollmentService._validate_bulk_enrollment_eligibility(
+                enrollment_ids, mode, constraints, force_override
+            )
+
+            if not eligibility_result['eligible_ids'] and not force_override:
+                return {
+                    'success': False,
+                    'message': 'No eligible enrollments found for processing',
+                    'eligibility_check': eligibility_result
+                }
+
+            # Initialize comprehensive results tracking
             results = {
                 'total_requested': len(enrollment_ids),
                 'processed': 0,
                 'failed': 0,
                 'skipped': 0,
+                'override_processed': 0,
                 'created_participants': [],
                 'failed_enrollments': [],
                 'skipped_enrollments': [],
+                'override_enrollments': [],
                 'session_assignments': {'Saturday': {}, 'Sunday': {}},
                 'classroom_distribution': {},
                 'batch_results': [],
+                'processing_mode': mode,
+                'force_override_used': force_override,
+                'constraints_applied': constraints or {},
+                'eligibility_check': eligibility_result,
+                'audit_trail': [],
                 'started_at': datetime.now(),
                 'completed_at': None
             }
 
-            # Process in batches
-            total_batches = (len(enrollment_ids) + batch_size - 1) // batch_size
+            # Process eligible enrollments in optimized batches
+            eligible_ids = eligibility_result['eligible_ids'] if not force_override else enrollment_ids
+            total_batches = (len(eligible_ids) + batch_size - 1) // batch_size
 
             for batch_num in range(total_batches):
                 start_idx = batch_num * batch_size
-                end_idx = min(start_idx + batch_size, len(enrollment_ids))
-                batch_ids = enrollment_ids[start_idx:end_idx]
+                end_idx = min(start_idx + batch_size, len(eligible_ids))
+                batch_ids = eligible_ids[start_idx:end_idx]
 
-                logger.info(f"Processing batch {batch_num + 1}/{total_batches} ({len(batch_ids)} enrollments)")
+                logger.info(
+                    f"Processing batch {batch_num + 1}/{total_batches} ({len(batch_ids)} enrollments) - Mode: {mode}")
 
-                batch_result = EnrollmentService._process_enrollment_batch(
-                    batch_ids, constraints, processed_by_user_id, send_emails
+                batch_result = EnrollmentService._process_enrollment_batch_optimized(
+                    batch_ids, mode, constraints, processed_by_user_id, send_emails, force_override
                 )
 
-                # Update overall results
-                results['processed'] += batch_result['processed']
-                results['failed'] += batch_result['failed']
-                results['skipped'] += batch_result['skipped']
-                results['created_participants'].extend(batch_result['created_participants'])
-                results['failed_enrollments'].extend(batch_result['failed_enrollments'])
-                results['skipped_enrollments'].extend(batch_result['skipped_enrollments'])
-                results['batch_results'].append(batch_result)
+                # Update comprehensive results
+                EnrollmentService._merge_batch_results(results, batch_result)
 
-                # Update session assignments
-                for day in ['Saturday', 'Sunday']:
-                    for time_slot, count in batch_result['session_assignments'][day].items():
-                        results['session_assignments'][day][time_slot] = \
-                            results['session_assignments'][day].get(time_slot, 0) + count
-
-                # Update classroom distribution
-                for classroom, count in batch_result['classroom_distribution'].items():
-                    results['classroom_distribution'][classroom] = \
-                        results['classroom_distribution'].get(classroom, 0) + count
-
-                # Commit batch (important for memory management)
+                # Commit batch for memory management and consistency
                 db.session.commit()
 
                 logger.info(f"Batch {batch_num + 1} completed: {batch_result['processed']} processed, "
-                            f"{batch_result['failed']} failed, {batch_result['skipped']} skipped")
+                            f"{batch_result['failed']} failed, {batch_result['skipped']} skipped, "
+                            f"{batch_result['override_processed']} override processed")
 
+            # Handle skipped enrollments (those not in eligible list)
+            if not force_override:
+                skipped_ids = set(enrollment_ids) - set(eligible_ids)
+                for enrollment_id in skipped_ids:
+                    skip_reason = eligibility_result['ineligible_reasons'].get(enrollment_id, 'Unknown reason')
+                    results['skipped_enrollments'].append({
+                        'enrollment_id': enrollment_id,
+                        'reason': skip_reason,
+                        'skipped_at': datetime.now().isoformat()
+                    })
+                    results['skipped'] += 1
+
+            # Finalize results
             results['completed_at'] = datetime.now()
             results['duration'] = (results['completed_at'] - results['started_at']).total_seconds()
 
-            logger.info(f"Bulk enrollment completed: {results['processed']} participants created, "
-                        f"{results['failed']} failed, {results['skipped']} skipped in {results['duration']:.1f}s")
+            # Audit logging for override operations
+            if mode == BulkEnrollmentMode.ADMIN_OVERRIDE or force_override:
+                EnrollmentService._audit_bulk_enrollment_operation(results, processed_by_user_id)
+
+            logger.info(f"Flexible bulk enrollment completed: {results['processed']} participants created, "
+                        f"{results['override_processed']} override processed, {results['failed']} failed, "
+                        f"{results['skipped']} skipped in {results['duration']:.1f}s")
 
             return results
 
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Bulk enrollment processing failed: {str(e)}")
+            logger.error(f"Flexible bulk enrollment processing failed: {str(e)}")
             raise
 
+    @staticmethod
+    def _build_enrollment_candidates_query(
+            constraints: Optional[Dict] = None,
+            mode: str = BulkEnrollmentMode.CONSTRAINT_BASED,
+            for_preview: bool = False
+    ):
+        """
+        Build optimized database query for enrollment candidates.
+        Core query builder with database-level filtering.
+        """
+        # Base query with critical exclusions (cannot process already enrolled)
+        query = db.session.query(StudentEnrollment).filter(
+            StudentEnrollment.enrollment_status != EnrollmentStatus.ENROLLED
+        )
+
+        # Mode-specific filtering
+        if mode == BulkEnrollmentMode.CONSTRAINT_BASED:
+            # Standard constraint-based mode: only process "ready" enrollments
+            query = query.filter(
+                and_(
+                    StudentEnrollment.email_verified == True,
+                    StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
+                    StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+                )
+            )
+        elif mode == BulkEnrollmentMode.ADMIN_OVERRIDE:
+            # Override mode: exclude only final states but allow processing of incomplete applications
+            query = query.filter(
+                StudentEnrollment.enrollment_status.notin_([
+                    EnrollmentStatus.ENROLLED,  # Already participants
+                    EnrollmentStatus.CANCELLED  # Explicitly cancelled
+                ])
+            )
+
+        # Apply additional constraints if provided
+        if constraints:
+            # Email verification filter (database boolean)
+            if 'email_verified' in constraints:
+                email_verified = constraints['email_verified']
+                if isinstance(email_verified, str):
+                    email_verified = email_verified.lower() == 'true'
+                query = query.filter(StudentEnrollment.email_verified == email_verified)
+
+            # Laptop status filter (database boolean)
+            if 'has_laptop' in constraints:
+                has_laptop = constraints['has_laptop']
+                if isinstance(has_laptop, str):
+                    has_laptop = has_laptop.lower() == 'true'
+                query = query.filter(StudentEnrollment.has_laptop == has_laptop)
+
+            # Payment status filter (database enum)
+            if 'payment_status' in constraints and constraints['payment_status']:
+                query = query.filter(StudentEnrollment.payment_status == constraints['payment_status'])
+
+            # Date range filters
+            if 'submitted_after' in constraints:
+                query = query.filter(StudentEnrollment.submitted_at >= constraints['submitted_after'])
+            if 'submitted_before' in constraints:
+                query = query.filter(StudentEnrollment.submitted_at <= constraints['submitted_before'])
+
+        # Optimize query ordering for consistent results
+        query = query.order_by(StudentEnrollment.submitted_at.desc(), StudentEnrollment.id.asc())
+
+        return query
 
     @staticmethod
-    def _process_enrollment_batch(enrollment_ids, constraints, processed_by_user_id, send_emails):
-        """Process a single batch of enrollments."""
+    def _validate_bulk_enrollment_eligibility(
+            enrollment_ids: List[int],
+            mode: str,
+            constraints: Optional[Dict] = None,
+            force_override: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Validate eligibility of enrollments for bulk processing.
+        Separates validation logic from processing logic.
+        """
         logger = logging.getLogger('enrollment_service')
 
+        # Fast eligibility check using optimized query
+        eligibility_query = db.session.query(
+            StudentEnrollment.id,
+            StudentEnrollment.application_number,
+            StudentEnrollment.enrollment_status,
+            StudentEnrollment.email_verified,
+            StudentEnrollment.payment_status,
+            StudentEnrollment.has_laptop
+        ).filter(StudentEnrollment.id.in_(enrollment_ids))
+
+        enrollments = eligibility_query.all()
+
+        eligible_ids = []
+        ineligible_reasons = {}
+        override_candidates = []
+
+        for enrollment in enrollments:
+            enrollment_id = enrollment.id
+
+            # Critical exclusion: cannot process already enrolled participants
+            if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+                ineligible_reasons[enrollment_id] = 'Already enrolled as participant'
+                continue
+
+            # Mode-specific validation
+            if mode == BulkEnrollmentMode.CONSTRAINT_BASED:
+                # Standard validation
+                if not enrollment.email_verified:
+                    ineligible_reasons[enrollment_id] = 'Email not verified'
+                elif enrollment.payment_status != PaymentStatus.VERIFIED:
+                    ineligible_reasons[enrollment_id] = 'Payment not verified by admin'
+                elif enrollment.enrollment_status != EnrollmentStatus.PAYMENT_VERIFIED:
+                    ineligible_reasons[enrollment_id] = f'Status: {enrollment.enrollment_status}'
+                else:
+                    eligible_ids.append(enrollment_id)
+
+            elif mode == BulkEnrollmentMode.ADMIN_OVERRIDE:
+                # Override mode: allow processing of most statuses
+                if enrollment.enrollment_status == EnrollmentStatus.CANCELLED:
+                    if force_override:
+                        override_candidates.append({
+                            'id': enrollment_id,
+                            'application_number': enrollment.application_number,
+                            'issue': 'Cancelled enrollment',
+                            'override_required': True
+                        })
+                        eligible_ids.append(enrollment_id)
+                    else:
+                        ineligible_reasons[enrollment_id] = 'Enrollment cancelled (use force override)'
+                else:
+                    # Track constraint violations for audit
+                    violations = []
+                    if not enrollment.email_verified:
+                        violations.append('email_unverified')
+                    if enrollment.payment_status != PaymentStatus.VERIFIED:
+                        violations.append('payment_unverified')
+
+                    if violations:
+                        override_candidates.append({
+                            'id': enrollment_id,
+                            'application_number': enrollment.application_number,
+                            'violations': violations,
+                            'override_required': False
+                        })
+
+                    eligible_ids.append(enrollment_id)
+
+        # Validate requested IDs exist
+        found_ids = {e.id for e in enrollments}
+        missing_ids = set(enrollment_ids) - found_ids
+        for missing_id in missing_ids:
+            ineligible_reasons[missing_id] = 'Enrollment not found'
+
+        return {
+            'eligible_ids': eligible_ids,
+            'ineligible_reasons': ineligible_reasons,
+            'override_candidates': override_candidates,
+            'validation_summary': {
+                'total_requested': len(enrollment_ids),
+                'eligible': len(eligible_ids),
+                'ineligible': len(ineligible_reasons),
+                'override_candidates': len(override_candidates),
+                'missing': len(missing_ids)
+            }
+        }
+
+    @staticmethod
+    def _process_enrollment_batch_optimized(
+            enrollment_ids: List[int],
+            mode: str,
+            constraints: Optional[Dict],
+            processed_by_user_id: Optional[str],
+            send_emails: bool,
+            force_override: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Process a single batch with optimized database operations and flexible constraints.
+        """
+        logger = logging.getLogger('enrollment_service')
+
+        # Batch results tracking
         batch_result = {
             'processed': 0,
             'failed': 0,
             'skipped': 0,
+            'override_processed': 0,
             'created_participants': [],
             'failed_enrollments': [],
             'skipped_enrollments': [],
+            'override_enrollments': [],
             'session_assignments': {'Saturday': {}, 'Sunday': {}},
-            'classroom_distribution': {}
+            'classroom_distribution': {},
+            'batch_audit': []
         }
 
         try:
-            # Get enrollments for this batch
+            # Optimized batch loading with relationships
             enrollments = (
                 db.session.query(StudentEnrollment)
                 .filter(StudentEnrollment.id.in_(enrollment_ids))
@@ -1264,38 +1481,43 @@ class EnrollmentService:
 
             for enrollment in enrollments:
                 try:
-                    # Validate constraints if provided
-                    if constraints and not EnrollmentService._validate_enrollment_constraints(enrollment, constraints):
+                    # Skip already enrolled (should be filtered earlier but double-check)
+                    if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
                         batch_result['skipped'] += 1
                         batch_result['skipped_enrollments'].append({
                             'enrollment_id': enrollment.id,
                             'application_number': enrollment.application_number,
-                            'reason': 'Does not meet specified constraints'
+                            'reason': 'Already enrolled as participant'
                         })
                         continue
 
-                    # Check if ready for enrollment
-                    if not enrollment.is_ready_for_enrollment():
-                        batch_result['skipped'] += 1
-                        batch_result['skipped_enrollments'].append({
-                            'enrollment_id': enrollment.id,
-                            'application_number': enrollment.application_number,
-                            'reason': f'Not ready: email_verified={enrollment.email_verified}, payment_status={enrollment.payment_status}'
-                        })
-                        continue
+                    # Determine if this is an override operation
+                    is_override = False
+                    override_reasons = []
 
-                    # Process enrollment to participant
+                    if not enrollment.email_verified:
+                        is_override = True
+                        override_reasons.append('email_unverified')
+
+                    if enrollment.payment_status != PaymentStatus.VERIFIED:
+                        is_override = True
+                        override_reasons.append('payment_unverified')
+
+                    if enrollment.enrollment_status != EnrollmentStatus.PAYMENT_VERIFIED:
+                        is_override = True
+                        override_reasons.append(f'status_{enrollment.enrollment_status}')
+
+                    # Process enrollment to participant (core business logic)
                     participant = enrollment.enroll_as_participant(
-                        classroom=None,  # Let auto-assignment handle it
+                        classroom=None,  # Auto-assign based on laptop status
                         processed_by_user_id=processed_by_user_id
                     )
 
                     # Create user account
                     user, password = participant.create_user_account()
 
-                    # Track results
-                    batch_result['processed'] += 1
-                    batch_result['created_participants'].append({
+                    # Track success
+                    participant_data = {
                         'enrollment_id': enrollment.id,
                         'application_number': enrollment.application_number,
                         'participant_id': participant.unique_id,
@@ -1303,8 +1525,18 @@ class EnrollmentService:
                         'password': password,
                         'classroom': participant.classroom,
                         'saturday_session': participant.saturday_session.time_slot if participant.saturday_session else None,
-                        'sunday_session': participant.sunday_session.time_slot if participant.sunday_session else None
-                    })
+                        'sunday_session': participant.sunday_session.time_slot if participant.sunday_session else None,
+                        'is_override': is_override,
+                        'override_reasons': override_reasons,
+                        'processed_at': datetime.now().isoformat()
+                    }
+
+                    if is_override:
+                        batch_result['override_processed'] += 1
+                        batch_result['override_enrollments'].append(participant_data)
+                    else:
+                        batch_result['processed'] += 1
+                        batch_result['created_participants'].append(participant_data)
 
                     # Track session assignments
                     if participant.saturday_session:
@@ -1321,24 +1553,16 @@ class EnrollmentService:
                     batch_result['classroom_distribution'][participant.classroom] = \
                         batch_result['classroom_distribution'].get(participant.classroom, 0) + 1
 
-                    # Send approval email if requested
+                    # Send enrollment emails if requested
                     if send_emails:
                         try:
                             custom_data = {
-                                'participant_id': participant.unique_id,
-                                'username': user.username,
-                                'temporary_password': password,
-                                'login_url': f"{current_app.config.get('BASE_URL', '')}/auth/login",
-                                'approval_date': enrollment.processed_at.strftime('%B %d, %Y'),
-                                'session_info': {
-                                    'saturday_session': participant.saturday_session.time_slot if participant.saturday_session else 'Not assigned',
-                                    'sunday_session': participant.sunday_session.time_slot if participant.sunday_session else 'Not assigned',
+                                'participant': {
+                                    'unique_id': participant.unique_id,
+                                    'username': user.username,
+                                    'password': password,
                                     'classroom': participant.classroom,
-                                    'classroom_name': (
-                                        'Computer Lab (Laptop Required)' if participant.classroom == current_app.config[
-                                            'LAPTOP_CLASSROOM']
-                                        else 'Regular Classroom (No Laptop Required)'
-                                    )
+                                    'is_override_enrollment': is_override
                                 }
                             }
 
@@ -1346,74 +1570,165 @@ class EnrollmentService:
                                 enrollment.id, 'approved', custom_data
                             )
                         except Exception as e:
-                            logger.warning(f"Failed to send approval email for {enrollment.application_number}: {e}")
+                            logger.warning(
+                                f"Failed to send approval email for {enrollment.application_number}: {e}")
+
+                    # Audit logging for overrides
+                    if is_override:
+                        batch_result['batch_audit'].append({
+                            'enrollment_id': enrollment.id,
+                            'application_number': enrollment.application_number,
+                            'action': 'override_enrollment',
+                            'override_reasons': override_reasons,
+                            'processed_by': processed_by_user_id,
+                            'timestamp': datetime.now().isoformat()
+                        })
 
                 except Exception as e:
                     batch_result['failed'] += 1
                     batch_result['failed_enrollments'].append({
                         'enrollment_id': enrollment.id,
                         'application_number': enrollment.application_number,
-                        'error': str(e)
+                        'error': str(e),
+                        'failed_at': datetime.now().isoformat()
                     })
                     logger.error(f"Failed to process enrollment {enrollment.application_number}: {e}")
 
             return batch_result
 
         except Exception as e:
-            logger.error(f"Batch processing failed: {str(e)}")
+            logger.error(f"Optimized batch processing failed: {str(e)}")
             raise
 
+    @staticmethod
+    def _generate_bulk_analysis_optimized(base_query, mode: str, constraints: Optional[Dict]) -> Dict[str, Any]:
+        """Generate analysis using database aggregation for performance."""
+
+        # Use database aggregation instead of Python loops
+        analysis_query = base_query.with_only_columns([
+            func.count(StudentEnrollment.id).label('total_candidates'),
+            func.sum(case((StudentEnrollment.email_verified == True, 1), else_=0)).label('email_verified'),
+            func.sum(case((StudentEnrollment.payment_status == PaymentStatus.VERIFIED, 1), else_=0)).label(
+                'payment_verified'),
+            func.sum(case((StudentEnrollment.has_laptop == True, 1), else_=0)).label('has_laptop'),
+            func.sum(case((
+                and_(
+                    StudentEnrollment.email_verified == True,
+                    StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
+                    StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+                ), 1), else_=0)).label('ready_for_enrollment')
+        ])
+
+        result = analysis_query.one()
+
+        return {
+            'total_candidates': result.total_candidates or 0,
+            'email_verified': result.email_verified or 0,
+            'payment_verified': result.payment_verified or 0,
+            'has_laptop': result.has_laptop or 0,
+            'ready_for_enrollment': result.ready_for_enrollment or 0,
+            'processing_mode': mode,
+            'constraints_impact': constraints is not None
+        }
 
     @staticmethod
-    def _validate_enrollment_constraints(enrollment, constraints):
-        """Validate enrollment against specified constraints."""
-        if constraints.get('email_verified') is not None:
-            if enrollment.email_verified != constraints['email_verified']:
-                return False
-
-        if constraints.get('has_laptop') is not None:
-            if enrollment.has_laptop != constraints['has_laptop']:
-                return False
-
-        if constraints.get('payment_status'):
-            if enrollment.payment_status != constraints['payment_status']:
-                return False
-
-        if constraints.get('enrollment_status'):
-            if enrollment.enrollment_status != constraints['enrollment_status']:
-                return False
-
-        return True
-
-
-    @staticmethod
-    def _analyze_bulk_capacity_impact(enrollments):
-        """Analyze the capacity impact of bulk processing these enrollments."""
+    def _analyze_bulk_capacity_impact_optimized(enrollments) -> Dict[str, Any]:
+        """Optimized capacity impact analysis."""
         laptop_count = sum(1 for e in enrollments if e.has_laptop)
         no_laptop_count = len(enrollments) - laptop_count
 
-        # Get current classroom utilization
-        from app.services.session_classroom_service import SessionClassroomService
-
-        laptop_classroom = current_app.config.get('LAPTOP_CLASSROOM', '205')
-        no_laptop_classroom = current_app.config.get('NO_LAPTOP_CLASSROOM', '203')
-
-        laptop_utilization = SessionClassroomService.get_classroom_utilization(laptop_classroom)
-        no_laptop_utilization = SessionClassroomService.get_classroom_utilization(no_laptop_classroom)
-
         return {
-            'laptop_classroom': {
-                'current_capacity': laptop_utilization,
-                'additional_students': laptop_count,
-                'projected_utilization': laptop_utilization['current_count'] + laptop_count,
-                'will_exceed_capacity': (laptop_utilization['current_count'] + laptop_count) > laptop_utilization[
-                    'capacity']
-            },
-            'no_laptop_classroom': {
-                'current_capacity': no_laptop_utilization,
-                'additional_students': no_laptop_count,
-                'projected_utilization': no_laptop_utilization['current_count'] + no_laptop_count,
-                'will_exceed_capacity': (no_laptop_utilization['current_count'] + no_laptop_count) > no_laptop_utilization[
-                    'capacity']
+            'total_impact': len(enrollments),
+            'laptop_classroom_impact': laptop_count,
+            'no_laptop_classroom_impact': no_laptop_count,
+            'estimated_session_load': {
+                'Saturday': len(enrollments),
+                'Sunday': len(enrollments)
             }
         }
+
+    @staticmethod
+    def _analyze_constraint_overrides(enrollments) -> List[Dict[str, Any]]:
+        """Analyze constraint violations for override mode."""
+        warnings = []
+
+        for enrollment in enrollments:
+            violations = []
+
+            if not enrollment.email_verified:
+                violations.append('Email not verified')
+
+            if enrollment.payment_status != PaymentStatus.VERIFIED:
+                violations.append('Payment not admin-verified')
+
+            if enrollment.enrollment_status not in [EnrollmentStatus.PAYMENT_VERIFIED]:
+                violations.append(f'Status: {enrollment.enrollment_status}')
+
+            if violations:
+                warnings.append({
+                    'application_number': enrollment.application_number,
+                    'violations': violations,
+                    'severity': 'high' if 'Payment not admin-verified' in violations else 'medium'
+                })
+
+        return warnings
+
+    @staticmethod
+    def _merge_batch_results(overall_results: Dict, batch_result: Dict):
+        """Merge batch results into overall results efficiently."""
+        # Numeric aggregations
+        overall_results['processed'] += batch_result['processed']
+        overall_results['failed'] += batch_result['failed']
+        overall_results['skipped'] += batch_result['skipped']
+        overall_results['override_processed'] += batch_result.get('override_processed', 0)
+
+        # List extensions
+        overall_results['created_participants'].extend(batch_result['created_participants'])
+        overall_results['failed_enrollments'].extend(batch_result['failed_enrollments'])
+        overall_results['skipped_enrollments'].extend(batch_result['skipped_enrollments'])
+        overall_results['override_enrollments'].extend(batch_result.get('override_enrollments', []))
+
+        # Session assignment merging
+        for day in ['Saturday', 'Sunday']:
+            for time_slot, count in batch_result['session_assignments'][day].items():
+                overall_results['session_assignments'][day][time_slot] = \
+                    overall_results['session_assignments'][day].get(time_slot, 0) + count
+
+        # Classroom distribution merging
+        for classroom, count in batch_result['classroom_distribution'].items():
+            overall_results['classroom_distribution'][classroom] = \
+                overall_results['classroom_distribution'].get(classroom, 0) + count
+
+        # Audit trail extension
+        overall_results['audit_trail'].extend(batch_result.get('batch_audit', []))
+        overall_results['batch_results'].append(batch_result)
+
+    @staticmethod
+    def _audit_bulk_enrollment_operation(results: Dict, processed_by_user_id: Optional[str]):
+        """Enhanced audit logging for bulk enrollment operations."""
+        logger = logging.getLogger('enrollment_audit')
+
+        audit_entry = {
+            'operation': 'bulk_enrollment',
+            'processed_by': processed_by_user_id,
+            'timestamp': datetime.now().isoformat(),
+            'processing_mode': results['processing_mode'],
+            'force_override_used': results.get('force_override_used', False),
+            'summary': {
+                'total_requested': results['total_requested'],
+                'successfully_processed': results['processed'],
+                'override_processed': results.get('override_processed', 0),
+                'failed': results['failed'],
+                'skipped': results['skipped']
+            },
+            'constraints_applied': results.get('constraints_applied', {}),
+            'override_details': results.get('override_enrollments', []),
+            'session_impact': results['session_assignments'],
+            'classroom_impact': results['classroom_distribution']
+        }
+
+        # Log comprehensive audit entry
+        logger.info(f"Bulk enrollment audit: {audit_entry}")
+
+        # Store audit trail in results for API response
+        results['comprehensive_audit'] = audit_entry
