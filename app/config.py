@@ -1,6 +1,5 @@
 import os
 from datetime import timedelta
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,29 +10,34 @@ class Config:
 
     # Core configuration
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
-    DEBUG = os.environ.get('FLASK_DEBUG') or True
+    DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
+    # MySQL connection timeouts
     MYSQL_CONNECT_TIMEOUT = 30
     MYSQL_READ_TIMEOUT = 30
     MYSQL_WRITE_TIMEOUT = 30
 
     # Database configuration
-    base_db_uri = os.environ.get('DATABASE_URL') or 'sqlite:///attendance.db'
+    base_db_uri = os.environ.get('DATABASE_URL')
 
-    # If using MySQL, add connection parameters
+    # Fallback to SQLite if no DATABASE_URL is provided
+    if not base_db_uri:
+        base_db_uri = 'sqlite:///attendance.db'
+        print("WARNING: DATABASE_URL not set, falling back to SQLite")
+
+    # Configure database URI
     if base_db_uri.startswith('mysql'):
-        # Parse the URI to add parameters
+        # Parse the URI to add connection parameters (but NOT pool_recycle)
         from urllib.parse import urlparse, urlunparse
         parsed = urlparse(base_db_uri)
 
-        # Add connection parameters as query string
+        # Add connection parameters as query string (PyMySQL specific parameters only)
         query_params = {
             'charset': 'utf8mb4',
             'connect_timeout': str(MYSQL_CONNECT_TIMEOUT),
             'read_timeout': str(MYSQL_READ_TIMEOUT),
             'write_timeout': str(MYSQL_WRITE_TIMEOUT),
-            'pool_recycle': '3600',
-            'pool_pre_ping': 'true'
+            # Remove pool_recycle and pool_pre_ping - these are SQLAlchemy options, not PyMySQL options
         }
 
         query_string = '&'.join([f"{k}={v}" for k, v in query_params.items()])
@@ -49,10 +53,12 @@ class Config:
             parsed.fragment
         ))
     else:
-        SQLALCHEMY_DATABASE_URI = base_db_uri    # SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # SQLALCHEMY_RECORD_QUERIES = True
-    # SQLALCHEMY_ECHO = False
+        SQLALCHEMY_DATABASE_URI = base_db_uri
 
+    # Disable track modifications for performance
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # SQLAlchemy engine options (pool_recycle goes here, not in connection string)
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_recycle": 3600,  # Recycle connections after 1 hour
         "pool_pre_ping": True,  # Check connection health before use
@@ -64,6 +70,14 @@ class Config:
             "write_timeout": 30,  # 30 second write timeout
         }
     }
+
+    # Connection retry settings
+    DB_CONNECTION_RETRIES = 3
+    DB_RETRY_DELAY = 2  # seconds
+
+    # Health monitoring
+    ENABLE_DB_HEALTH_MONITOR = True
+    DB_HEALTH_CHECK_INTERVAL = 300  # 5 minutes
 
     # Session configuration
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
@@ -122,8 +136,8 @@ class Config:
     AUTO_ASSIGN_BY_LAPTOP = True
 
     SESSION_CAPACITY = {
-        '205': 50,  # Computer Lab (laptop classroom)
-        '203': 45  # Regular classroom (non-laptop)
+        '205': 50,  # Regular classroom (laptop classroom)
+        '203': 45  # Computer Lab (non-laptop)
     }
 
     # Email configuration
@@ -241,28 +255,3 @@ def get_config():
     """Get current configuration instance."""
     config_name = os.environ.get('FLASK_CONFIG', 'development')
     return config_by_name[config_name]()
-
-
-# Example usage for file uploads:
-"""
-from config import Config
-
-# Check if uploaded file is valid receipt
-if Config.allowed_file(filename, 'receipt'):
-    # Generate standardized filename
-    receipt_filename = Config.generate_receipt_filename(
-        'registration', 
-        student.unique_id, 
-        uploaded_file.filename
-    )
-
-    # Get full upload path
-    upload_path = Config.get_upload_path('registration_receipt', receipt_filename)
-
-    # Save file
-    uploaded_file.save(upload_path)
-
-    # Store relative path in database
-    relative_path = f"registration_receipts/{receipt_filename}"
-    student_enrollment.receipt_upload_path = relative_path
-"""

@@ -664,7 +664,7 @@ def bulk_enrollment_preview():
         # Format preview data (limit to 50 for performance)
         for enrollment in result['preview_enrollments'][:50]:
             enrollment_data = {
-                'id': enrollment.id,
+                'id': str(enrollment.id),
                 'application_number': enrollment.application_number,
                 'full_name': enrollment.full_name,
                 'email': enrollment.email,
@@ -734,7 +734,7 @@ def process_bulk_enrollment():
             enrollment_ids=enrollment_ids,
             mode=mode,
             constraints=constraints,
-            processed_by_user_id=current_user.id,
+            processed_by_user_id=str(current_user.id),
             send_emails=send_emails,
             batch_size=batch_size,
             force_override=force_override

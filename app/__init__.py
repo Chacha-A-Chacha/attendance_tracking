@@ -257,15 +257,41 @@ def register_health_checks(app):
     def database_health_check():
         """Database health check endpoint."""
         try:
-            # Simple database query to test connection
-            from models import User
-            user_count = User.query.count()
+            # Use the new health check function for more detailed information
+            from app.extensions import check_database_health, get_connection_stats
 
-            return jsonify({
-                'status': 'healthy',
-                'user_count': user_count,
-                'timestamp': datetime.now().isoformat()
-            })
+            # Perform the health check
+            healthy, message = check_database_health()
+
+            # Get connection statistics
+            stats = get_connection_stats()
+
+            # If healthy, get additional info like user count
+            if healthy:
+                try:
+                    from models import User
+                    user_count = User.query.count()
+                    stats['user_count'] = user_count
+                except Exception as query_error:
+                    # If we can't query users, log but don't fail the health check
+                    app.logger.warning(f"Could not get user count: {query_error}")
+                    stats['user_count'] = 'unavailable'
+
+            # Return response based on health status
+            if healthy:
+                return jsonify({
+                    'status': 'healthy',
+                    'message': message,
+                    'stats': stats,
+                    'timestamp': datetime.now().isoformat()
+                })
+            else:
+                return jsonify({
+                    'status': 'unhealthy',
+                    'message': message,
+                    'stats': stats,
+                    'timestamp': datetime.now().isoformat()
+                }), 503
 
         except Exception as e:
             app.logger.error(f"Database health check failed: {str(e)}")
@@ -303,6 +329,10 @@ def create_app(config_name=None):
     # Initialize extensions
     init_extensions(app)
     app.logger.info("Extensions initialized")
+
+    with app.app_context():
+        from app.extensions import start_database_health_monitor
+        start_database_health_monitor(app, interval=app.config.get('DB_HEALTH_CHECK_INTERVAL', 300))
 
     # Validate email configuration
     email_issues = validate_email_config(app)
