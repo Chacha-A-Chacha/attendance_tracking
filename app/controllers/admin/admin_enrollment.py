@@ -471,27 +471,59 @@ def verify_payment(enrollment_id):
 @login_required
 @staff_required
 def view_receipt(enrollment_id):
-    """View uploaded receipt file as preview."""
     try:
-        print(f"DEBUG: Looking for enrollment_id: {enrollment_id}")
+        current_app.logger.info(f"Receipt request for enrollment: {enrollment_id}")
+
         enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)
-        print(f"DEBUG: Enrollment found: {enrollment is not None}")
 
         if not enrollment:
-            print("DEBUG: Enrollment not found")
-            return jsonify({'error': 'Enrollment not found'}), 404
+            current_app.logger.error(f"Enrollment not found: {enrollment_id}")
+            return "Enrollment not found", 404
 
-        print(f"DEBUG: Receipt upload path: {enrollment.receipt_upload_path}")
+        current_app.logger.info(f"Enrollment found. Receipt path from DB: {enrollment.receipt_upload_path}")
+
+        if not enrollment.receipt_upload_path:
+            current_app.logger.error(f"No receipt path in database for enrollment: {enrollment_id}")
+            return "No receipt uploaded", 404
+
         receipt_path = EnrollmentService.get_receipt_file_path(enrollment_id)
-        print(f"DEBUG: Receipt file path: {receipt_path}")
-        print(f"DEBUG: File exists: {os.path.exists(receipt_path) if receipt_path else False}")
+        current_app.logger.info(f"Constructed full path: {receipt_path}")
 
-        if not receipt_path or not os.path.exists(receipt_path):
-            print("DEBUG: Receipt file not found")
-            return jsonify({'error': 'Receipt file not found'}), 404
+        # Check if file exists
+        if not receipt_path:
+            current_app.logger.error("get_receipt_file_path returned None")
+            return "Error constructing file path", 500
+
+        if not os.path.exists(receipt_path):
+            current_app.logger.error(f"File does not exist at: {receipt_path}")
+
+            # Check if directory exists
+            dir_path = os.path.dirname(receipt_path)
+            if os.path.exists(dir_path):
+                current_app.logger.info(f"Directory exists: {dir_path}")
+                # List files in directory
+                try:
+                    files = os.listdir(dir_path)
+                    current_app.logger.info(f"Files in directory: {files[:10]}")  # Show first 10 files
+                except Exception as e:
+                    current_app.logger.error(f"Cannot list directory: {e}")
+            else:
+                current_app.logger.error(f"Directory does not exist: {dir_path}")
+
+            return "Receipt file not found", 404
+
+        # Check file permissions
+        try:
+            file_size = os.path.getsize(receipt_path)
+            current_app.logger.info(f"File exists, size: {file_size} bytes")
+        except Exception as e:
+            current_app.logger.error(f"Cannot access file: {e}")
+            return "Cannot access receipt file", 500
 
         # Determine content type
         file_ext = os.path.splitext(receipt_path)[1].lower()
+        current_app.logger.info(f"File extension: {file_ext}")
+
         content_type_map = {
             '.png': 'image/png',
             '.jpg': 'image/jpeg',
@@ -501,6 +533,7 @@ def view_receipt(enrollment_id):
         }
 
         content_type = content_type_map.get(file_ext, 'application/octet-stream')
+        current_app.logger.info(f"Content type: {content_type}")
 
         return send_file(
             receipt_path,
@@ -510,8 +543,8 @@ def view_receipt(enrollment_id):
         )
 
     except Exception as e:
-        current_app.logger.error(f"Receipt view error: {str(e)}")
-        return jsonify({'error': 'Error loading receipt'}), 500
+        current_app.logger.error(f"Receipt view error: {str(e)}", exc_info=True)
+        return f"Error loading receipt: {str(e)}", 500
 
 
 @admin_bp.route('/<enrollment_id>/resend-verification')
