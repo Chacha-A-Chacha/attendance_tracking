@@ -113,7 +113,7 @@ class Config:
 
     # Time sessions
     SATURDAY_SESSIONS = [
-        '9:00am - 12:00am',
+        '9:00am - 12:00pm',
         '1:00pm - 4:00pm'
     ]
 
