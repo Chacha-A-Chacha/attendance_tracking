@@ -179,3 +179,4 @@ node_modules/
 /app/uploads/
 /app/static/qrcodes/
 .env.backup
+app/utils/data/email_statuses.json
