@@ -1091,7 +1091,18 @@ class EnrollmentService:
             )
 
             # Get total count (optimized with index)
-            count_query = base_query.with_only_columns([func.count(StudentEnrollment.id)])
+            # count_query = base_query.with_only_columns([func.count(StudentEnrollment.id)])
+            count_query = db.session.query(func.count(StudentEnrollment.id)).filter(
+                StudentEnrollment.enrollment_status != EnrollmentStatus.ENROLLED
+            )
+            if mode == BulkEnrollmentMode.CONSTRAINT_BASED:
+                count_query = count_query.filter(
+                    and_(
+                        StudentEnrollment.email_verified == True,
+                        StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
+                        StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
+                    )
+                )
             total_count = count_query.scalar()
 
             # Get preview data with optimized loading
@@ -1526,7 +1537,7 @@ class EnrollmentService:
 
                     # Track success
                     participant_data = {
-                        'enrollment_id': str(enrollment.id),
+                        'enrollment_id': str(enrollment.id)              ,
                         'application_number': enrollment.application_number,
                         'participant_id': participant.unique_id,
                         'username': user.username,
@@ -1613,7 +1624,7 @@ class EnrollmentService:
         """Generate analysis using database aggregation for performance."""
 
         # Use database aggregation instead of Python loops
-        analysis_query = base_query.with_only_columns([
+        analysis_query = db.session.query(
             func.count(StudentEnrollment.id).label('total_candidates'),
             func.sum(case((StudentEnrollment.email_verified == True, 1), else_=0)).label('email_verified'),
             func.sum(case((StudentEnrollment.payment_status == PaymentStatus.VERIFIED, 1), else_=0)).label(
@@ -1625,7 +1636,7 @@ class EnrollmentService:
                     StudentEnrollment.payment_status == PaymentStatus.VERIFIED,
                     StudentEnrollment.enrollment_status == EnrollmentStatus.PAYMENT_VERIFIED
                 ), 1), else_=0)).label('ready_for_enrollment')
-        ])
+        )
 
         result = analysis_query.one()
 

@@ -282,4 +282,3 @@ def start_database_health_monitor(app, interval=300):
         monitor_thread = threading.Thread(target=monitor, daemon=True)
         monitor_thread.start()
         logger.info("Started database health monitor thread")
-        

@@ -113,21 +113,13 @@ class Config:
 
     # Time sessions
     SATURDAY_SESSIONS = [
-        '8:00am - 9:30am',
-        '9:30am - 11:00am',
-        '11:00am - 12:30pm',
-        '1:00pm - 2:30pm',
-        '2:30pm - 4:00pm',
-        '4:00pm - 5:30pm'
+        '9:00am - 12:00am',
+        '1:00pm - 4:00pm'
     ]
 
     SUNDAY_SESSIONS = [
-        '8:00am - 9:30am',
-        '9:30am - 11:00am',
-        '11:00am - 12:30pm',
-        '1:00pm - 2:30pm',
-        '2:30pm - 4:00pm',
-        '4:00pm - 5:30pm'
+        '8:00am - 10:00am',
+        '2:00pm - 4:00pm'
     ]
 
     # Classroom settings

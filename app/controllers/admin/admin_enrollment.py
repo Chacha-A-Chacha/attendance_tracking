@@ -634,8 +634,7 @@ def bulk_enrollment_preview():
         # Parse and validate request parameters
         constraints, mode, force_override, limit, offset = parse_bulk_enrollment_request(data)
 
-        current_app.logger.info(
-            f"Bulk enrollment preview: mode={mode}, constraints={constraints}, force_override={force_override}")
+        current_app.logger.info(f"Bulk enrollment preview: mode={mode}, constraints={constraints}")
 
         # Get candidates using optimized service method
         result = EnrollmentService.get_bulk_enrollment_candidates_optimized(
@@ -645,7 +644,7 @@ def bulk_enrollment_preview():
             offset=offset
         )
 
-        # Format response data for frontend
+        # Format preview data (limit to 50 for performance)
         response_data = {
             'success': True,
             'total_count': result['total_count'],
@@ -661,7 +660,6 @@ def bulk_enrollment_preview():
         if mode == BulkEnrollmentMode.ADMIN_OVERRIDE:
             response_data['override_warnings'] = result.get('override_warnings', [])
 
-        # Format preview data (limit to 50 for performance)
         for enrollment in result['preview_enrollments'][:50]:
             enrollment_data = {
                 'id': str(enrollment.id),
@@ -686,13 +684,6 @@ def bulk_enrollment_preview():
                 enrollment_data['requires_override'] = len(violations) > 0
 
             response_data['preview_data'].append(enrollment_data)
-
-        # Add pagination info
-        response_data['pagination'] = {
-            'limit': limit,
-            'offset': offset,
-            'has_more': result['total_count'] > (offset + len(response_data['preview_data']))
-        }
 
         return jsonify(response_data)
 
