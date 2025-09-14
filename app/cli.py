@@ -521,7 +521,7 @@ def init_database():
         from app.models import Session
         if Session.query.count() == 0:
             # Import the new service method instead of the old importer
-            from services.session_classroom_service import SessionClassroomService
+            from app.services.session_classroom_service import SessionClassroomService
             result = SessionClassroomService.init_sessions_from_config()
             if result['success']:
                 click.echo(f"Default sessions created: {result['message']}")
