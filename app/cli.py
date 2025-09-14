@@ -518,7 +518,7 @@ def init_database():
             click.echo("✅ Default roles created.")
 
         # Initialize default sessions
-        from models import Session
+        from app.models import Session
         if Session.query.count() == 0:
             # Import the new service method instead of the old importer
             from services.session_classroom_service import SessionClassroomService
