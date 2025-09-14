@@ -64,7 +64,6 @@ class SessionClassroomService:
                 sessions_to_create.append(Session(
                     time_slot=normalized_time,
                     day='Saturday',
-                    max_capacity=current_app.config.get('DEFAULT_SESSION_CAPACITY', 30),
                     is_active=True
                 ))
 
@@ -74,7 +73,6 @@ class SessionClassroomService:
                 sessions_to_create.append(Session(
                     time_slot=normalized_time,
                     day='Sunday',
-                    max_capacity=current_app.config.get('DEFAULT_SESSION_CAPACITY', 30),
                     is_active=True
                 ))
 

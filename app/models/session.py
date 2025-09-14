@@ -9,7 +9,7 @@ class Session(BaseModel):
 
     time_slot = db.Column(db.String(50), nullable=False)
     day = db.Column(db.String(10), nullable=False)  # 'Saturday' or 'Sunday'
-    max_capacity = db.Column(db.Integer, default=30)  # Added for capacity management
+    max_capacity = db.Column(db.Integer)  # Added for capacity management
     is_active = db.Column(db.Boolean, default=True)  # Added for session management
 
     # Participants with this session (using back_populates)
