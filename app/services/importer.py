@@ -6,29 +6,28 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
 from app.models import Participant, Session
 from app.services.qrcode_generator import QRCodeGenerator
+from app.services.session_classroom_service import SessionClassroomService
 from app.utils.data_processing import clean_phone_number, clean_email, normalize_name, clean_text_field
 from app.utils.session_mapper import normalize_session_time, get_session_by_time, find_available_session, get_default_session
 
 
 def init_sessions():
-    """Initialize session data from config"""
-    # Check if sessions already exist
-    if Session.query.count() > 0:
-        return
+    """
+    Initialize session data from config.
 
-    # Create Saturday sessions
-    saturday_sessions = current_app.config['SATURDAY_SESSIONS']
-    for time_slot in saturday_sessions:
-        session = Session(time_slot=time_slot, day='Saturday')
-        db.session.add(session)
+    DEPRECATED: Use SessionClassroomService.init_sessions_from_config() instead.
+    This wrapper is maintained for backward compatibility.
+    """
+    import warnings
+    warnings.warn(
+        "init_sessions() is deprecated. Use SessionClassroomService.init_sessions_from_config() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
 
-    # Create Sunday sessions
-    sunday_sessions = current_app.config['SUNDAY_SESSIONS']
-    for time_slot in sunday_sessions:
-        session = Session(time_slot=time_slot, day='Sunday')
-        db.session.add(session)
-
-    db.session.commit()
+    # Delegate to the proper service method
+    result = SessionClassroomService.init_sessions_from_config()
+    return result
 
 
 def import_spreadsheet(file_path):
