@@ -518,13 +518,17 @@ def init_database():
             click.echo("✅ Default roles created.")
 
         # Initialize default sessions
-        from app.models import Session
+        from models import Session
         if Session.query.count() == 0:
-            from app.services.importer import init_sessions
-            init_sessions()
-            click.echo("✅ Default sessions created.")
+            # Import the new service method instead of the old importer
+            from services.session_classroom_service import SessionClassroomService
+            result = SessionClassroomService.init_sessions_from_config()
+            if result['success']:
+                click.echo(f"Default sessions created: {result['message']}")
+            else:
+                click.echo(f"Session creation failed: {result.get('error', 'Unknown error')}", err=True)
 
-        click.echo("🎉 Database initialization completed successfully!")
+        click.echo("Database initialization completed.")
 
     except Exception as e:
         click.echo(f"❌ Database initialization failed: {str(e)}", err=True)
