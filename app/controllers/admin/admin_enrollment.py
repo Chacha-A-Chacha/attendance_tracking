@@ -340,17 +340,12 @@ def search_applications():
 @login_required
 @staff_required
 def approve_application(enrollment_id):
-    """AJAX endpoint for application approval."""
+    """AJAX endpoint for application approval with automatic classroom assignment."""
     try:
-        data = request.get_json()
-        classroom = data.get('classroom')
-        admin_notes = data.get('admin_notes', '').strip()
+        data = request.get_json() if request.is_json else {}
 
-        if not classroom:
-            return jsonify({
-                'success': False,
-                'message': 'Please select a classroom for the participant.'
-            }), 400
+        # Classroom parameter is optional - service handles auto-assignment based on config
+        classroom = data.get('classroom')  # Can be None, will be auto-assigned if AUTO_ASSIGN_BY_LAPTOP=True
 
         enrollment = EnrollmentService.get_enrollment_by_id(enrollment_id, include_sensitive=True)
 
@@ -366,22 +361,42 @@ def approve_application(enrollment_id):
                 'message': 'Application is not ready for approval. Email and payment must be verified first.'
             }), 400
 
+        # Check if already enrolled
+        if enrollment.enrollment_status == EnrollmentStatus.ENROLLED:
+            return jsonify({
+                'success': False,
+                'message': 'Application is already approved and enrolled.'
+            }), 400
+
+        # Use existing service method - it handles classroom assignment based on config
         participant, enrollment = EnrollmentService.process_enrollment_to_participant(
             enrollment_id, classroom, current_user.id
         )
 
+        # Enhanced response with assignment details
+        assigned_classroom = participant.classroom
+        laptop_status = "with laptop" if enrollment.has_laptop else "without laptop"
+
         return jsonify({
             'success': True,
-            'message': f'Application approved! Participant {participant.unique_id} created successfully.',
+            'message': f'Application approved! Participant {participant.unique_id} created and assigned to classroom {assigned_classroom} ({laptop_status}).',
             'participant_id': participant.unique_id,
-            'new_status': enrollment.enrollment_status.value
+            'assigned_classroom': assigned_classroom,
+            'new_status': enrollment.enrollment_status
         })
+
+    except ValueError as ve:
+        current_app.logger.warning(f"Application approval validation error: {str(ve)}")
+        return jsonify({
+            'success': False,
+            'message': str(ve)
+        }), 400
 
     except Exception as e:
         current_app.logger.error(f"Application approval error: {str(e)}")
         return jsonify({
             'success': False,
-            'message': 'Error approving application.'
+            'message': 'Error approving application. Please try again.'
         }), 500
 
 
@@ -456,7 +471,7 @@ def verify_payment(enrollment_id):
         return jsonify({
             'success': True,
             'message': f'Payment verified for application {enrollment.application_number}.',
-            'new_status': PaymentStatus.VERIFIED.value
+            'new_status': PaymentStatus.VERIFIED
         })
 
     except Exception as e:
