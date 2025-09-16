@@ -302,6 +302,63 @@ def register_health_checks(app):
             }), 503
 
 
+def register_session_management(app):
+    """Register session timeout and management handlers."""
+    from datetime import datetime
+    from flask import session, request, current_user
+    from flask_login import logout_user
+    from app.services.auth_service import AuthService
+
+    @app.before_request
+    def manage_session_timeout():
+        """Handle session timeout and activity tracking."""
+        # Skip for static files, login route, and logout route
+        if (request.endpoint and
+                (request.endpoint.startswith('static') or
+                 request.endpoint in ['auth.login', 'auth.logout', 'auth.password_reset_request'])):
+            return
+
+        if current_user.is_authenticated:
+            now = datetime.now()
+
+            # Get role-based timeout
+            if current_user.is_admin():
+                timeout_minutes = app.config.get('SESSION_TIMEOUT_ADMIN', 480)
+            elif current_user.is_staff():
+                timeout_minutes = app.config.get('SESSION_TIMEOUT_STAFF', 240)
+            elif current_user.is_student():
+                timeout_minutes = app.config.get('SESSION_TIMEOUT_STUDENT', 120)
+            else:
+                timeout_minutes = app.config.get('SESSION_TIMEOUT_DEFAULT', 60)
+
+            timeout_delta = timedelta(minutes=timeout_minutes)
+
+            # Check for session timeout
+            if 'last_activity' in session:
+                try:
+                    last_activity = datetime.fromisoformat(session['last_activity'])
+                    if now - last_activity > timeout_delta:
+                        # Session expired
+                        logout_user()
+                        session.clear()
+                        flash('Your session has expired due to inactivity. Please log in again.', 'warning')
+                        return redirect(url_for('auth.login'))
+                except (ValueError, TypeError):
+                    # Invalid timestamp, reset it
+                    session['last_activity'] = now.isoformat()
+
+            # Update activity timestamp and ensure permanent session
+            session['last_activity'] = now.isoformat()
+            session.permanent = True
+            session.modified = True
+
+    @app.before_request
+    def force_permanent_session():
+        """Ensure all authenticated sessions are permanent for timeout to work."""
+        if current_user.is_authenticated:
+            session.permanent = True
+
+
 def create_app(config_name=None):
     """
     Application factory function.
@@ -329,6 +386,8 @@ def create_app(config_name=None):
     # Initialize extensions
     init_extensions(app)
     app.logger.info("Extensions initialized")
+
+    register_session_management(app)
 
     with app.app_context():
         from app.extensions import start_database_health_monitor

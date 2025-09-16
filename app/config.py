@@ -28,7 +28,7 @@ class Config:
     # Session timeout for different user roles (in minutes)
     SESSION_TIMEOUT_ADMIN = 480  # 8 hours
     SESSION_TIMEOUT_STAFF = 240  # 4 hours
-    SESSION_TIMEOUT_STUDENT = 120  # 2 hours
+    SESSION_TIMEOUT_STUDENT = 60  # 2 hours
     SESSION_TIMEOUT_DEFAULT = 60  # 1 hour
 
     # MySQL connection timeouts
