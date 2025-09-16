@@ -1,6 +1,5 @@
 from flask import Blueprint
 
-participant_bp = Blueprint('participant', __name__)
-
+participant_portal_bp = Blueprint('participant_portal', __name__)
 
 from . import participant

@@ -7,11 +7,12 @@ This module creates and configures the Flask application using the application f
 import os
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, flash, redirect, url_for, request, session
 from dotenv import load_dotenv
+from flask_login import current_user, logout_user
 
 from app.config import config_by_name
 from app.extensions import init_extensions, validate_email_config, db, email_service
@@ -79,7 +80,7 @@ def register_blueprints(app):
         from .controllers.admin import admin_bp
         from .controllers.check_in import check_in_bp
         from .controllers.enrollment import enrollment_bp
-        from .controllers.participant import participant_bp
+        from .controllers.participant import participant_portal_bp
         from .controllers.api import api_bp
         from .controllers.email import email_bp
 
@@ -88,7 +89,7 @@ def register_blueprints(app):
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(check_in_bp, url_prefix='/check-in')
         app.register_blueprint(enrollment_bp)
-        app.register_blueprint(participant_bp, url_prefix='/portal/user')
+        app.register_blueprint(participant_portal_bp, url_prefix='/v2/participant')
         app.register_blueprint(api_bp)
         app.register_blueprint(email_bp, url_prefix='/email')
 
@@ -171,13 +172,6 @@ def initialize_default_data(app):
         with app.app_context():
             # Create all database tables
             db.create_all()
-
-            # Initialize default sessions if none exist
-            from .models import Session
-            if Session.query.count() == 0:
-                from .services.importer import init_sessions
-                init_sessions()
-                app.logger.info("Default sessions initialized")
 
             # Initialize default roles if none exist
             from .models import Role
@@ -304,9 +298,6 @@ def register_health_checks(app):
 
 def register_session_management(app):
     """Register session timeout and management handlers."""
-    from datetime import datetime
-    from flask import session, request, current_user
-    from flask_login import logout_user
     from app.services.auth_service import AuthService
 
     @app.before_request
@@ -322,9 +313,7 @@ def register_session_management(app):
             now = datetime.now()
 
             # Get role-based timeout
-            if current_user.is_admin():
-                timeout_minutes = app.config.get('SESSION_TIMEOUT_ADMIN', 480)
-            elif current_user.is_staff():
+            if current_user.is_staff():
                 timeout_minutes = app.config.get('SESSION_TIMEOUT_STAFF', 240)
             elif current_user.is_student():
                 timeout_minutes = app.config.get('SESSION_TIMEOUT_STUDENT', 120)

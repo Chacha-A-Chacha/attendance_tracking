@@ -1,0 +1,672 @@
+{% extends "enrollment_base.html" %}
+
+{% block title %}Dashboard - Programming Course{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Student Dashboard</h1>
+            <p class="text-gray-600">Manage your profile, view attendance, and request session changes</p>
+
+            <!-- Student Representative Actions -->
+            {% if is_student_rep %}
+            <div class="mt-4 flex gap-3">
+                <a href="{{ url_for('participant_portal.students') }}"
+                   class="inline-flex items-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+                    </svg>
+                    View Students
+                </a>
+                <button id="checkInAssistBtn"
+                        class="inline-flex items-center px-3 py-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    Check-In Assist
+                </button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span class="ml-2 text-gray-600">Loading dashboard...</span>
+        </div>
+
+        <!-- Main Content (Hidden until loaded) -->
+        <div id="dashboardContent" class="hidden">
+
+            <!-- Top Section: Profile Photo and QR Code Side by Side -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+
+                <!-- Profile Photo Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Profile Photo</h3>
+
+                        <!-- Photo Display/Upload Area -->
+                        <div class="relative">
+                            <!-- Profile Photo Display -->
+                            <div id="profilePhotoDisplay" class="hidden">
+                                <img id="profilePhotoImg" src="" alt="Profile Photo"
+                                     class="mx-auto h-32 w-32 rounded-full object-cover border-4 border-gray-200">
+                                <div class="mt-4 flex justify-center gap-2">
+                                    <button id="changePhotoBtn"
+                                            class="text-sm text-blue-600 hover:text-blue-500 font-medium">
+                                        Change Photo
+                                    </button>
+                                    <button id="deletePhotoBtn"
+                                            class="text-sm text-red-600 hover:text-red-500 font-medium">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Empty State -->
+                            <div id="profilePhotoEmpty" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="mt-4">
+                                    <label for="photoUpload" class="cursor-pointer">
+                                        <span class="block text-sm font-medium text-gray-900">Upload a photo</span>
+                                        <span class="block text-sm text-gray-500 mt-1">JPG, PNG up to 2MB</span>
+                                    </label>
+                                    <input id="photoUpload" type="file" class="sr-only" accept=".jpg,.jpeg,.png,.webp">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QR Code Section -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="text-center">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">QR Code</h3>
+
+                        <!-- QR Code Display -->
+                        <div id="qrCodeDisplay" class="hidden">
+                            <img id="qrCodeImg" src="" alt="QR Code"
+                                 class="mx-auto h-32 w-32 border border-gray-200 rounded-lg">
+                            <div class="mt-4 flex justify-center gap-2">
+                                <button id="downloadQRBtn"
+                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100">
+                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Download
+                                </button>
+                                <button id="regenerateQRBtn"
+                                        class="text-sm text-gray-600 hover:text-gray-500 font-medium">
+                                    Regenerate
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div id="qrCodeEmpty" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V4a1 1 0 00-1-1H5a1 1 0 00-1 1v3a1 1 0 001 1zm12 0h2a1 1 0 001-1V4a1 1 0 00-1-1h-2a1 1 0 00-1 1v3a1 1 0 001 1zM5 20h2a1 1 0 001-1v-3a1 1 0 00-1-1H5a1 1 0 00-1 1v3a1 1 0 001 1z"></path>
+                            </svg>
+                            <div class="mt-4">
+                                <h4 class="text-sm font-medium text-gray-900">No QR Code</h4>
+                                <p class="text-sm text-gray-500 mt-1">Generate your QR code for check-in</p>
+                                <button id="generateQRBtn"
+                                        class="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                    Generate QR Code
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Information Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Student ID</label>
+                                <p id="studentId" class="mt-1 text-sm text-gray-900 font-mono">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Full Name</label>
+                                <p id="fullName" class="mt-1 text-sm text-gray-900">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Email</label>
+                                <p id="email" class="mt-1 text-sm text-gray-900">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Class</label>
+                                <p id="classroom" class="mt-1 text-sm text-gray-900">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Saturday Session</label>
+                                <p id="saturdaySession" class="mt-1 text-sm text-gray-900">-</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Sunday Session</label>
+                                <p id="sundaySession" class="mt-1 text-sm text-gray-900">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Reassignment Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Session Management</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button command="show-modal" commandfor="reassignmentModal" data-day="Saturday"
+                            class="flex items-center justify-center px-4 py-3 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+                        </svg>
+                        Request Saturday Change
+                    </button>
+                    <button command="show-modal" commandfor="reassignmentModal" data-day="Sunday"
+                            class="flex items-center justify-center px-4 py-3 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+                        </svg>
+                        Request Sunday Change
+                    </button>
+                </div>
+
+                <!-- View Reassignment History -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <a href="{{ url_for('participant_portal.attendance') }}"
+                       class="text-sm text-blue-600 hover:text-blue-500 font-medium">
+                        View Attendance Records →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Stats Section -->
+            <div id="quickStats" class="hidden bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Quick Stats</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600" id="attendanceRate">-</div>
+                        <div class="text-sm text-gray-600">Attendance Rate</div>
+                    </div>
+                    <div class="text-center p-4 bg-blue-50 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600" id="totalSessions">-</div>
+                        <div class="text-sm text-gray-600">Total Sessions</div>
+                    </div>
+                    <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                        <div class="text-2xl font-bold text-yellow-600" id="missedSessions">-</div>
+                        <div class="text-sm text-gray-600">Consecutive Missed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warnings Section -->
+            <div id="warningsSection" class="hidden mt-6">
+                <!-- Dynamic warnings will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Reassignment Modal -->
+<el-dialog>
+    <dialog id="reassignmentModal" aria-labelledby="reassignment-title" class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+        <el-dialog-backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"></el-dialog-backdrop>
+        <div tabindex="0" class="flex min-h-full items-end justify-center p-4 text-center focus:outline-none sm:items-center sm:p-0">
+            <el-dialog-panel class="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all data-closed:translate-y-4 data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in sm:my-8 sm:w-full sm:max-w-lg sm:p-6 data-closed:sm:translate-y-0 data-closed:sm:scale-95">
+
+                <form id="reassignmentForm">
+                    <div>
+                        <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-blue-100">
+                            <svg class="size-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-5">
+                            <h3 id="reassignment-title" class="text-base font-semibold text-gray-900">Request Session Change</h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500">Select a new session for <span id="selectedDay">Saturday</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 space-y-4">
+                        <!-- Current Session Display -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Current Session</label>
+                            <p id="currentSession" class="mt-1 text-sm text-gray-900 bg-gray-50 p-2 rounded">-</p>
+                        </div>
+
+                        <!-- Available Sessions -->
+                        <div>
+                            <label for="requestedSession" class="block text-sm font-medium text-gray-700">
+                                New Session <span class="text-red-500">*</span>
+                            </label>
+                            <select id="requestedSession" name="requested_session_id" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="">Select a session...</option>
+                            </select>
+                        </div>
+
+                        <!-- Reason -->
+                        <div>
+                            <label for="reassignmentReason" class="block text-sm font-medium text-gray-700">
+                                Reason for Change <span class="text-red-500">*</span>
+                            </label>
+                            <textarea id="reassignmentReason" name="reason" rows="3" required
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                      placeholder="Please explain why you need to change sessions..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
+                        <button type="submit" id="submitReassignment"
+                                class="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:col-start-2">
+                            <span class="submit-text">Submit Request</span>
+                            <span class="submit-loading hidden">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Submitting...
+                            </span>
+                        </button>
+                        <button type="button" command="close" commandfor="reassignmentModal"
+                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring-1 inset-ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </el-dialog-panel>
+        </div>
+    </dialog>
+</el-dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Dashboard data and state
+let dashboardData = null;
+let currentDay = null;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    initializeEventListeners();
+});
+
+// Event listeners
+function initializeEventListeners() {
+    // Profile photo upload
+    document.getElementById('photoUpload').addEventListener('change', handlePhotoUpload);
+    document.getElementById('changePhotoBtn')?.addEventListener('click', () => {
+        document.getElementById('photoUpload').click();
+    });
+    document.getElementById('deletePhotoBtn')?.addEventListener('click', deleteProfilePhoto);
+
+    // QR code actions
+    document.getElementById('generateQRBtn')?.addEventListener('click', generateQRCode);
+    document.getElementById('regenerateQRBtn')?.addEventListener('click', regenerateQRCode);
+    document.getElementById('downloadQRBtn')?.addEventListener('click', downloadQRCode);
+
+    // Reassignment modal
+    document.querySelectorAll('[command="show-modal"][commandfor="reassignmentModal"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            currentDay = e.currentTarget.dataset.day;
+            openReassignmentModal(currentDay);
+        });
+    });
+
+    // Reassignment form
+    document.getElementById('reassignmentForm').addEventListener('submit', submitReassignmentRequest);
+
+    // Student rep check-in assist
+    document.getElementById('checkInAssistBtn')?.addEventListener('click', openCheckInAssist);
+}
+
+// Load dashboard data
+async function loadDashboardData() {
+    try {
+        const response = await fetchWithCSRF('/portal/api/dashboard/data');
+        const data = await response.json();
+
+        if (data.success) {
+            dashboardData = data;
+            populateDashboard(data);
+            loadQRCodeStatus();
+        } else {
+            showAlert('Error loading dashboard: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Dashboard load error:', error);
+        showAlert('Failed to load dashboard data', 'error');
+    } finally {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('dashboardContent').classList.remove('hidden');
+    }
+}
+
+// Populate dashboard with data
+function populateDashboard(data) {
+    const participant = data.participant;
+    const sessions = data.sessions;
+    const stats = data.attendance?.statistics;
+
+    // Profile information
+    document.getElementById('studentId').textContent = participant.unique_id;
+    document.getElementById('fullName').textContent = participant.full_name;
+    document.getElementById('email').textContent = participant.email;
+    document.getElementById('classroom').textContent = participant.classroom_name;
+    document.getElementById('saturdaySession').textContent = sessions.saturday?.time_slot || 'Not assigned';
+    document.getElementById('sundaySession').textContent = sessions.sunday?.time_slot || 'Not assigned';
+
+    // Profile photo
+    if (participant.profile_photo_url) {
+        showProfilePhoto(participant.profile_photo_url);
+    } else {
+        showProfilePhotoEmpty();
+    }
+
+    // Quick stats
+    if (stats) {
+        document.getElementById('attendanceRate').textContent = stats.attendance_rate + '%';
+        document.getElementById('totalSessions').textContent = stats.total_sessions_attended;
+        document.getElementById('missedSessions').textContent = stats.consecutive_missed_sessions;
+        document.getElementById('quickStats').classList.remove('hidden');
+    }
+
+    // Show warnings if any
+    if (data.warnings && data.warnings.length > 0) {
+        showWarnings(data.warnings);
+    }
+}
+
+// Profile photo functions
+function showProfilePhoto(photoUrl) {
+    document.getElementById('profilePhotoImg').src = photoUrl;
+    document.getElementById('profilePhotoDisplay').classList.remove('hidden');
+    document.getElementById('profilePhotoEmpty').classList.add('hidden');
+}
+
+function showProfilePhotoEmpty() {
+    document.getElementById('profilePhotoDisplay').classList.add('hidden');
+    document.getElementById('profilePhotoEmpty').classList.remove('hidden');
+}
+
+async function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+        const response = await fetchWithCSRF('/portal/api/profile/photo/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Profile photo uploaded successfully', 'success');
+            showProfilePhoto(data.photo_url);
+        } else {
+            showAlert('Upload failed: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Photo upload error:', error);
+        showAlert('Failed to upload photo', 'error');
+    }
+
+    // Clear file input
+    event.target.value = '';
+}
+
+async function deleteProfilePhoto() {
+    if (!confirm('Are you sure you want to remove your profile photo?')) return;
+
+    try {
+        const response = await fetchWithCSRF('/portal/api/profile/photo', {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Profile photo removed', 'success');
+            showProfilePhotoEmpty();
+        } else {
+            showAlert('Failed to remove photo: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Photo delete error:', error);
+        showAlert('Failed to remove photo', 'error');
+    }
+}
+
+// QR Code functions
+async function loadQRCodeStatus() {
+    try {
+        const response = await fetchWithCSRF('/portal/api/qr-code/info');
+        const data = await response.json();
+
+        if (data.success && data.qr_url) {
+            showQRCode(data.qr_url);
+        } else {
+            showQRCodeEmpty();
+        }
+    } catch (error) {
+        console.error('QR status error:', error);
+        showQRCodeEmpty();
+    }
+}
+
+function showQRCode(qrUrl) {
+    document.getElementById('qrCodeImg').src = qrUrl;
+    document.getElementById('qrCodeDisplay').classList.remove('hidden');
+    document.getElementById('qrCodeEmpty').classList.add('hidden');
+}
+
+function showQRCodeEmpty() {
+    document.getElementById('qrCodeDisplay').classList.add('hidden');
+    document.getElementById('qrCodeEmpty').classList.remove('hidden');
+}
+
+async function generateQRCode() {
+    const btn = document.getElementById('generateQRBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetchWithCSRF('/portal/api/qr-code/generate', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('QR code generated successfully', 'success');
+            showQRCode(data.qr_url);
+        } else {
+            showAlert('Failed to generate QR code: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('QR generation error:', error);
+        showAlert('Failed to generate QR code', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function regenerateQRCode() {
+    if (!confirm('Are you sure you want to regenerate your QR code? The old one will no longer work.')) return;
+
+    try {
+        const response = await fetchWithCSRF('/portal/api/qr-code/regenerate', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('QR code regenerated successfully', 'success');
+            showQRCode(data.qr_url);
+        } else {
+            showAlert('Failed to regenerate QR code: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('QR regeneration error:', error);
+        showAlert('Failed to regenerate QR code', 'error');
+    }
+}
+
+function downloadQRCode() {
+    window.open('/portal/api/qr-code/download', '_blank');
+}
+
+// Session reassignment functions
+async function openReassignmentModal(dayType) {
+    document.getElementById('selectedDay').textContent = dayType;
+
+    // Set current session
+    const currentSession = dayType === 'Saturday'
+        ? dashboardData.sessions.saturday?.time_slot || 'Not assigned'
+        : dashboardData.sessions.sunday?.time_slot || 'Not assigned';
+    document.getElementById('currentSession').textContent = currentSession;
+
+    // Load available sessions
+    await loadAvailableSessions(dayType);
+}
+
+async function loadAvailableSessions(dayType) {
+    try {
+        const response = await fetchWithCSRF(`/portal/api/sessions/available/${dayType}`);
+        const data = await response.json();
+
+        const select = document.getElementById('requestedSession');
+        select.innerHTML = '<option value="">Select a session...</option>';
+
+        if (data.success) {
+            data.available_sessions.forEach(session => {
+                const option = document.createElement('option');
+                option.value = session.id;
+                option.textContent = `${session.time_slot} (${session.available_spots} spots available)`;
+                option.disabled = session.is_full;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Load sessions error:', error);
+        showAlert('Failed to load available sessions', 'error');
+    }
+}
+
+async function submitReassignmentRequest(event) {
+    event.preventDefault();
+
+    const submitBtn = document.getElementById('submitReassignment');
+    const submitText = submitBtn.querySelector('.submit-text');
+    const submitLoading = submitBtn.querySelector('.submit-loading');
+
+    submitText.classList.add('hidden');
+    submitLoading.classList.remove('hidden');
+    submitBtn.disabled = true;
+
+    const formData = {
+        day_type: currentDay,
+        requested_session_id: document.getElementById('requestedSession').value,
+        reason: document.getElementById('reassignmentReason').value
+    };
+
+    try {
+        const response = await fetchWithCSRF('/portal/api/reassignment/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('Reassignment request submitted successfully', 'success');
+            document.querySelector('[command="close"][commandfor="reassignmentModal"]').click();
+            document.getElementById('reassignmentForm').reset();
+        } else {
+            showAlert('Request failed: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Reassignment request error:', error);
+        showAlert('Failed to submit request', 'error');
+    } finally {
+        submitText.classList.remove('hidden');
+        submitLoading.classList.add('hidden');
+        submitBtn.disabled = false;
+    }
+}
+
+// Student representative functions
+async function openCheckInAssist() {
+    try {
+        const response = await fetchWithCSRF('/portal/api/representative/check-in-url');
+        const data = await response.json();
+
+        if (data.success) {
+            window.open(data.check_in_url, '_blank');
+        } else {
+            showAlert('Failed to get check-in URL', 'error');
+        }
+    } catch (error) {
+        console.error('Check-in assist error:', error);
+        showAlert('Failed to open check-in assist', 'error');
+    }
+}
+
+// Warning display
+function showWarnings(warnings) {
+    const warningsSection = document.getElementById('warningsSection');
+    let html = '';
+
+    warnings.forEach(warning => {
+        const colorClass = warning.severity === 'danger' ? 'red' : 'yellow';
+        html += `
+            <div class="mb-4 p-4 rounded-md bg-${colorClass}-50 border border-${colorClass}-200">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-${colorClass}-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-${colorClass}-800">${warning.title}</h3>
+                        <p class="text-sm text-${colorClass}-700 mt-1">${warning.message}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    warningsSection.innerHTML = html;
+    warningsSection.classList.remove('hidden');
+}
+</script>
+{% endblock %}
