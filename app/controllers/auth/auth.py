@@ -25,10 +25,12 @@ def is_safe_url(target):
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login route."""
-    # Redirect if already authenticated
-    if current_user.is_authenticated:
-        if current_user.is_staff:
+    """User login route with fixed role detection."""
+    # Check if already authenticated (but allow if coming from logout)
+    logout_flag = request.args.get('logout')
+
+    if current_user.is_authenticated and not logout_flag:
+        if current_user.is_staff():
             return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('participant.dashboard'))
