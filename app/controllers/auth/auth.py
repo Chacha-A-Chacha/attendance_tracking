@@ -73,18 +73,21 @@ def login():
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
-    """User logout route."""
+    """Enhanced user logout route with complete session cleanup."""
     username = current_user.username if current_user.is_authenticated else 'Unknown'
 
-    # Logout user
-    success = AuthService.logout_user_session()
+    success, response = AuthService.logout_user_session()
 
-    if success:
-        flash(f'You have been logged out successfully.', 'info')
+    if success and response:
+        if success:
+            flash(f'You have been logged out successfully.', 'info')
+        else:
+            flash('Logout completed.', 'info')
+        return response
     else:
+        # Fallback if service fails
         flash('Logout failed. Please try again.', 'error')
-
-    return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/password-reset-request', methods=['GET', 'POST'])
