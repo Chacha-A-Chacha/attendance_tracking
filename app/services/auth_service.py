@@ -97,25 +97,79 @@ class AuthService:
     @staticmethod
     def logout_user_session():
         """
-        Logout current user and clear session.
+        Enhanced logout with complete session and cookie cleanup.
 
         Returns:
-            bool: True if logout successful
+            tuple: (success: bool, response: Response|None)
         """
+        from flask import make_response, redirect, url_for
+
         logger = logging.getLogger('auth_service')
 
         try:
             if current_user.is_authenticated:
                 username = current_user.username
-                logout_user()
-                session.clear()
-                logger.info(f"User logged out: {username}")
 
-            return True
+                # Step 1: Call Flask-Login's logout_user first
+                logout_user()
+
+                # Step 2: Clear session data selectively (preserve Flask-Login markers)
+                keys_to_remove = [k for k in session.keys() if not k.startswith('_')]
+                for key in keys_to_remove:
+                    session.pop(key, None)
+
+                # Step 3: Create response with redirect
+                response = make_response(redirect(url_for('auth.login')))
+
+                # Step 4: Manually delete authentication cookies
+                cookie_names = [
+                    'session',
+                    'remember_token',
+                    current_app.config.get('REMEMBER_COOKIE_NAME', 'remember_token'),
+                    current_app.config.get('SESSION_COOKIE_NAME', 'session')
+                ]
+
+                for cookie_name in cookie_names:
+                    # Delete cookie with various domain configurations
+                    response.set_cookie(
+                        cookie_name,
+                        '',
+                        expires=0,
+                        max_age=0,
+                        path='/',
+                        domain=current_app.config.get('SESSION_COOKIE_DOMAIN'),
+                        secure=current_app.config.get('SESSION_COOKIE_SECURE', True),
+                        httponly=True,
+                        samesite=current_app.config.get('SESSION_COOKIE_SAMESITE', 'Lax')
+                    )
+
+                    # Also delete without domain for broader compatibility
+                    response.set_cookie(
+                        cookie_name,
+                        '',
+                        expires=0,
+                        max_age=0,
+                        path='/',
+                        secure=current_app.config.get('SESSION_COOKIE_SECURE', True),
+                        httponly=True
+                    )
+
+                logger.info(f"User logged out successfully: {username}")
+                return True, response
+
+            else:
+                # User not authenticated, just redirect
+                response = make_response(redirect(url_for('auth.login')))
+                return True, response
 
         except Exception as e:
             logger.error(f"Logout error: {str(e)}", exc_info=True)
-            return False
+            # Create fallback response
+            try:
+                response = make_response(redirect(url_for('auth.login')))
+                return False, response
+            except:
+                return False, None
 
     @staticmethod
     def initiate_password_reset(email_or_username):

@@ -133,5 +133,20 @@
     "sent_time": "2025-08-14T08:53:10.664444",
     "error": null,
     "priority": 0
+  },
+  "approved_APP202500001_1757968565": {
+    "task_id": "approved_APP202500001_1757968565",
+    "recipient": "calex.chacha@outlook.com",
+    "subject": "\ud83c\udf89 Enrollment approved - Welcome to Programming Course!",
+    "group_id": "enrollment_approved",
+    "batch_id": "approved_2fbe68f6-bc59-418f-961a-3456f89625f5",
+    "status": "sent",
+    "attempts": 1,
+    "max_attempts": 3,
+    "timestamp": "2025-09-15T23:36:05.228915",
+    "last_attempt": "2025-09-15T23:36:05.229916",
+    "sent_time": "2025-09-15T23:36:07.544263",
+    "error": null,
+    "priority": 0
   }
 }
