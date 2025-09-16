@@ -221,6 +221,16 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = os.environ.get('SQL_DEBUG', 'false').lower() == 'true'
 
+    # Relaxed session settings for development
+    SESSION_COOKIE_SECURE = False  # Allow HTTP in development
+    REMEMBER_COOKIE_SECURE = False
+
+    # Shorter timeouts for testing
+    SESSION_TIMEOUT_ADMIN = 60  # 1 hour
+    SESSION_TIMEOUT_STAFF = 30  # 30 minutes
+    SESSION_TIMEOUT_STUDENT = 15  # 15 minutes
+    SESSION_TIMEOUT_DEFAULT = 10  # 10 minutes
+
 
 class ProductionConfig(Config):
     """Production configuration."""
