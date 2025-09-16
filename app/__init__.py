@@ -89,7 +89,7 @@ def register_blueprints(app):
         app.register_blueprint(admin_bp, url_prefix='/admin')
         app.register_blueprint(check_in_bp, url_prefix='/check-in')
         app.register_blueprint(enrollment_bp)
-        app.register_blueprint(participant_portal_bp, url_prefix='/v2/participant')
+        app.register_blueprint(participant_portal_bp, url_prefix='/portal')
         app.register_blueprint(api_bp)
         app.register_blueprint(email_bp, url_prefix='/email')
 

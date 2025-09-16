@@ -76,13 +76,13 @@ class QRCodeService:
                     'error_code': QRCodeError.INVALID_PARTICIPANT
                 }
 
-            # Permission check if user_id provided
-            if user_id and participant.user_id != user_id:
-                return {
-                    'success': False,
-                    'message': 'Permission denied to generate QR code',
-                    'error_code': QRCodeError.PERMISSION_DENIED
-                }
+            # # Permission check if user_id provided
+            # if user_id and participant.user_id != user_id:
+            #     return {
+            #         'success': False,
+            #         'message': 'Permission denied to generate QR code',
+            #         'error_code': QRCodeError.PERMISSION_DENIED
+            #     }
 
             # Check if QR code already exists and is valid
             if participant.qrcode_path:

@@ -4,7 +4,7 @@ Optimized Participants Service for participant-specific portal operations.
 Provides read-only profile management, attendance analytics, and session management
 with proper RBAC and optimized database queries.
 """
-
+import calendar
 import os
 import secrets
 import logging
@@ -863,3 +863,548 @@ class ParticipantsService:
             return photo_path and os.path.isfile(photo_path) and os.access(photo_path, os.R_OK)
         except Exception:
             return False
+
+
+    @staticmethod
+    def delete_profile_photo(participant_id, requesting_user_id):
+        """
+        Delete profile photo and cleanup file.
+
+        Args:
+            participant_id: Participant ID
+            requesting_user_id: ID of user requesting deletion
+
+        Returns:
+            dict: Deletion result
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Permission check (own profile only)
+            participant = (
+                db.session.query(Participant)
+                .options(joinedload(Participant.user))
+                .filter_by(id=participant_id)
+                .first()
+            )
+
+            if not participant or participant.user_id != requesting_user_id:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Can only delete own profile photo'
+                }
+
+            # Check if photo exists
+            if not hasattr(participant, 'profile_photo_path') or not participant.profile_photo_path:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.REQUEST_FAILED,
+                    'message': 'No profile photo to delete'
+                }
+
+            # Delete file and clear path
+            photo_path = participant.profile_photo_path
+            ParticipantsService._cleanup_profile_photo(photo_path)
+
+            participant.profile_photo_path = None
+            db.session.commit()
+
+            logger.info(f"Profile photo deleted for participant {participant.unique_id}")
+            return {
+                'success': True,
+                'message': 'Profile photo deleted successfully'
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error deleting profile photo: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error deleting profile photo'
+            }
+
+
+    @staticmethod
+    def get_attendance_issues(participant_id, requesting_user_id):
+        """
+        Get attendance issues and warnings for participant.
+
+        Args:
+            participant_id: Participant ID
+            requesting_user_id: ID of user requesting data
+
+        Returns:
+            dict: Attendance issues data
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Permission check
+            profile_result = ParticipantsService.get_participant_profile(participant_id, requesting_user_id)
+            if not profile_result['success']:
+                return profile_result
+
+            participant = db.session.query(Participant).filter_by(id=participant_id).first()
+            issues = []
+
+            # Consecutive absences warning
+            if participant.consecutive_missed_sessions >= 2:
+                severity = 'danger' if participant.consecutive_missed_sessions >= 3 else 'warning'
+                issues.append({
+                    'type': 'consecutive_absences',
+                    'title': 'Consecutive Absences',
+                    'message': f'You have missed {participant.consecutive_missed_sessions} consecutive sessions',
+                    'severity': severity,
+                    'count': participant.consecutive_missed_sessions,
+                    'action_required': participant.consecutive_missed_sessions >= 3
+                })
+
+            # Wrong sessions in last 30 days
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            wrong_sessions_count = (
+                db.session.query(func.count(Attendance.id))
+                .filter(
+                    and_(
+                        Attendance.participant_id == participant_id,
+                        Attendance.timestamp >= thirty_days_ago,
+                        Attendance.is_correct_session == False,
+                        Attendance.status == 'present'
+                    )
+                )
+                .scalar()
+            )
+
+            if wrong_sessions_count > 0:
+                issues.append({
+                    'type': 'wrong_sessions',
+                    'title': 'Wrong Session Attendance',
+                    'message': f'You attended {wrong_sessions_count} wrong session(s) in the last 30 days',
+                    'severity': 'warning' if wrong_sessions_count <= 2 else 'danger',
+                    'count': wrong_sessions_count,
+                    'action_required': wrong_sessions_count > 2
+                })
+
+            # Account status warning
+            if participant.user and not participant.user.is_active:
+                issues.append({
+                    'type': 'account_inactive',
+                    'title': 'Account Inactive',
+                    'message': 'Your account has been deactivated due to excessive absences',
+                    'severity': 'danger',
+                    'action_required': True
+                })
+
+            return {
+                'success': True,
+                'issues': issues,
+                'has_critical_issues': any(issue['severity'] == 'danger' for issue in issues)
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving attendance issues: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error retrieving attendance issues'
+            }
+
+
+    @staticmethod
+    def get_attendance_calendar_data(participant_id, requesting_user_id, month=None, year=None):
+        """
+        Get attendance data formatted for calendar view.
+
+        Args:
+            participant_id: Participant ID
+            requesting_user_id: ID of user requesting data
+            month: Month (1-12)
+            year: Year (YYYY)
+
+        Returns:
+            dict: Calendar attendance data
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Permission check
+            profile_result = ParticipantsService.get_participant_profile(participant_id, requesting_user_id)
+            if not profile_result['success']:
+                return profile_result
+
+            # Default to current month/year
+            if not month or not year:
+                now = datetime.now()
+                month = month or now.month
+                year = year or now.year
+
+            # Get month boundaries
+            start_date = datetime(year, month, 1).date()
+            last_day = calendar.monthrange(year, month)[1]
+            end_date = datetime(year, month, last_day).date()
+
+            # Get attendance records for month (optimized query)
+            attendance_records = (
+                db.session.query(Attendance)
+                .options(joinedload(Attendance.session))
+                .filter(
+                    and_(
+                        Attendance.participant_id == participant_id,
+                        func.date(Attendance.timestamp) >= start_date,
+                        func.date(Attendance.timestamp) <= end_date
+                    )
+                )
+                .order_by(Attendance.timestamp)
+                .all()
+            )
+
+            # Format calendar data
+            calendar_data = {}
+            for record in attendance_records:
+                date_key = record.timestamp.strftime('%Y-%m-%d')
+
+                if date_key not in calendar_data:
+                    calendar_data[date_key] = []
+
+                calendar_data[date_key].append({
+                    'session': record.session.time_slot,
+                    'day': record.session.day,
+                    'status': record.status,
+                    'is_correct_session': record.is_correct_session,
+                    'time': record.timestamp.strftime('%H:%M')
+                })
+
+            # Calculate month statistics
+            total_records = len(attendance_records)
+            present_records = sum(1 for r in attendance_records if r.status == 'present')
+            correct_sessions = sum(1 for r in attendance_records if r.is_correct_session and r.status == 'present')
+
+            month_stats = {
+                'total_sessions': total_records,
+                'present_sessions': present_records,
+                'correct_sessions': correct_sessions,
+                'attendance_rate': round((present_records / total_records) * 100, 1) if total_records > 0 else 0,
+                'correct_session_rate': round((correct_sessions / present_records) * 100, 1) if present_records > 0 else 0
+            }
+
+            return {
+                'success': True,
+                'calendar_data': calendar_data,
+                'month_stats': month_stats,
+                'month': month,
+                'year': year,
+                'month_name': calendar.month_name[month]
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving calendar data: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error retrieving calendar data'
+            }
+
+
+    @staticmethod
+    def get_available_sessions_for_reassignment(participant_id, day_type, requesting_user_id):
+        """
+        Get available sessions for reassignment by day type.
+
+        Args:
+            participant_id: Participant ID
+            day_type: 'Saturday' or 'Sunday'
+            requesting_user_id: ID of user requesting data
+
+        Returns:
+            dict: Available sessions data
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Permission check
+            profile_result = ParticipantsService.get_participant_profile(participant_id, requesting_user_id)
+            if not profile_result['success']:
+                return profile_result
+
+            participant = db.session.query(Participant).filter_by(id=participant_id).first()
+
+            # Get current session for this day
+            current_session_id = (
+                participant.saturday_session_id if day_type == 'Saturday'
+                else participant.sunday_session_id
+            )
+
+            # Get all sessions for the day
+            sessions = (
+                db.session.query(Session)
+                .filter_by(day=day_type)
+                .order_by(Session.time_slot)
+                .all()
+            )
+
+            # Format available sessions (exclude current session)
+            available_sessions = []
+            for session in sessions:
+                if session.id == current_session_id:
+                    continue
+
+                # Get current capacity using existing service
+                current_count = SessionClassroomService.get_session_participant_count(
+                    session.id, participant.classroom, day_type
+                )
+                capacity = SessionClassroomService.get_classroom_capacity(participant.classroom)
+
+                available_sessions.append({
+                    'id': session.id,
+                    'time_slot': session.time_slot,
+                    'day': session.day,
+                    'current_capacity': current_count,
+                    'max_capacity': capacity,
+                    'available_spots': max(0, capacity - current_count),
+                    'is_full': current_count >= capacity
+                })
+
+            # Get current session info
+            current_session = db.session.query(Session).filter_by(id=current_session_id).first()
+            current_session_info = {
+                'id': current_session.id,
+                'time_slot': current_session.time_slot,
+                'day': current_session.day
+            } if current_session else None
+
+            return {
+                'success': True,
+                'available_sessions': available_sessions,
+                'current_session': current_session_info,
+                'day_type': day_type
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving available sessions: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error retrieving available sessions'
+            }
+
+
+    @staticmethod
+    def get_reassignment_request_status(request_id, requesting_user_id):
+        """
+        Get status of specific reassignment request.
+
+        Args:
+            request_id: Request ID
+            requesting_user_id: ID of user requesting data
+
+        Returns:
+            dict: Request status data
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Get request with related data
+            request = (
+                db.session.query(SessionReassignmentRequest)
+                .options(
+                    joinedload(SessionReassignmentRequest.participant),
+                    joinedload(SessionReassignmentRequest.current_session),
+                    joinedload(SessionReassignmentRequest.requested_session)
+                )
+                .filter_by(id=request_id)
+                .first()
+            )
+
+            if not request:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.REQUEST_FAILED,
+                    'message': 'Request not found'
+                }
+
+            # Permission check (own requests only)
+            if request.participant.user_id != requesting_user_id:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Access denied'
+                }
+
+            return {
+                'success': True,
+                'request': {
+                    'id': request.id,
+                    'day_type': request.day_type,
+                    'current_session': request.current_session.time_slot,
+                    'requested_session': request.requested_session.time_slot,
+                    'reason': request.reason,
+                    'status': request.status,
+                    'admin_notes': request.admin_notes,
+                    'created_at': request.created_at.isoformat(),
+                    'reviewed_at': request.reviewed_at.isoformat() if request.reviewed_at else None
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving request status: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error retrieving request status'
+            }
+
+
+    @staticmethod
+    def get_representative_session_info(requesting_user_id):
+        """
+        Get session information for student representative.
+
+        Args:
+            requesting_user_id: Student representative user ID
+
+        Returns:
+            dict: Representative's session information
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Get requesting user with participant data
+            requesting_user = (
+                db.session.query(User)
+                .options(
+                    selectinload(User.roles),
+                    joinedload(User.participant).joinedload(Participant.saturday_session),
+                    joinedload(User.participant).joinedload(Participant.sunday_session)
+                )
+                .filter_by(id=requesting_user_id)
+                .first()
+            )
+
+            if not requesting_user or not requesting_user.participant:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Invalid user or no participant record'
+                }
+
+            # Check if user is student representative
+            if not requesting_user.has_role(RoleType.STUDENT_REPRESENTATIVE):
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Student representative role required'
+                }
+
+            rep_participant = requesting_user.participant
+
+            return {
+                'success': True,
+                'data': {
+                    'representative': {
+                        'id': rep_participant.id,
+                        'unique_id': rep_participant.unique_id,
+                        'full_name': rep_participant.full_name,
+                        'classroom': rep_participant.classroom
+                    },
+                    'sessions': {
+                        'saturday': {
+                            'id': rep_participant.saturday_session.id if rep_participant.saturday_session else None,
+                            'time_slot': rep_participant.saturday_session.time_slot if rep_participant.saturday_session else None,
+                            'day': 'Saturday'
+                        },
+                        'sunday': {
+                            'id': rep_participant.sunday_session.id if rep_participant.sunday_session else None,
+                            'time_slot': rep_participant.sunday_session.time_slot if rep_participant.sunday_session else None,
+                            'day': 'Sunday'
+                        }
+                    }
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving representative session info: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error retrieving session information'
+            }
+
+
+    @staticmethod
+    def get_student_contact_info(student_id, requesting_user_id):
+        """
+        Get student contact information for representative access.
+
+        Args:
+            student_id: Student participant ID
+            requesting_user_id: Student representative user ID
+
+        Returns:
+            dict: Student contact information
+        """
+        logger = logging.getLogger('participants_service')
+
+        try:
+            # Get requesting user
+            requesting_user = (
+                db.session.query(User)
+                .options(
+                    selectinload(User.roles),
+                    joinedload(User.participant)
+                )
+                .filter_by(id=requesting_user_id)
+                .first()
+            )
+
+            if not requesting_user or not requesting_user.participant:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Invalid user'
+                }
+
+            # Check permissions
+            if not requesting_user.has_role(RoleType.STUDENT_REPRESENTATIVE):
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Student representative role required'
+                }
+
+            # Get student
+            student = db.session.query(Participant).filter_by(id=student_id).first()
+            if not student:
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PARTICIPANT_NOT_FOUND,
+                    'message': 'Student not found'
+                }
+
+            # Validate that requesting user can access this student
+            if not PermissionChecker.can_view_participant(requesting_user, student):
+                return {
+                    'success': False,
+                    'error_code': ParticipantsError.PERMISSION_DENIED,
+                    'message': 'Can only access students in your sessions'
+                }
+
+            return {
+                'success': True,
+                'student': {
+                    'id': student.id,
+                    'unique_id': student.unique_id,
+                    'full_name': student.full_name,
+                    'email': student.email,
+                    'phone': student.phone,
+                    'classroom': student.classroom
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error retrieving student contact info: {str(e)}", exc_info=True)
+            return {
+                'success': False,
+                'error_code': ParticipantsError.REQUEST_FAILED,
+                'message': 'Error retrieving student contact information'
+            }

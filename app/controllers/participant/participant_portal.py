@@ -4,8 +4,8 @@ Participant Portal Routes - AJAX-optimized with proper data structures.
 """
 
 import os
-from flask import Blueprint, render_template, request, jsonify, current_user, send_file, flash, redirect, url_for
-from flask_login import login_required
+from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for
+from flask_login import login_required, current_user
 from werkzeug.exceptions import NotFound
 
 from app.services.participants_service import ParticipantsService

@@ -33,7 +33,7 @@ def login():
         if current_user.is_staff():
             return redirect(url_for('admin.dashboard'))
         else:
-            return redirect(url_for('participant.dashboard'))
+            return redirect(url_for('participant_portal.dashboard'))
 
     form = LoginForm()
 
@@ -65,7 +65,7 @@ def login():
             if user.is_staff():
                 return redirect(url_for('admin.dashboard'))
             else:
-                return redirect(url_for('participant.dashboard'))
+                return redirect(url_for('participant_portal.dashboard'))
         else:
             flash(message, 'error')
 
