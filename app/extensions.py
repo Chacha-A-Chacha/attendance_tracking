@@ -162,47 +162,58 @@ def check_database_health():
 
 def init_extensions(app):
     """
-    Initialize all extensions with the Flask app.
-    This must be called in the application factory.
+    Initialize all extensions with proper order and configuration.
 
     Args:
         app: Flask application instance
     """
-    # Initialize extensions with app
+    # Step 1: Initialize database first (required by other extensions)
     db.init_app(app)
     migrate.init_app(app, db)
-    csrf.init_app(app)
-    login_manager.init_app(app)
-    email_service.init_app(app)
 
-    # Configure login manager
+    # Step 2: Initialize Flask-Login (requires SECRET_KEY from config)
+    login_manager.init_app(app)
+
+    # Step 3: Configure Flask-Login settings
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
+    login_manager.session_protection = 'basic'  # More reliable than 'strong'
 
-    # Add connection retry for MySQL if using MySQL
-    if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith('mysql'):
-        # Initialize database connection retry mechanism
-        with app.app_context():
-            add_connection_retry(db.engine,
-                                 retries=app.config.get('DB_CONNECTION_RETRIES', 3),
-                                 delay=app.config.get('DB_RETRY_DELAY', 2))
+    # Step 4: Initialize CSRF protection (after login manager)
+    csrf.init_app(app)
 
-            # Log connection info
+    # Step 5: Initialize email service
+    email_service.init_app(app)
+
+    # Step 6: Set up database connection retry for MySQL (requires db)
+    with app.app_context():
+        if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI'].startswith('mysql'):
+            add_connection_retry(
+                db.engine,
+                retries=app.config.get('DB_CONNECTION_RETRIES', 3),
+                delay=app.config.get('DB_RETRY_DELAY', 2)
+            )
+
             app.logger.info(f"Initialized MySQL connection with retry mechanism. "
                             f"Retries: {app.config.get('DB_CONNECTION_RETRIES', 3)}, "
                             f"Delay: {app.config.get('DB_RETRY_DELAY', 2)}s")
 
+    # Step 7: Define user_loader callback (requires db and User model)
     @login_manager.user_loader
     def load_user(user_id):
         # Import here to avoid circular imports
         from app.models import User
 
-        try:
-            return User.query.get(user_id)
-        except Exception as e:
-            logger.error(f"Error loading user {user_id}: {e}")
+        # Check database health before querying
+        healthy, message = check_database_health()
+        if not healthy:
+            logger.error(f"Database unhealthy during user load: {message}")
             return None
+
+        return User.query.get(user_id)
+
+    app.logger.info("Extensions initialized successfully in correct order")
 
 
 def validate_email_config(app):
