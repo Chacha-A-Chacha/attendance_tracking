@@ -181,3 +181,4 @@ node_modules/
 .env.backup
 app/utils/data/email_statuses.json
 /app/utils/data
+app/utils/data/email_statuses.json

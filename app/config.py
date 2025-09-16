@@ -12,6 +12,25 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key-here'
     DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
+    # Session timeout settings
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_REFRESH_EACH_REQUEST = True
+
+    # Remember me settings
+    REMEMBER_COOKIE_DURATION = timedelta(days=7)
+    REMEMBER_COOKIE_SECURE = True
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
+
+    # Session timeout for different user roles (in minutes)
+    SESSION_TIMEOUT_ADMIN = 480  # 8 hours
+    SESSION_TIMEOUT_STAFF = 240  # 4 hours
+    SESSION_TIMEOUT_STUDENT = 120  # 2 hours
+    SESSION_TIMEOUT_DEFAULT = 60  # 1 hour
+
     # MySQL connection timeouts
     MYSQL_CONNECT_TIMEOUT = 30
     MYSQL_READ_TIMEOUT = 30
